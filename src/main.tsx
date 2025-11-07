@@ -1,10 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import { ProductDetail } from './sections/product_detail/ProductDetailScreen.tsx'
+import { ProductDetailScreen } from './sections/product_detail/ProductDetailScreen.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ProductDetail />
+    <ProductDetailScreen />
   </StrictMode>,
 )
