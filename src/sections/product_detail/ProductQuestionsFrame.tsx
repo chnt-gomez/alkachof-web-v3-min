@@ -1,4 +1,4 @@
-import React from 'react';
+import { Button } from '@/components/ui/button';
 
 const mockQuestions = [
     {
@@ -20,8 +20,8 @@ const mockQuestions = [
 
 export const ProductQuestionsFrame = () => {
     return (
-        <div className="p-4 mt-4">
-            <h3>
+        <div className="mt-4">
+            <h3 className="px-4">
                 Preguntas de los usuarios
             </h3>
 
@@ -29,7 +29,7 @@ export const ProductQuestionsFrame = () => {
             <div className="space-y-4 mt-3">
                 {mockQuestions.map((item) => (
                     // This div could be its own future component (QuestionAnswerItem)
-                    <div key={item.id}>
+                    <div key={item.id} className="space-y-4 mt-3 px-4">
                         {/* Question structure */}
                         <p className="font-semibold">
                             "{item.question}"
@@ -44,9 +44,16 @@ export const ProductQuestionsFrame = () => {
             </div>
 
             {/* Full-width button for asking a question */}
-            <button className="w-full mt-6 py-2">
-                Ask a new question
-            </button>
+           <div className="w-full mt-6 py-2 px-4">
+                <Button 
+                    // flex-1 for layout (takes up equal space)
+                    className="w-full" 
+                    variant="secondary" // Primary color button (e.g., blue or indigo)
+                    size="lg" // Larger padding/height for mobile readability
+                >
+                    Haz una pregunta
+                </Button>
+            </div>
         </div>
     )
 }

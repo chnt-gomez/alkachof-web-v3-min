@@ -1,5 +1,3 @@
-import React from 'react';
-
 const mockRelatedProducts = [
     { id: 101, alt: "Black leather pumps", src: "path/to/pump-thumb.jpg" },
     { id: 102, alt: "Silver stiletto sandals", src: "path/to/sandal-thumb.jpg" },
