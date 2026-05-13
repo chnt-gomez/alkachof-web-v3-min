@@ -48,3 +48,42 @@ CSS custom properties are defined in `src/index.css` using Tailwind v4's `@theme
 ### Path alias
 
 `@/` maps to `src/` (configured in both `vite.config.ts` and `tsconfig.app.json`).
+
+### Language
+
+All text **visible to the end user** (labels, messages, placeholders, tooltips, error strings rendered in the UI) must be written in **Spanish**. The target audience is Latin American users. Use `es-MX` locale for formatting (e.g. currency).
+
+Everything developer-facing stays in English: code identifiers, comments, variable names, file names, test descriptions, and log messages.
+
+### Testing
+
+**Stack:** Vitest + React Testing Library + jsdom. Setup file at `src/test/setup.ts` (imports `@testing-library/jest-dom`).
+
+**Commands:**
+```bash
+npm test          # single run
+npm run test:watch  # watch mode
+```
+
+**File location:** co-locate tests inside the section under `__tests__/`:
+```
+sections/<name>/
+└── __tests__/
+    └── <Name>Page.test.tsx
+```
+
+**Strategy:** Test at the page level by rendering `<NamePage>` inside a `MemoryRouter`. Mock action modules with `vi.mock` — never mock the context or individual components. Assert on DOM output (text, roles), not component internals.
+
+**Do not test** presentational components in isolation — the page-level integration test covers their output.
+
+**Test descriptions** stay in English (developer-facing).
+
+### Test data.
+Data has been seeded for testing the UI
+Public Catalog available ids: 6a0365fdf74fdcb617a8a5b6, 6a0365fdf74fdcb617a8a5c3, 6a0365fdf74fdcb617a8a5d0
+
+Users/Passwords:    user@admin.com / admin
+                    user2@admin.com / admin 
+                    user3@admin.com / admin
+
+
