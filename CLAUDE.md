@@ -26,7 +26,11 @@ Small-screen-first e-commerce platform. All UI targets phone resolutions — no 
 
 All routes are registered in `src/router/AppRouter.tsx`. Adding a section = create the folder + register one `<Route>` there.
 
-Current routes: `/` → `HomePage`, `/catalog` → `CatalogPage`, `/product/:id` → `ProductPage`.
+Current routes:
+- `/` → `HomePage`
+- `/catalog` → `CatalogPage`
+- `/product/:id` → `ProductPage`
+- `/public/catalog/:catalogId` → `PublicCatalogPage`
 
 ### Sections pattern
 
@@ -77,6 +81,40 @@ sections/<name>/
 **Do not test** presentational components in isolation — the page-level integration test covers their output.
 
 **Test descriptions** stay in English (developer-facing).
+
+### Component locations
+
+Key components and their file paths for quick reference:
+
+| Component | Path |
+|-----------|------|
+| `PublicCatalogPage` | `src/sections/publicCatalog/PublicCatalogPage.tsx` |
+| `CatalogJumbotron` | `src/sections/publicCatalog/components/CatalogJumbotron.tsx` |
+| `CatalogItemList` | `src/sections/publicCatalog/components/CatalogItemList.tsx` |
+| `ProductDetailDialog` | `src/sections/publicCatalog/components/ProductDetailDialog.tsx` |
+| `PublicCatalogContext` | `src/sections/publicCatalog/context/PublicCatalogContext.tsx` |
+| UI primitives | `src/components/ui/` (`button.tsx`, `card.tsx`) |
+
+## Golden rules
+
+### Image display
+
+Images are the primary marketing channel for sellers. Violating these rules degrades the product.
+
+- **Never use `object-cover`** on product images — it crops content.
+- **Never apply a fixed height** to an image container — it forces blank space or cropping when the aspect ratio doesn't match.
+- **Always use `object-contain` + `w-full`** so the image scales to fit its column width while preserving its natural aspect ratio and expanding the container vertically.
+- For dialogs showing enlarged product images: cap the dialog at `max-h-[90vh]` with `overflow-y-auto` so very tall images remain scrollable without overflowing the viewport.
+
+### Product grid layout
+
+Use a **CSS `columns-2`** masonry layout (not `grid grid-cols-2`) for product lists. This stacks items down each column so cards with different image heights never leave trailing blank cells.
+
+```tsx
+<ul className="columns-2 gap-3">
+  <li className="mb-3 break-inside-avoid"> … </li>
+</ul>
+```
 
 ### Test data.
 Data has been seeded for testing the UI

@@ -1,5 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState } from 'react'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
+import { ProductDetailDialog } from './ProductDetailDialog'
+import type { Item } from '../actions/fetchCatalogItems'
 
 function formatPrice(cents: number) {
   return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
@@ -7,49 +9,52 @@ function formatPrice(cents: number) {
 
 export function CatalogItemList() {
   const { items } = usePublicCatalog()
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
 
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">Sin productos aún.</p>
   }
 
   return (
-    <ul className="flex flex-col gap-4">
-      {items.map((item) => (
-        <li key={item._id}>
-          <Card>
-            {item.imgPath && (
-              <img
-                src={item.imgPath}
-                alt={item.name}
-                className="h-40 w-full rounded-t-md object-cover"
-              />
-            )}
-            <CardHeader>
-              <CardTitle className="text-base">{item.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-1">
-              {item.description && (
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-              )}
-              <p className="font-medium">{formatPrice(item.price)}</p>
-              {item.stock > 0 ? (
-                <p className="text-xs text-muted-foreground">{item.stock} disponibles</p>
+    <>
+      <ul className="columns-2 gap-3">
+        {items.map((item) => (
+          <li key={item._id} className="mb-3 break-inside-avoid">
+            <button
+              className="flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              onClick={() => setSelectedItem(item)}
+            >
+              {item.imgPath ? (
+                <div className="flex w-full items-center justify-center overflow-hidden bg-muted">
+                  <img
+                    src={item.imgPath}
+                    alt={item.name}
+                    className="w-full object-contain"
+                  />
+                </div>
               ) : (
-                <p className="text-xs text-destructive">Sin existencias</p>
-              )}
-              {item.sizes.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {item.sizes.map((s) => (
-                    <span key={s} className="rounded border px-1.5 py-0.5 text-xs">
-                      {s}
-                    </span>
-                  ))}
+                <div className="flex h-24 w-full items-center justify-center bg-muted text-muted-foreground text-xs">
+                  Sin imagen
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </li>
-      ))}
-    </ul>
+              <div className="flex flex-col gap-0.5 p-2">
+                <p className="line-clamp-2 text-xs font-large leading-tight">{item.name}</p>
+                <p className="text-xs font-semibold text-primary">{formatPrice(item.price)}</p>
+                {item.stock === 0 && (
+                  <p className="text-xs text-destructive">Sin existencias</p>
+                )}
+              </div>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {selectedItem && (
+        <ProductDetailDialog
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
+    </>
   )
 }
