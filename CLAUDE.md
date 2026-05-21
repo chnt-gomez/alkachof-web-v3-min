@@ -95,6 +95,41 @@ Key components and their file paths for quick reference:
 | `PublicCatalogContext` | `src/sections/publicCatalog/context/PublicCatalogContext.tsx` |
 | UI primitives | `src/components/ui/` (`button.tsx`, `card.tsx`) |
 
+### Development stage
+
+The UI supports a **development stage** that bypasses the backend entirely. This is the default when running `npm run dev`.
+
+**How it works:** `src/lib/stage.ts` exports `IS_DEV_STAGE`, which reads the `VITE_DEV_STAGE` env var. When `true`, every action returns mock data instead of making HTTP calls. `.env.development` sets `VITE_DEV_STAGE=true`, so the dev server always runs in dev stage automatically.
+
+**Mock structure:**
+
+```
+src/mocks/
+├── index.ts                        # re-exports all mock generators
+├── random.ts                       # shared helpers: pick(), randomInt(), randomId()
+├── mock<ActionName>.ts             # one file per action
+└── ...
+```
+
+**Rules for every new action:**
+
+1. **Every action that makes an HTTP call must have a paired mock generator** in `src/mocks/mock<ActionName>.ts`.
+2. **The mock must import and return the same type** as the real action — never redefine the type.
+3. **Branch at the top of the action function** with a two-line guard:
+   ```ts
+   import { IS_DEV_STAGE } from '@/lib/stage'
+   import { mockFetchMyThing } from '@/mocks'
+
+   export async function fetchMyThing(id: string): Promise<MyThing> {
+     if (IS_DEV_STAGE) return mockFetchMyThing(id)
+     // ... real fetch
+   }
+   ```
+4. **Mock generators return `Promise.resolve(data)` — no `setTimeout`, no real server, no network.** Data is created inline using helpers from `random.ts`.
+5. **User-visible strings in mocks must be in Spanish (es-MX)** — names, descriptions, locations, etc. Identifiers and file names stay in English.
+6. **Re-export the new mock from `src/mocks/index.ts`** so callers import from `@/mocks` only.
+7. **Tests are not affected.** Tests `vi.mock` the action module directly, which replaces it entirely before the `IS_DEV_STAGE` branch is ever reached. Never change tests to accommodate mock files.
+
 ## Golden rules
 
 ### Image display
