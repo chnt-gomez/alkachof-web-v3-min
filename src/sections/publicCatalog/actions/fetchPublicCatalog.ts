@@ -1,3 +1,6 @@
+import { IS_DEV_STAGE } from '@/lib/stage'
+import { mockFetchPublicCatalog } from '@/mocks'
+
 const BASE_URL = 'http://localhost:3001'
 
 export type Catalog = {
@@ -15,6 +18,7 @@ export type Catalog = {
 }
 
 export async function fetchPublicCatalog(catalogId: string): Promise<Catalog> {
+  if (IS_DEV_STAGE) return mockFetchPublicCatalog(catalogId)
   const res = await fetch(`${BASE_URL}/catalog/${catalogId}`)
   if (!res.ok) throw new Error(`Catalog not found (${res.status})`)
   const data = await res.json()

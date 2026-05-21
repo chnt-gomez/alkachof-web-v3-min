@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { PublicCatalogPage } from '../PublicCatalogPage'
@@ -32,7 +33,7 @@ const mockItems: Item[] = [
     description: 'Hecha a mano con lana natural',
     price: 35000,
     stock: 5,
-    imgPath: '',
+    imgPath: 'https://example.com/bolsa.jpg',
     sizes: ['Único'],
     updatedOn: '2024-01-01T00:00:00Z',
     catalogId: 'abc123',
@@ -96,11 +97,20 @@ describe('PublicCatalogPage', () => {
     expect(screen.getByText('Aretes de plata')).toBeInTheDocument()
   })
 
-  it('renders stock availability and out-of-stock states', async () => {
+  it('shows out-of-stock label on item card', async () => {
     renderPage()
 
-    expect(await screen.findByText('5 disponibles')).toBeInTheDocument()
-    expect(screen.getByText('Sin existencias')).toBeInTheDocument()
+    // card list renders "Sin existencias" badge directly for stock=0 items
+    expect(await screen.findByText('Sin existencias')).toBeInTheDocument()
+  })
+
+  it('shows stock count inside product detail dialog', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+
+    expect(screen.getByText('5 disponibles')).toBeInTheDocument()
   })
 
   it('renders empty state when catalog has no items', async () => {
@@ -115,5 +125,59 @@ describe('PublicCatalogPage', () => {
     renderPage()
 
     expect(await screen.findByText('Catalog not found (404)')).toBeInTheDocument()
+  })
+
+  it('renders the subscribe button in the jumbotron', async () => {
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /suscribirme/i })).toBeInTheDocument()
+  })
+
+  it('opens product detail dialog when an item card is clicked', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const card = await screen.findByRole('button', { name: /bolsa tejida/i })
+    await user.click(card)
+
+    // card thumbnail + dialog image both render; description/sizes are dialog-only
+    expect(screen.getAllByRole('img', { name: /bolsa tejida/i })).toHaveLength(2)
+    expect(screen.getByText('Hecha a mano con lana natural')).toBeInTheDocument()
+    expect(screen.getAllByText('$350.00')).toHaveLength(2) // card + dialog
+    expect(screen.getByText('5 disponibles')).toBeInTheDocument()
+    expect(screen.getByText('Único')).toBeInTheDocument()
+  })
+
+  it('closes the product detail dialog when the close button is clicked', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const card = await screen.findByRole('button', { name: /bolsa tejida/i })
+    await user.click(card)
+
+    await user.click(screen.getByRole('button', { name: /cerrar/i }))
+
+    expect(screen.queryByText('Hecha a mano con lana natural')).not.toBeInTheDocument()
+  })
+
+  it('closes the product detail dialog when the backdrop is clicked', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const card = await screen.findByRole('button', { name: /bolsa tejida/i })
+    await user.click(card)
+
+    // click the backdrop (the outermost dialog overlay)
+    await user.click(screen.getByText('Hecha a mano con lana natural').closest('[class*="fixed"]')!)
+
+    expect(screen.queryByText('Hecha a mano con lana natural')).not.toBeInTheDocument()
+  })
+
+  it('renders product images with object-contain to preserve aspect ratio', async () => {
+    renderPage()
+
+    const img = await screen.findByRole('img', { name: /bolsa tejida/i })
+    expect(img).toHaveClass('object-contain')
+    expect(img.className).not.toMatch(/object-cover/)
   })
 })

@@ -1,6 +1,10 @@
-import { Banknote, CreditCard, ArrowLeftRight, CircleEllipsis, MapPin, Truck, Package } from 'lucide-react'
+import { Banknote, CreditCard, ArrowLeftRight, CircleEllipsis, MapPin, Truck, Package, Bell } from 'lucide-react'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
 import type { Catalog } from '../actions/fetchPublicCatalog'
+
+function handleSubscribe() {
+  // placeholder
+}
 
 const PAY_ICONS: Record<Catalog['payOptions'][number], { icon: React.ReactNode; label: string }> = {
   cash:     { icon: <Banknote size={14} />,       label: 'Efectivo' },
@@ -72,6 +76,14 @@ export function CatalogJumbotron() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={handleSubscribe}
+        className="flex items-center gap-2 self-start rounded-full bg-primary-foreground/20 px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/30"
+      >
+        <Bell size={14} />
+        Suscribirme
+      </button>
     </section>
   )
 }
