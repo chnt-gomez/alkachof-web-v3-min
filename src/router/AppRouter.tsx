@@ -9,9 +9,9 @@ export function AppRouter() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/catalog" element={<CatalogPage />} />
+        <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
         <Route path="/product/:id" element={<ProductPage />} />
-        <Route path="/public/catalog/:catalogId" element={<PublicCatalogPage />} />
+        <Route path="/edit/catalog/:catalogId" element={<CatalogPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

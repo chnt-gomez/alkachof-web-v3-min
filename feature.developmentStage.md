@@ -105,3 +105,11 @@ Run these in order and only report success if all pass:
 - Do not introduce a generic "fetcher" abstraction, HOC, or context to centralize the branching. A two-line `if (IS_DEV_STAGE)` per action is the entire pattern.
 - Do not add comments explaining what the code does. The only acceptable comment is a single-line note inside `src/lib/stage.ts` if the env var name is non-obvious.
 - Do not edit `CLAUDE.md`, this design file, or any test.
+
+---
+
+## Drift notes (added 2026-06-11)
+
+- **Step 4 verification URL is stale.** It says load `http://localhost:5173/public/catalog/anything-here`, but the public catalog route was later changed to `/catalog/:catalogId`. Use `http://localhost:5173/catalog/6a0365fdf74fdcb617a8a5b6` (or any string) for dev-stage verification.
+- **Mock scope has grown beyond the original two actions.** `feature.EditCatalogView.md` added `mockFetchEditableCatalog`, `mockUpdateCatalog`, `mockUpdateItem`, `mockCreateItem`. The same two-line `if (IS_DEV_STAGE)` pattern is followed in every new action — keep it that way.
+- **CLAUDE.md now documents the dev-stage rules** under "Development stage" — that section is the canonical reference; this file is the original design record.

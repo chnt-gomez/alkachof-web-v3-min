@@ -10,3 +10,10 @@ The platform allows registered users to submit products and services to offer th
 
 3. Define a simple routing strategy to allow us grow vertically and horizontally
 
+---
+
+## Drift notes (added 2026-06-11)
+
+- **Stack landed:** Vite 6 + React 19 + TypeScript 5.8 + Tailwind v4 (no `tailwind.config.js`; theme tokens in `src/index.css` under `@theme {}`) + React Router v7. Shadcn primitives are hand-written under `src/components/ui/`, not CLI-generated.
+- **Sections pattern is in place** — `src/sections/<name>/{<Name>Page.tsx, components/, hooks/}`. Routes are registered in `src/router/AppRouter.tsx`.
+- **Routing strategy in CLAUDE.md is the source of truth** for current routes. This file captures the original intent only.
