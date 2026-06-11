@@ -1,2 +1,6 @@
 export { mockFetchPublicCatalog } from './mockFetchPublicCatalog'
 export { mockFetchCatalogItems } from './mockFetchCatalogItems'
+export { mockFetchEditableCatalog } from './mockFetchEditableCatalog'
+export { mockUpdateCatalog } from './mockUpdateCatalog'
+export { mockUpdateItem } from './mockUpdateItem'
+export { mockCreateItem } from './mockCreateItem'
