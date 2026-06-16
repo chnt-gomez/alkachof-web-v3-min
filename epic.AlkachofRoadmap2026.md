@@ -40,6 +40,14 @@ The front end needs several changes in order to be pre-production ready. We will
 
 ---
 
+## Live status
+
+- ✅ **Week 1 — Nav shell + auth** — shipped on branch `ALK-1-W1` (commit `e6aab8d`). See the Week 1 section for what landed and the parked follow-ups.
+- ⏳ **Week 2 — Private Catalog (list + create)** — next up.
+- ⏳ Weeks 3–8 — not started.
+
+A consolidated punch list of every parked follow-up lives in the **"Carry-over backlog"** section below the weekly plans. Treat that section as the canonical list of work that must close before MVP ships to production.
+
 ## Planning inputs (locked in)
 
 - **MVP scope (must ship):** auth (sign-up, login, recovery), private catalog view (CRUD), private product view (CRUD), image upload, public catalog view wired to the API.
@@ -92,7 +100,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 1 — Navigation shell + auth (sign-up + login)
+## Week 1 — Navigation shell + auth (sign-up + login) ✅ SHIPPED on `ALK-1-W1`
 
 **Goal:** the whole app lives inside a persistent navigation shell. A new visitor can register, log in, and land on the shell. JWT persists across refreshes.
 
@@ -104,32 +112,55 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - As a logged-in seller, refreshing the page keeps me logged in.
 - As a logged-in seller, I can log out and my token is cleared.
 
-**Acceptance criteria**
+**Acceptance criteria — status**
 
-- A `<NavShell>` wraps all routes. Shows app title, current section, and an auth-aware menu (login/logout).
-- `/login` and `/signup` render shadcn forms with Spanish validation messages.
-- `POST /signup` and `POST /login` store the JWT in `localStorage` and redirect to the logged-in home.
-- `ProtectedRoute` redirects unauthenticated users to `/login`.
-- `AuthContext` exposes `user`, `token`, `login`, `signup`, `logout`.
-- Failed login surfaces a Spanish error toast without revealing which field was wrong.
+- ✅ A `<NavShell>` wraps private routes (`/`, `/product/:id`, `/edit/catalog/:catalogId`); shows app title and auth-aware menu.
+- ✅ `/login` and `/signup` render shadcn forms with Spanish validation messages.
+- ✅ `POST /login` stores `token` + `refreshToken` in `localStorage` under `alk.token` / `alk.refreshToken` and redirects to the page the user came from (or `/`).
+- ⚠️ `POST /signup` does **not** auto-login — the backend returns no token and the user starts with `status: 'pending-registration'`. The UI ends signup on a "Revisa tu correo" screen with a button to `/login`. Acceptance updated to match reality.
+- ✅ `ProtectedRoute` redirects unauthenticated users to `/login` with `state.from` so they bounce back after login.
+- ✅ `AuthContext` exposes `profile`, `isAuthenticated`, `isBooting`, `login`, `signup`, `logout`.
+- ✅ Failed login surfaces a Spanish inline error ("Correo o contraseña incorrectos"). No field-level enumeration.
 
 **API**
 
-- `POST /signup` → `{ token, user }`
-- `POST /login` → `{ token, user }`
-- `POST /refresh` → `{ token }` (used on 401 retry)
-- `GET /profile` → current user (called on boot if a token exists)
+- `POST /signup` → `{ message, user }` (no token — see note above)
+- `POST /login` → `{ token, refreshToken }`
+- `POST /refresh` → `{ token, refreshToken }` (used on 401 retry)
+- `GET /profile` → `{ profile }` (called on boot if a token exists, and right after a successful login)
 
-**Tasks**
+**Token handling (as implemented)**
 
-- [ ] `src/lib/api.ts` fetch wrapper with auth header + 401-refresh-retry
-- [ ] `src/lib/auth.ts` localStorage helpers
-- [ ] `src/components/NavShell.tsx` (barebones shadcn)
-- [ ] `src/sections/auth/` with `LoginPage`, `SignupPage`, `AuthContext`, `useAuth`
-- [ ] `actions/login.ts`, `actions/signup.ts`, `actions/fetchProfile.ts` (+ mocks)
-- [ ] `ProtectedRoute` in `src/router/`
-- [ ] Wire `/login`, `/signup` into `AppRouter.tsx`; guard private routes
-- [ ] Page-level tests: login happy + error, signup happy + error
+- Login response → `AuthContext.login` → `setTokens(token, refreshToken)` writes both keys to `localStorage` → immediately calls `GET /profile` to populate the user.
+- Every authenticated request goes through `api()` in `src/lib/api.ts`, which attaches `Authorization: Bearer ${token}`.
+- On a `401`, `api()` calls `POST /refresh` with the refresh token once, stores the new pair, retries the original request. If `/refresh` fails, both tokens are cleared and `ApiError('Sesión expirada', 401)` is thrown.
+- On boot, `AuthContext` checks for a token; if present it calls `GET /profile`. Profile failure clears tokens.
+- Logout clears both keys and the in-memory profile.
+
+**Tasks — status**
+
+- [x] `src/lib/api.ts` fetch wrapper with auth header + 401-refresh-retry
+- [x] `src/lib/auth.ts` localStorage helpers (`getToken`, `getRefreshToken`, `setTokens`, `clearTokens`)
+- [x] `src/components/NavShell.tsx` (barebones shadcn)
+- [x] `src/sections/auth/` with `LoginPage`, `SignupPage`, `AuthContext`, `useAuth`, `types.ts`
+- [x] `actions/login.ts`, `actions/signup.ts`, `actions/fetchProfile.ts` (+ mocks)
+- [x] `ProtectedRoute` in `src/router/`
+- [x] Wire `/login`, `/signup` into `AppRouter.tsx`; guard private routes
+- [x] Page-level tests: login happy + error + empty fields, signup happy + error + mismatched/short password (33/33 green)
+- [x] `VITE_API_BASE_URL` added to `.env.development`
+- [x] `src/components/ui/input.tsx` and `src/components/ui/label.tsx` added (shadcn-style primitives)
+
+**Pending / follow-ups parked for later weeks (do not lose track):**
+
+- [ ] **Email verification landing page** — backend issues a verification email after signup. We need `/verify/:token` calling `GET /validate/{token}` to activate the account. Currently the user has no in-app way to complete verification. **Owner: Week 7 (folded into recovery epic).**
+- [ ] **Proactive token refresh** — we only refresh on 401 today, so the first request after expiry pays a one-hop penalty. A timer-based refresh (or decoding `exp` from the JWT) would smooth this. **Owner: Week 8 hardening.**
+- [ ] **Token storage hardening** — `localStorage` is XSS-readable. Revisit once the backend can issue HTTP-only cookies, or evaluate `sessionStorage` + "remember me". **Owner: post-MVP security review (not in MVP, but tracked here).**
+- [ ] **Logout server-side** — the backend currently has no `/logout` endpoint to invalidate the refresh token. Tokens stay valid until expiry. Flag for backend if this becomes a compliance concern. **Owner: backend coordination, post-MVP.**
+- [ ] **Inactivity / session timeout** — no client-side idle timeout. Acceptable for MVP. **Owner: post-MVP.**
+- [ ] **Toast system** — login/signup errors render as inline `role="alert"` text. A shared `useToast` hook will land in Week 8 hardening; revisit auth pages to use it then.
+- [ ] **Refresh-token race** — concurrent 401s could trigger multiple `/refresh` calls. Acceptable now (idempotent on the backend, last-write-wins on localStorage). If we hit a bug, gate with an in-flight promise. **Owner: hardening if it surfaces.**
+- [ ] **`fast-refresh/only-export-components` warning** in `AuthContext.tsx` (matches the same warning in existing context files). Cosmetic; either split `useAuth` out or accept the pattern repo-wide. **Owner: hardening.**
+- [ ] **`GET /profile` boot race** — if the boot fetch is slow, `ProtectedRoute` shows "Cargando..." with no skeleton. Replace with proper skeleton in Week 8.
 
 ---
 
@@ -301,32 +332,35 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 7 — Password recovery
+## Week 7 — Password recovery + email verification
 
-**Goal:** sellers can reset a forgotten password (closes Login Screens epic #2).
+**Goal:** sellers can reset a forgotten password and activate a newly-created account from the verification email (closes Login Screens epic #2 and unblocks the W1 follow-up).
 
 **User stories**
 
 - As a seller who forgot my password, I can request a recovery email.
-- As a seller, I can click the email link, validate the token, and set a new password.
+- As a seller, I can click the recovery email link, validate the token, and set a new password.
+- As a new seller, I can click the verification link from the signup email to activate my account, then land on `/login`.
 
 **Acceptance criteria**
 
 - `/recover` form calls `POST /recover`. Spanish success message shown regardless of whether the email exists (anti-enumeration).
 - `/reset/:token` validates via `GET /validate/{token}` on mount. Invalid token → Spanish error and a link back to `/recover`.
 - Submitting calls `POST /reset` with the token + new password. Success → redirect to `/login` with a Spanish confirmation toast.
+- `/verify/:token` calls `GET /validate/{token}` on mount. Success → Spanish "Cuenta activada" + button to `/login`. Failure → Spanish error + button to re-signup or contact support.
 
 **API**
 
 - `POST /recover`
-- `GET /validate/{token}`
+- `GET /validate/{token}` (shared by reset and verify flows)
 - `POST /reset`
 
 **Tasks**
 
-- [ ] `actions/requestRecovery.ts`, `actions/validateResetToken.ts`, `actions/resetPassword.ts` (+ mocks)
-- [ ] `RecoverPage`, `ResetPasswordPage`
-- [ ] Register routes; link from `LoginPage`
+- [ ] `actions/requestRecovery.ts`, `actions/validateToken.ts`, `actions/resetPassword.ts` (+ mocks)
+- [ ] `RecoverPage`, `ResetPasswordPage`, `VerifyEmailPage`
+- [ ] Register `/recover`, `/reset/:token`, `/verify/:token`; link recover from `LoginPage`
+- [ ] Confirm with backend whether `/validate/{token}` distinguishes verification tokens from reset tokens (one endpoint vs. two semantically different uses)
 - [ ] Tests for both pages
 
 ---
@@ -339,8 +373,11 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 - Global error boundary with a Spanish fallback UI.
 - `/404` route + catch-all handling.
-- Loading skeletons on every async page.
-- A single `useToast` hook for all form feedback.
+- Loading skeletons on every async page (including `ProtectedRoute` boot state — replaces the current "Cargando..." text from W1).
+- A single `useToast` hook for all form feedback; migrate the W1 login/signup inline alerts onto it.
+- Proactive JWT refresh (decode `exp` and refresh before expiry) so the first request after expiry doesn't pay a 401-hop. Carried over from W1.
+- Refresh-token race guard (single in-flight `/refresh` promise) — only if a bug surfaces.
+- Split `useAuth` out of `AuthContext.tsx` to clear the `react-refresh/only-export-components` warning (matches treatment of other context files in the repo).
 - `vite build` passes; `npm run lint` clean; `npm test` green.
 - Manual run-through of every user story above on a phone-sized viewport.
 - README updated with `VITE_API_BASE_URL` and the dev-stage flag.
@@ -349,6 +386,33 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 - A new seller can: sign up → create a catalog → add three products with images → share the public link → recover their password — all without console errors.
 - All seeded users from `CLAUDE.md` work against the local backend.
+
+---
+
+## Carry-over backlog (must close before production)
+
+Single source of truth for work surfaced mid-epic that did not ship in its origin week. Every item must be assigned to a future MVP week before MVP can be called done. Owners are weeks, not people.
+
+| # | Item | Origin | Owner | Status |
+|---|------|--------|-------|--------|
+| C1 | Email verification page (`/verify/:token` → `GET /validate/{token}`) | W1 | W7 | ⏳ pending |
+| C2 | Proactive JWT refresh (refresh before `exp`, not on 401) | W1 | W8 | ⏳ pending |
+| C3 | Migrate login/signup inline alerts to shared `useToast` hook | W1 | W8 | ⏳ pending |
+| C4 | Replace `ProtectedRoute` boot "Cargando..." with a real skeleton | W1 | W8 | ⏳ pending |
+| C5 | Refresh-token race guard (single in-flight `/refresh` promise) | W1 | W8 (only if reproduces) | ⏳ conditional |
+| C6 | Split `useAuth` out of `AuthContext.tsx` (fast-refresh lint warning) | W1 | W8 | ⏳ pending |
+| C7 | Item image upload endpoint shape — confirm with backend | roadmap draft | W5 | ⏳ pending |
+| C8 | Confirm `/validate/{token}` is shared by reset + verify tokens or split | W1 | W7 | ⏳ pending |
+
+Post-MVP carry-over (tracked here so it isn't lost, but explicitly not required for MVP launch):
+
+| # | Item | Origin | Notes |
+|---|------|--------|-------|
+| P1 | Move token storage to HTTP-only cookies (or evaluate `sessionStorage` + remember-me) | W1 | Backend coordination required |
+| P2 | Server-side logout / refresh-token revocation endpoint | W1 | Backend coordination required |
+| P3 | Client-side inactivity / session timeout | W1 | Product decision |
+
+Update this table whenever a follow-up item is created, picked up, or closed. **Never close a Week N epic with open W-N items missing from this table.**
 
 ---
 
@@ -375,7 +439,7 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 
 | Week | Epic | Status | PR / commit | Follow-ups |
 |------|------|--------|-------------|------------|
-| 1 | Nav shell + auth | ⏳ pending | — | — |
+| 1 | Nav shell + auth | ✅ shipped | branch `ALK-1-W1`, commit `e6aab8d` | Email verification page → W7; proactive refresh + toasts + skeleton → W8; cookie/HTTP-only token storage → post-MVP security review |
 | 2 | Private Catalog (list + create) | ⏳ pending | — | — |
 | 3 | Private Catalog (edit + items) | ⏳ pending | — | — |
 | 4 | Private Product CRUD | ⏳ pending | — | — |
