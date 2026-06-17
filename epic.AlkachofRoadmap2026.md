@@ -43,8 +43,9 @@ The front end needs several changes in order to be pre-production ready. We will
 ## Live status
 
 - ✅ **Week 1 — Nav shell + auth** — shipped on branch `ALK-1-W1` (commit `e6aab8d`). See the Week 1 section for what landed and the parked follow-ups.
-- ⏳ **Week 2 — Private Catalog (list + create)** — next up.
-- ⏳ Weeks 3–8 — not started.
+- ✅ **Week 2 — Private Catalog (list + create)** — shipped on branch `ALK-3-W2`. See the Week 2 section.
+- ⏳ **Week 3 — Private Catalog (edit metadata + item list)** — next up.
+- ⏳ Weeks 4–8 — not started.
 
 A consolidated punch list of every parked follow-up lives in the **"Carry-over backlog"** section below the weekly plans. Treat that section as the canonical list of work that must close before MVP ships to production.
 
@@ -164,7 +165,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 2 — Private Catalog View (list + create)
+## Week 2 — Private Catalog View (list + create) ✅ SHIPPED on `ALK-3-W2`
 
 **Goal:** a logged-in seller sees their catalog and can configure its basics.
 
@@ -174,26 +175,37 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - As a seller without a catalog yet, I can create one with title, description, payment types, and shipment options.
 - As a seller, tapping my catalog opens its detail view.
 
-**Acceptance criteria**
+**Acceptance criteria — status**
 
-- Logged-in home shows the seller's catalog as a shadcn card (or empty-state CTA if none).
-- "Nuevo catálogo" opens a shadcn `Dialog` with a validated form. Success closes and reveals the new catalog.
-- Loading skeleton during fetch; error state with retry.
-- Empty state in Spanish with a clear CTA.
+- ✅ Logged-in home (`/`) renders `CatalogsPage` — the seller's catalogs as shadcn cards, or an empty-state CTA when there are none.
+- ✅ "Nuevo catálogo" opens a hand-rolled modal (matches the in-repo pattern from `AddProductModal`; shadcn `Dialog` primitive deferred — see follow-up below) with a validated form. Success closes and prepends the new catalog to the list.
+- ✅ Loading skeleton during fetch (`aria-busy`); error state surfaces a Spanish message with a "Reintentar" button.
+- ✅ Empty state in Spanish: "Aún no tienes catálogos" + "Crear mi primer catálogo" CTA.
+- ✅ Tapping a catalog card navigates to `/edit/catalog/:catalogId` (the existing Week 3 edit shell).
 
 **API**
 
-- `GET /catalog` → list of catalogs owned by current user
-- `POST /catalog/new` → created catalog
-- `GET /catalog/{catalogId}` → catalog metadata (for detail view)
+- `GET /catalog` → `{ catalogs }` (list of catalogs owned by current user)
+- `POST /catalog/new` → `{ catalog }` (created catalog)
+- `GET /catalog/{catalogId}` → `{ catalog }` (catalog metadata, used by the edit flow)
 
-**Tasks**
+**Tasks — status**
 
-- [ ] `actions/fetchMyCatalogs.ts`, `actions/createCatalog.ts`, `actions/fetchCatalog.ts` (+ mocks)
-- [ ] `src/sections/catalogs/CatalogsPage.tsx`
-- [ ] `NewCatalogDialog` component
-- [ ] Wire to logged-in home; update `CatalogPage` to fetch real data
-- [ ] Page-level tests: empty state, list render, create flow
+- [x] `actions/fetchMyCatalogs.ts`, `actions/createCatalog.ts`, `actions/fetchCatalog.ts` under `src/sections/catalogs/actions/`
+- [x] Paired mocks under `src/mocks/`: `mockFetchMyCatalogs`, `mockCreateCatalog`, `mockFetchCatalog` (shared in-memory cache so a freshly created catalog appears in subsequent fetches in dev stage)
+- [x] `src/sections/catalogs/CatalogsPage.tsx` (loading skeleton, error+retry, empty state, list render, create dialog mount)
+- [x] `NewCatalogDialog` component with validated form (alias, description, pay options, delivery types) and Spanish errors
+- [x] `CatalogCard` component links to `/edit/catalog/:catalogId`
+- [x] `HomePage` now renders `CatalogsPage` (the previous landing card is gone; `/` is the seller's catalogs index)
+- [x] Page-level tests: empty state, list render, create flow happy path, error+retry, validation rejection (5 new, 38/38 green total)
+- [x] `vite build` passes; `npm run lint` clean (only the 4 pre-existing `react-refresh/only-export-components` warnings)
+
+**Pending / follow-ups parked for later weeks:**
+
+- [ ] **Replace hand-rolled `NewCatalogDialog` overlay with a shared shadcn `Dialog` primitive** — `AddProductModal`, `EditCatalogModal`, and `NewCatalogDialog` all hand-roll the same overlay shell. **Owner: Week 8 hardening.**
+- [ ] **Per-card thumbnail / cover image** — `CatalogCard` shows alias + description + location only. Once the catalog model exposes a cover image (post-Week 5 image upload), surface it here. **Owner: post-W5 polish.**
+- [ ] **Optimistic create** — `createCatalog` waits for the round-trip before adding to the list. Acceptable for MVP; revisit if latency hurts. **Owner: post-MVP polish.**
+- [ ] **`fetchCatalog` action duplicates `fetchEditableCatalog`** — the existing edit shell still uses `fetchEditableCatalog` (which bypasses the `api()` wrapper and uses `credentials: 'include'`). Week 3 should migrate the edit shell onto `fetchCatalog` via `api()` so we get auth + 401-refresh handling there too. **Owner: Week 3.**
 
 ---
 
@@ -403,6 +415,8 @@ Single source of truth for work surfaced mid-epic that did not ship in its origi
 | C6 | Split `useAuth` out of `AuthContext.tsx` (fast-refresh lint warning) | W1 | W8 | ⏳ pending |
 | C7 | Item image upload endpoint shape — confirm with backend | roadmap draft | W5 | ⏳ pending |
 | C8 | Confirm `/validate/{token}` is shared by reset + verify tokens or split | W1 | W7 | ⏳ pending |
+| C9 | Replace hand-rolled modal overlay with shared shadcn `Dialog` primitive (covers `NewCatalogDialog`, `AddProductModal`, `EditCatalogModal`) | W2 | W8 | ⏳ pending |
+| C10 | Migrate `/edit/catalog/:catalogId` shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` for proper auth + 401-refresh | W2 | W3 | ⏳ pending |
 
 Post-MVP carry-over (tracked here so it isn't lost, but explicitly not required for MVP launch):
 
@@ -440,7 +454,7 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 | Week | Epic | Status | PR / commit | Follow-ups |
 |------|------|--------|-------------|------------|
 | 1 | Nav shell + auth | ✅ shipped | branch `ALK-1-W1`, commit `e6aab8d` | Email verification page → W7; proactive refresh + toasts + skeleton → W8; cookie/HTTP-only token storage → post-MVP security review |
-| 2 | Private Catalog (list + create) | ⏳ pending | — | — |
+| 2 | Private Catalog (list + create) | ✅ shipped | branch `ALK-3-W2` | Replace hand-rolled dialog with shadcn `Dialog` primitive → W8; migrate edit shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` → W3 |
 | 3 | Private Catalog (edit + items) | ⏳ pending | — | — |
 | 4 | Private Product CRUD | ⏳ pending | — | — |
 | 5 | Image upload | ⏳ pending | — | — |
