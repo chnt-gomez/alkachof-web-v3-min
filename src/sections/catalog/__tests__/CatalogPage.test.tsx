@@ -6,17 +6,17 @@ import { CatalogPage } from '../CatalogPage'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
-vi.mock('../actions/fetchEditableCatalog')
+vi.mock('@/sections/catalogs/actions/fetchCatalog')
+vi.mock('../actions/fetchCatalogItems')
 vi.mock('../actions/updateCatalog')
 vi.mock('../actions/updateItem')
 vi.mock('../actions/createItem')
-vi.mock('@/sections/publicCatalog/actions/fetchCatalogItems')
 
-import { fetchEditableCatalog } from '../actions/fetchEditableCatalog'
+import { fetchCatalog } from '@/sections/catalogs/actions/fetchCatalog'
+import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog } from '../actions/updateCatalog'
 import { updateItem } from '../actions/updateItem'
 import { createItem } from '../actions/createItem'
-import { fetchCatalogItems } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
 const mockCatalog: Catalog = {
   _id: 'cat1',
@@ -69,7 +69,7 @@ function renderPage(catalogId = 'cat1') {
 }
 
 beforeEach(() => {
-  vi.mocked(fetchEditableCatalog).mockResolvedValue(mockCatalog)
+  vi.mocked(fetchCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(updateCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(updateItem).mockImplementation(async (itemId, patch) => ({
@@ -91,7 +91,7 @@ beforeEach(() => {
 
 describe('CatalogPage', () => {
   it('shows loading state before data resolves', () => {
-    vi.mocked(fetchEditableCatalog).mockReturnValue(new Promise(() => {}))
+    vi.mocked(fetchCatalog).mockReturnValue(new Promise(() => {}))
     vi.mocked(fetchCatalogItems).mockReturnValue(new Promise(() => {}))
     renderPage()
     expect(screen.getByText('Cargando catálogo…')).toBeInTheDocument()
@@ -164,7 +164,7 @@ describe('CatalogPage', () => {
   })
 
   it('shows error message when fetch fails', async () => {
-    vi.mocked(fetchEditableCatalog).mockRejectedValue(new Error('Error de red'))
+    vi.mocked(fetchCatalog).mockRejectedValue(new Error('Error de red'))
     renderPage()
     expect(await screen.findByText('Error de red')).toBeInTheDocument()
   })
@@ -174,5 +174,49 @@ describe('CatalogPage', () => {
     const img = await screen.findByRole('img', { name: /bolsa tejida/i })
     expect(img).toHaveClass('object-contain')
     expect(img.className).not.toMatch(/object-cover/)
+  })
+
+  it('saves catalog edits via POST /catalog/:id/update and closes the modal', async () => {
+    vi.mocked(updateCatalog).mockImplementation(async (_id, patch) => ({ ...mockCatalog, ...patch }))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /editar catálogo/i }))
+
+    const aliasInput = screen.getByDisplayValue('Tienda de Prueba')
+    await user.clear(aliasInput)
+    await user.type(aliasInput, 'Mi Tienda Nueva')
+
+    await user.click(screen.getByRole('button', { name: /guardar/i }))
+
+    expect(updateCatalog).toHaveBeenCalledWith('cat1', expect.objectContaining({ alias: 'Mi Tienda Nueva' }))
+    expect(await screen.findByText('Mi Tienda Nueva')).toBeInTheDocument()
+    expect(screen.queryByText('Editar catálogo')).not.toBeInTheDocument()
+  })
+
+  it('rolls back optimistic catalog update when the save fails', async () => {
+    vi.mocked(updateCatalog).mockRejectedValue(new Error('Falla del servidor'))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /editar catálogo/i }))
+
+    const aliasInput = screen.getByDisplayValue('Tienda de Prueba')
+    await user.clear(aliasInput)
+    await user.type(aliasInput, 'Nombre Temporal')
+
+    await user.click(screen.getByRole('button', { name: /guardar/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falla del servidor')
+    expect(screen.getByRole('heading', { name: 'Tienda de Prueba' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Nombre Temporal' })).not.toBeInTheDocument()
+  })
+
+  it('shows an empty-state CTA when the catalog has no products', async () => {
+    vi.mocked(fetchCatalogItems).mockResolvedValue([])
+    renderPage()
+
+    expect(await screen.findByText(/aún no tienes productos/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /agregar primer producto/i })).toBeInTheDocument()
   })
 })
