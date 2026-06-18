@@ -24,6 +24,7 @@ type Props = {
 export function EditCatalogModal({ onClose }: Props) {
   const { catalog, updateCatalog } = useEditCatalog()
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const [alias, setAlias] = useState(catalog?.alias ?? '')
   const [welcomeText, setWelcomeText] = useState(catalog?.welcomeText ?? '')
@@ -47,9 +48,12 @@ export function EditCatalogModal({ onClose }: Props) {
 
   async function handleSave() {
     setSaving(true)
+    setSaveError(null)
     try {
       await updateCatalog({ alias, welcomeText, description, location, locationZip, payOptions, deliveryType })
       onClose()
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'No se pudo guardar el catálogo')
     } finally {
       setSaving(false)
     }
@@ -150,6 +154,12 @@ export function EditCatalogModal({ onClose }: Props) {
             </div>
           </Field>
         </div>
+
+        {saveError && (
+          <p role="alert" className="border-t px-5 py-2 text-sm text-destructive">
+            {saveError}
+          </p>
+        )}
 
         <div className="flex gap-3 border-t px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>

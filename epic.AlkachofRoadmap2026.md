@@ -44,7 +44,7 @@ The front end needs several changes in order to be pre-production ready. We will
 
 - ✅ **Week 1 — Nav shell + auth** — shipped on branch `ALK-1-W1` (commit `e6aab8d`). See the Week 1 section for what landed and the parked follow-ups.
 - ✅ **Week 2 — Private Catalog (list + create)** — shipped on branch `ALK-3-W2`. See the Week 2 section.
-- ⏳ **Week 3 — Private Catalog (edit metadata + item list)** — next up.
+- ✅ **Week 3 — Private Catalog (edit metadata + item list)** — shipped on branch `ALK-3-W3`. See the Week 3 section.
 - ⏳ Weeks 4–8 — not started.
 
 A consolidated punch list of every parked follow-up lives in the **"Carry-over backlog"** section below the weekly plans. Treat that section as the canonical list of work that must close before MVP ships to production.
@@ -209,7 +209,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 3 — Private Catalog View (edit metadata + item list)
+## Week 3 — Private Catalog View (edit metadata + item list) ✅ SHIPPED on `ALK-3-W3`
 
 **Goal:** a seller can rename and configure their catalog and see its products.
 
@@ -219,12 +219,12 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - As a seller, I see all products inside my catalog.
 - As a seller, I can navigate to a product's private detail view.
 
-**Acceptance criteria**
+**Acceptance criteria — status**
 
-- Catalog detail page exposes editable metadata behind an "Editar" affordance.
-- `POST /catalog/{id}/update` is called on save; UI updates optimistically and rolls back on error.
-- Products render in the `columns-2` masonry per the golden rules (no `object-cover`, no fixed image heights).
-- Empty-products state in Spanish with CTA to add the first product.
+- ✅ Catalog detail page exposes editable metadata behind an "Editar" affordance (pencil button → `EditCatalogModal`).
+- ✅ `POST /catalog/{id}/update` is called on save via the `api()` wrapper; UI updates optimistically and rolls back on error (rollback test added).
+- ✅ Products render in the `columns-2` masonry per the golden rules (no `object-cover`, no fixed image heights). Already in place from prior work — verified by the existing image-class assertion test.
+- ✅ Empty-products state in Spanish ("Aún no tienes productos en este catálogo") with CTA "Agregar primer producto".
 
 **API**
 
@@ -232,13 +232,21 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - `GET /catalog/{catalogId}/items`
 - `GET /item/{itemId}`
 
-**Tasks**
+**Tasks — status**
 
-- [ ] `actions/updateCatalog.ts`, `actions/fetchCatalogItems.ts`, `actions/fetchItem.ts` (+ mocks)
-- [ ] `EditCatalogDialog`
-- [ ] Refactor `CatalogPage` to render real items
-- [ ] Refactor `ProductPage` to fetch by id
-- [ ] Tests: edit happy path, optimistic rollback, item list render
+- [x] `actions/updateCatalog.ts` migrated to `api()` + `POST /catalog/{id}/update`
+- [x] `actions/fetchCatalogItems.ts` and `actions/fetchItem.ts` added under `src/sections/catalog/actions/` (use `api()` for auth + 401-refresh) + paired mocks (`mockFetchItem`, reuses `mockFetchCatalogItems`)
+- [x] `EditCatalogContext` migrated off `fetchEditableCatalog` onto `fetchCatalog` via `api()` (closes carry-over **C10**). `fetchEditableCatalog.ts` removed.
+- [x] `EditCatalogModal` surfaces save errors via `role="alert"`; optimistic update + rollback in the provider's `updateCatalog`.
+- [x] `ProductPage` now fetches by id (`GET /item/{itemId}`) and renders name, description, image (golden rules), price (es-MX), stock.
+- [x] Tests: edit happy path, optimistic rollback on error, empty-state CTA, plus the previously-existing item-list render tests. 41/41 green.
+- [x] `vite build` passes; `npm run lint` clean (only the 4 pre-existing `react-refresh/only-export-components` warnings).
+
+**Pending / follow-ups parked for later weeks:**
+
+- [ ] **`EditCatalogModal` and `AddProductModal` still hand-roll the overlay shell.** Rolling them onto a shared shadcn `Dialog` primitive is tracked as carry-over **C9**. **Owner: Week 8 hardening.**
+- [ ] **`mockFetchEditableCatalog.ts` is now only used by `mockFetchCatalog`** — collapse the two into one mock generator during Week 8 cleanup, or leave as-is if backend coordination splits the two reads. **Owner: Week 8.**
+- [ ] **No back-link from `ProductPage` to public catalog view.** Today it links to `/edit/catalog/:catalogId`; revisit once the buyer-side product view ships (post-MVP).
 
 ---
 
@@ -416,7 +424,7 @@ Single source of truth for work surfaced mid-epic that did not ship in its origi
 | C7 | Item image upload endpoint shape — confirm with backend | roadmap draft | W5 | ⏳ pending |
 | C8 | Confirm `/validate/{token}` is shared by reset + verify tokens or split | W1 | W7 | ⏳ pending |
 | C9 | Replace hand-rolled modal overlay with shared shadcn `Dialog` primitive (covers `NewCatalogDialog`, `AddProductModal`, `EditCatalogModal`) | W2 | W8 | ⏳ pending |
-| C10 | Migrate `/edit/catalog/:catalogId` shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` for proper auth + 401-refresh | W2 | W3 | ⏳ pending |
+| C10 | Migrate `/edit/catalog/:catalogId` shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` for proper auth + 401-refresh | W2 | W3 | ✅ closed in W3 |
 
 Post-MVP carry-over (tracked here so it isn't lost, but explicitly not required for MVP launch):
 
@@ -455,7 +463,7 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 |------|------|--------|-------------|------------|
 | 1 | Nav shell + auth | ✅ shipped | branch `ALK-1-W1`, commit `e6aab8d` | Email verification page → W7; proactive refresh + toasts + skeleton → W8; cookie/HTTP-only token storage → post-MVP security review |
 | 2 | Private Catalog (list + create) | ✅ shipped | branch `ALK-3-W2` | Replace hand-rolled dialog with shadcn `Dialog` primitive → W8; migrate edit shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` → W3 |
-| 3 | Private Catalog (edit + items) | ⏳ pending | — | — |
+| 3 | Private Catalog (edit + items) | ✅ shipped | branch `ALK-3-W3` | Shared shadcn `Dialog` primitive → W8 (C9); collapse `mockFetchEditableCatalog` into `mockFetchCatalog` → W8 |
 | 4 | Private Product CRUD | ⏳ pending | — | — |
 | 5 | Image upload | ⏳ pending | — | — |
 | 6 | Public Catalog wired | ⏳ pending | — | — |

@@ -28,7 +28,13 @@ export function ProductGrid() {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin productos aún.</p>
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center">
+          <p className="text-sm text-muted-foreground">Aún no tienes productos en este catálogo.</p>
+          <Button size="sm" onClick={() => setAddingProduct(true)}>
+            <Plus size={14} className="mr-1" />
+            Agregar primer producto
+          </Button>
+        </div>
       ) : (
         <ul className="columns-2 gap-3">
           {items.map((item) => (

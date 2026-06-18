@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { fetchEditableCatalog } from '../actions/fetchEditableCatalog'
+import { fetchCatalog } from '@/sections/catalogs/actions/fetchCatalog'
+import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog as updateCatalogAction } from '../actions/updateCatalog'
 import { updateItem as updateItemAction } from '../actions/updateItem'
 import { createItem as createItemAction } from '../actions/createItem'
-import { fetchCatalogItems } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import type { NewItemData } from '../actions/createItem'
@@ -35,7 +35,7 @@ export function EditCatalogProvider({
   useEffect(() => {
     setIsLoading(true)
     setError(null)
-    Promise.all([fetchEditableCatalog(catalogId), fetchCatalogItems(catalogId)])
+    Promise.all([fetchCatalog(catalogId), fetchCatalogItems(catalogId)])
       .then(([catalogData, itemsData]) => {
         setCatalog(catalogData)
         setItems(itemsData)
@@ -45,8 +45,15 @@ export function EditCatalogProvider({
   }, [catalogId])
 
   async function updateCatalog(patch: Partial<Catalog>) {
-    const updated = await updateCatalogAction(catalogId, patch)
-    setCatalog(updated)
+    const previous = catalog
+    if (previous) setCatalog({ ...previous, ...patch })
+    try {
+      const updated = await updateCatalogAction(catalogId, patch)
+      setCatalog(updated)
+    } catch (err) {
+      setCatalog(previous)
+      throw err
+    }
   }
 
   async function updateItem(itemId: string, patch: Partial<Item>) {
