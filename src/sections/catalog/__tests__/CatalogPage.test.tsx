@@ -11,12 +11,14 @@ vi.mock('../actions/fetchCatalogItems')
 vi.mock('../actions/updateCatalog')
 vi.mock('../actions/updateItem')
 vi.mock('../actions/createItem')
+vi.mock('../actions/deleteItem')
 
 import { fetchCatalog } from '@/sections/catalogs/actions/fetchCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog } from '../actions/updateCatalog'
 import { updateItem } from '../actions/updateItem'
 import { createItem } from '../actions/createItem'
+import { deleteItem } from '../actions/deleteItem'
 
 const mockCatalog: Catalog = {
   _id: 'cat1',
@@ -69,6 +71,7 @@ function renderPage(catalogId = 'cat1') {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks()
   vi.mocked(fetchCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(updateCatalog).mockResolvedValue(mockCatalog)
@@ -76,6 +79,7 @@ beforeEach(() => {
     ...mockItems.find((i) => i._id === itemId)!,
     ...patch,
   }))
+  vi.mocked(deleteItem).mockResolvedValue(undefined)
   vi.mocked(createItem).mockResolvedValue({
     _id: 'item_new',
     catalogId: 'cat1',
@@ -130,7 +134,7 @@ describe('CatalogPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+    await user.click(await screen.findByRole('button', { name: 'Bolsa tejida' }))
 
     expect(screen.getByText('Editar producto')).toBeInTheDocument()
   })
@@ -139,7 +143,7 @@ describe('CatalogPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+    await user.click(await screen.findByRole('button', { name: 'Bolsa tejida' }))
     await user.click(screen.getByRole('button', { name: /cancelar/i }))
 
     expect(screen.queryByText('Editar producto')).not.toBeInTheDocument()
@@ -210,6 +214,108 @@ describe('CatalogPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Falla del servidor')
     expect(screen.getByRole('heading', { name: 'Tienda de Prueba' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Nombre Temporal' })).not.toBeInTheDocument()
+  })
+
+  it('creates a new product through ItemFormDialog', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /agregar producto/i }))
+
+    await screen.findByRole('dialog', { name: 'Nuevo producto' })
+    const nameInput = await screen.findByPlaceholderText(/nombre del producto/i)
+    await user.type(nameInput, 'Collar nuevo')
+    await user.type(screen.getByPlaceholderText('Ej. 350'), '199.5')
+    await user.type(screen.getByPlaceholderText('Ej. 10'), '3')
+
+    const imgButton = screen.getByRole('button', { name: /agregar imagen/i })
+    await user.click(imgButton)
+    const galleryInput = document.querySelector('input[type="file"]:not([capture])') as HTMLInputElement
+    const file = new File(['x'], 'foto.png', { type: 'image/png' })
+    Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:test', writable: true })
+    await user.upload(galleryInput, file)
+
+    await user.click(screen.getByRole('button', { name: /^agregar$/i }))
+
+    expect(createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalogId: 'cat1',
+        name: 'Collar nuevo',
+        price: 19950,
+        stock: 3,
+      }),
+    )
+    expect(screen.queryByRole('dialog', { name: 'Nuevo producto' })).not.toBeInTheDocument()
+  })
+
+  it('rejects negative price with a Spanish validation error', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Bolsa tejida' }))
+    const priceInput = screen.getByDisplayValue('350')
+    await user.clear(priceInput)
+    await user.type(priceInput, '-5')
+    await user.click(screen.getByRole('button', { name: /guardar/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/precio debe ser/i)
+    expect(updateItem).not.toHaveBeenCalled()
+  })
+
+  it('updates a product through ItemFormDialog', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Bolsa tejida' }))
+    const nameInput = screen.getByDisplayValue('Bolsa tejida')
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Bolsa renovada')
+    await user.click(screen.getByRole('button', { name: /guardar/i }))
+
+    expect(updateItem).toHaveBeenCalledWith('item1', expect.objectContaining({ name: 'Bolsa renovada' }))
+  })
+
+  it('deletes a product after confirming', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /eliminar bolsa tejida/i }))
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(/¿eliminar producto\?/i)
+
+    await user.click(screen.getByRole('button', { name: /^eliminar$/i }))
+
+    expect(deleteItem).toHaveBeenCalledWith('item1')
+    expect(screen.queryByRole('button', { name: 'Bolsa tejida' })).not.toBeInTheDocument()
+  })
+
+  it('cancels delete without calling the action', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /eliminar bolsa tejida/i }))
+    await user.click(screen.getByRole('button', { name: /cancelar/i }))
+
+    expect(deleteItem).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('renders blank product (image only) cleanly with a fallback name', async () => {
+    const blankItem: Item = {
+      _id: 'blank1',
+      catalogId: 'cat1',
+      name: '',
+      description: '',
+      price: 0,
+      stock: 1,
+      imgPath: 'https://example.com/blank.jpg',
+      sizes: [],
+      updatedOn: '2024-01-01T00:00:00Z',
+    }
+    vi.mocked(fetchCatalogItems).mockResolvedValue([blankItem])
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: 'Producto sin nombre' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /eliminar producto/i })).toBeInTheDocument()
   })
 
   it('shows an empty-state CTA when the catalog has no products', async () => {

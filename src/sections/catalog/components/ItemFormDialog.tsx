@@ -1,44 +1,87 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useEditCatalog } from '../context/EditCatalogContext'
 import { ImagePickerSheet } from './ImagePickerSheet'
+import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
+
+export type ItemFormPayload = {
+  name: string
+  description: string
+  price: number
+  stock: number
+  sizes: string[]
+  imgPath: string
+}
 
 type Props = {
-  catalogId: string
+  mode: 'create' | 'edit'
+  initial?: Item | null
+  onSubmit: (payload: ItemFormPayload) => Promise<void>
   onClose: () => void
 }
 
-export function AddProductModal({ catalogId, onClose }: Props) {
-  const { createItem } = useEditCatalog()
+export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Props) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [price, setPrice] = useState(initial ? String(initial.price / 100) : '')
+  const [stock, setStock] = useState(initial ? String(initial.stock) : '')
+  const [sizes, setSizes] = useState(initial?.sizes.join(', ') ?? '')
+  const [imgPath, setImgPath] = useState(initial?.imgPath ?? '')
+
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [showPicker, setShowPicker] = useState(false)
 
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [price, setPrice] = useState('')
-  const [stock, setStock] = useState('')
-  const [sizes, setSizes] = useState('')
-  const [imgPath, setImgPath] = useState('')
+  function validate(): ItemFormPayload | null {
+    setError(null)
+    if (mode === 'create' && !imgPath) {
+      setError('Agrega al menos una imagen para el producto.')
+      return null
+    }
+    let priceCents = 0
+    if (price.trim()) {
+      const parsed = parseFloat(price)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setError('El precio debe ser un número mayor o igual a cero.')
+        return null
+      }
+      priceCents = Math.round(parsed * 100)
+    }
+    let stockNum = 0
+    if (stock.trim()) {
+      const parsed = parseInt(stock, 10)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setError('Las existencias deben ser un número mayor o igual a cero.')
+        return null
+      }
+      stockNum = parsed
+    }
+    return {
+      name: name.trim(),
+      description: description.trim(),
+      price: priceCents,
+      stock: stockNum,
+      sizes: sizes.split(',').map((s) => s.trim()).filter(Boolean),
+      imgPath,
+    }
+  }
 
   async function handleSave() {
-    if (!name.trim()) return
+    const payload = validate()
+    if (!payload) return
     setSaving(true)
     try {
-      await createItem({
-        catalogId,
-        name: name.trim(),
-        description: description.trim(),
-        price: Math.round(parseFloat(price) * 100) || 0,
-        stock: parseInt(stock, 10) || 0,
-        sizes: sizes.split(',').map((s) => s.trim()).filter(Boolean),
-        imgPath,
-      })
+      await onSubmit(payload)
       onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el producto.')
     } finally {
       setSaving(false)
     }
   }
+
+  const title = mode === 'create' ? 'Nuevo producto' : 'Editar producto'
+  const saveLabel = mode === 'create' ? 'Agregar' : 'Guardar'
 
   return (
     <>
@@ -47,11 +90,13 @@ export function AddProductModal({ catalogId, onClose }: Props) {
         onClick={onClose}
       >
         <div
+          role="dialog"
+          aria-label={title}
           className="relative w-full max-w-md overflow-y-auto rounded-t-2xl bg-background max-h-[90vh] sm:rounded-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between border-b px-5 py-4">
-            <h2 className="text-base font-semibold">Nuevo producto</h2>
+            <h2 className="text-base font-semibold">{title}</h2>
             <button onClick={onClose} aria-label="Cerrar">
               <X size={18} />
             </button>
@@ -59,12 +104,13 @@ export function AddProductModal({ catalogId, onClose }: Props) {
 
           <div className="flex flex-col gap-4 p-5">
             <button
+              type="button"
               className="flex w-full flex-col items-center justify-center overflow-hidden rounded-xl border bg-muted transition-opacity hover:opacity-80"
               onClick={() => setShowPicker(true)}
-              aria-label="Agregar imagen"
+              aria-label={imgPath ? 'Cambiar imagen' : 'Agregar imagen'}
             >
               {imgPath ? (
-                <img src={imgPath} alt={name || 'Nuevo producto'} className="w-full object-contain" />
+                <img src={imgPath} alt={name || 'Producto'} className="w-full object-contain" />
               ) : (
                 <div className="flex h-32 w-full items-center justify-center text-xs text-muted-foreground">
                   Toca para agregar imagen
@@ -77,7 +123,7 @@ export function AddProductModal({ catalogId, onClose }: Props) {
                 className="input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Nombre del producto"
+                placeholder="Nombre del producto (opcional)"
               />
             </Field>
 
@@ -86,7 +132,7 @@ export function AddProductModal({ catalogId, onClose }: Props) {
                 className="input min-h-[64px] resize-none"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descripción del producto"
+                placeholder="Descripción del producto (opcional)"
               />
             </Field>
 
@@ -118,14 +164,20 @@ export function AddProductModal({ catalogId, onClose }: Props) {
                 placeholder="Ej. S, M, L, XL"
               />
             </Field>
+
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3 border-t px-5 py-4">
             <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={saving || !name.trim()}>
-              {saving ? 'Guardando…' : 'Agregar'}
+            <Button className="flex-1" onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando…' : saveLabel}
             </Button>
           </div>
         </div>

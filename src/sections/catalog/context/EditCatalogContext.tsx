@@ -4,6 +4,7 @@ import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog as updateCatalogAction } from '../actions/updateCatalog'
 import { updateItem as updateItemAction } from '../actions/updateItem'
 import { createItem as createItemAction } from '../actions/createItem'
+import { deleteItem as deleteItemAction } from '../actions/deleteItem'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import type { NewItemData } from '../actions/createItem'
@@ -16,6 +17,7 @@ type EditCatalogState = {
   updateCatalog: (patch: Partial<Catalog>) => Promise<void>
   updateItem: (itemId: string, patch: Partial<Item>) => Promise<void>
   createItem: (data: NewItemData) => Promise<void>
+  deleteItem: (itemId: string) => Promise<void>
 }
 
 const EditCatalogContext = createContext<EditCatalogState | null>(null)
@@ -66,8 +68,15 @@ export function EditCatalogProvider({
     setItems((prev) => [...prev, created])
   }
 
+  async function deleteItem(itemId: string) {
+    await deleteItemAction(itemId)
+    setItems((prev) => prev.filter((it) => it._id !== itemId))
+  }
+
   return (
-    <EditCatalogContext.Provider value={{ catalog, items, isLoading, error, updateCatalog, updateItem, createItem }}>
+    <EditCatalogContext.Provider
+      value={{ catalog, items, isLoading, error, updateCatalog, updateItem, createItem, deleteItem }}
+    >
       {children}
     </EditCatalogContext.Provider>
   )

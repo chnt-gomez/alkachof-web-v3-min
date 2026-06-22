@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useEditCatalog } from '../context/EditCatalogContext'
-import { EditProductModal } from './EditProductModal'
-import { AddProductModal } from './AddProductModal'
+import { ItemFormDialog } from './ItemFormDialog'
+import { DeleteItemConfirm } from './DeleteItemConfirm'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
 function formatPrice(cents: number) {
@@ -11,9 +11,10 @@ function formatPrice(cents: number) {
 }
 
 export function ProductGrid() {
-  const { catalog, items } = useEditCatalog()
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
+  const { catalog, items, createItem, updateItem, deleteItem } = useEditCatalog()
+  const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [addingProduct, setAddingProduct] = useState(false)
+  const [deletingItem, setDeletingItem] = useState<Item | null>(null)
 
   return (
     <>
@@ -38,17 +39,17 @@ export function ProductGrid() {
       ) : (
         <ul className="columns-2 gap-3">
           {items.map((item) => (
-            <li key={item._id} className="mb-3 break-inside-avoid">
+            <li key={item._id} className="relative mb-3 break-inside-avoid">
               <button
                 className="flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                onClick={() => setSelectedItem(item)}
-                aria-label={item.name}
+                onClick={() => setEditingItem(item)}
+                aria-label={item.name || 'Producto sin nombre'}
               >
                 {item.imgPath ? (
                   <div className="flex w-full items-center justify-center overflow-hidden bg-muted">
                     <img
                       src={item.imgPath}
-                      alt={item.name}
+                      alt={item.name || 'Producto'}
                       className="w-full object-contain"
                     />
                   </div>
@@ -58,24 +59,54 @@ export function ProductGrid() {
                   </div>
                 )}
                 <div className="flex flex-col gap-0.5 p-2">
-                  <p className="line-clamp-2 text-xs font-medium leading-tight">{item.name}</p>
+                  <p className="line-clamp-2 text-xs font-medium leading-tight">
+                    {item.name || 'Producto sin nombre'}
+                  </p>
                   <p className="text-xs font-semibold text-primary">{formatPrice(item.price)}</p>
                   {item.stock === 0 && (
                     <p className="text-xs text-destructive">Sin existencias</p>
                   )}
                 </div>
               </button>
+              <button
+                type="button"
+                onClick={() => setDeletingItem(item)}
+                aria-label={`Eliminar ${item.name || 'producto'}`}
+                className="absolute right-1.5 top-1.5 rounded-full bg-background/80 p-1.5 text-destructive shadow-sm transition-colors hover:bg-background"
+              >
+                <Trash2 size={14} />
+              </button>
             </li>
           ))}
         </ul>
       )}
 
-      {selectedItem && (
-        <EditProductModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      {editingItem && (
+        <ItemFormDialog
+          mode="edit"
+          initial={editingItem}
+          onSubmit={(payload) => updateItem(editingItem._id, payload)}
+          onClose={() => setEditingItem(null)}
+        />
       )}
 
       {addingProduct && catalog && (
-        <AddProductModal catalogId={catalog._id} onClose={() => setAddingProduct(false)} />
+        <ItemFormDialog
+          mode="create"
+          onSubmit={(payload) => createItem({ catalogId: catalog._id, ...payload })}
+          onClose={() => setAddingProduct(false)}
+        />
+      )}
+
+      {deletingItem && (
+        <DeleteItemConfirm
+          itemName={deletingItem.name}
+          onConfirm={async () => {
+            await deleteItem(deletingItem._id)
+            setDeletingItem(null)
+          }}
+          onClose={() => setDeletingItem(null)}
+        />
       )}
     </>
   )

@@ -45,7 +45,8 @@ The front end needs several changes in order to be pre-production ready. We will
 - ✅ **Week 1 — Nav shell + auth** — shipped on branch `ALK-1-W1` (commit `e6aab8d`). See the Week 1 section for what landed and the parked follow-ups.
 - ✅ **Week 2 — Private Catalog (list + create)** — shipped on branch `ALK-3-W2`. See the Week 2 section.
 - ✅ **Week 3 — Private Catalog (edit metadata + item list)** — shipped on branch `ALK-3-W3`. See the Week 3 section.
-- ⏳ Weeks 4–8 — not started.
+- ✅ **Week 4 — Private Product CRUD** — shipped on branch `ALK-4-W4`. See the Week 4 section.
+- ⏳ Weeks 5–8 — not started.
 
 A consolidated punch list of every parked follow-up lives in the **"Carry-over backlog"** section below the weekly plans. Treat that section as the canonical list of work that must close before MVP ships to production.
 
@@ -250,7 +251,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 4 — Private Product View (CRUD)
+## Week 4 — Private Product View (CRUD) ✅ SHIPPED on `ALK-4-W4`
 
 **Goal:** a seller can add, edit, and delete products in their catalog. Blank products (picture only) are valid per the concept definition.
 
@@ -260,27 +261,34 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - As a seller, I can edit any existing product.
 - As a seller, I can delete a product with a confirmation step.
 
-**Acceptance criteria**
+**Acceptance criteria — status**
 
-- "Agregar producto" opens a shadcn `Dialog` with validated form (price ≥ 0 when present).
-- Edit reuses the same form, pre-filled.
-- Delete shows an `AlertDialog` ("¿Eliminar producto?"). Cannot be undone.
-- Prices formatted via `Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })`.
-- A product with only an image and no other fields renders cleanly.
+- ✅ "Agregar producto" opens `ItemFormDialog` with validated form (price ≥ 0 and stock ≥ 0 when present; image required for create).
+- ✅ Edit reuses the same dialog, pre-filled with the item's current values.
+- ✅ Delete shows `DeleteItemConfirm` (`role="alertdialog"`, copy "¿Eliminar producto?"). Cannot be undone.
+- ✅ Prices formatted via `(cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })`.
+- ✅ A product with only an image (no name/price/stock) renders cleanly: card shows "Producto sin nombre" fallback, hides the price row, and the page hides the price line entirely when `price === 0`.
 
-**API**
+**API (wired through `api()` for auth + 401-refresh)**
 
 - `POST /catalog/{catalogId}/item/add`
 - `POST /item/{itemId}/update`
 - `POST /item/{itemId}/delete`
 
-**Tasks**
+**Tasks — status**
 
-- [ ] `actions/addItem.ts`, `actions/updateItem.ts`, `actions/deleteItem.ts` (+ mocks)
-- [ ] `ItemFormDialog` (shared create/edit)
-- [ ] `DeleteItemConfirm`
-- [ ] Wire CTAs into catalog detail and product detail pages
-- [ ] Tests: add, edit, delete flows; blank-product render
+- [x] `actions/createItem.ts`, `actions/updateItem.ts`, `actions/deleteItem.ts` migrated/added; all route through the `api()` wrapper. Paired mocks: `mockCreateItem`, `mockUpdateItem`, `mockDeleteItem`.
+- [x] `ItemFormDialog` shared create/edit component (`mode: 'create' | 'edit'`, `onSubmit` callback). Replaces `AddProductModal` + `EditProductModal` (both deleted).
+- [x] `DeleteItemConfirm` confirmation dialog with Spanish copy and inline error rendering.
+- [x] `EditCatalogContext` extended with `deleteItem`. `ProductGrid` exposes per-card delete affordance. `ProductPage` adds "Editar" + "Eliminar" CTAs; delete navigates back to `/edit/catalog/:catalogId`.
+- [x] Tests: create flow, update flow, delete flow, cancel-delete, blank-product render, negative-price validation (6 new, 47/47 green).
+- [x] `vite build` passes; `npm run lint` clean (only the 4 pre-existing `react-refresh/only-export-components` warnings).
+
+**Pending / follow-ups parked for later weeks:**
+
+- [ ] **Real image upload** — `ImagePickerSheet` still uses `URL.createObjectURL`, so picked images don't survive a refresh. Replaced when Week 5 lands.
+- [ ] **Shared shadcn `Dialog` primitive** — `ItemFormDialog` and `DeleteItemConfirm` still hand-roll the overlay (now folded into carry-over **C9**). **Owner: Week 8 hardening.**
+- [ ] **Optimistic delete** — currently waits for the round-trip. Acceptable for MVP.
 
 ---
 
@@ -464,7 +472,7 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 | 1 | Nav shell + auth | ✅ shipped | branch `ALK-1-W1`, commit `e6aab8d` | Email verification page → W7; proactive refresh + toasts + skeleton → W8; cookie/HTTP-only token storage → post-MVP security review |
 | 2 | Private Catalog (list + create) | ✅ shipped | branch `ALK-3-W2` | Replace hand-rolled dialog with shadcn `Dialog` primitive → W8; migrate edit shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` → W3 |
 | 3 | Private Catalog (edit + items) | ✅ shipped | branch `ALK-3-W3` | Shared shadcn `Dialog` primitive → W8 (C9); collapse `mockFetchEditableCatalog` into `mockFetchCatalog` → W8 |
-| 4 | Private Product CRUD | ⏳ pending | — | — |
+| 4 | Private Product CRUD | ✅ shipped | branch `ALK-4-W4` | Real image upload → W5; shared shadcn `Dialog` primitive → W8 (C9) |
 | 5 | Image upload | ⏳ pending | — | — |
 | 6 | Public Catalog wired | ⏳ pending | — | — |
 | 7 | Password recovery | ⏳ pending | — | — |
