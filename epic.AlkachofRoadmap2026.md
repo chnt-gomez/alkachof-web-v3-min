@@ -46,7 +46,8 @@ The front end needs several changes in order to be pre-production ready. We will
 - ✅ **Week 2 — Private Catalog (list + create)** — shipped on branch `ALK-3-W2`. See the Week 2 section.
 - ✅ **Week 3 — Private Catalog (edit metadata + item list)** — shipped on branch `ALK-3-W3`. See the Week 3 section.
 - ✅ **Week 4 — Private Product CRUD** — shipped on branch `ALK-4-W4`. See the Week 4 section.
-- ⏳ Weeks 5–8 — not started.
+- ✅ **Week 5 — Image upload** — shipped on branch `ALK-4-W5`. See the Week 5 section.
+- ⏳ Weeks 6–8 — not started.
 
 A consolidated punch list of every parked follow-up lives in the **"Carry-over backlog"** section below the weekly plans. Treat that section as the canonical list of work that must close before MVP ships to production.
 
@@ -292,7 +293,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 5 — Image upload
+## Week 5 — Image upload ✅ SHIPPED on `ALK-4-W5`
 
 **Goal:** sellers upload real product images; uploaded URLs render across the app.
 
@@ -302,29 +303,34 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - As a seller (lightweight profile), I can upload a profile picture.
 - Images respect the golden rules (`object-contain`, `w-full`, no fixed heights).
 
-**Acceptance criteria**
+**Acceptance criteria — status**
 
-- File picker accepts JPG/PNG/WebP, ≤ 5 MB; client-side validation with Spanish errors.
-- Upload shows progress state; success replaces the placeholder.
-- Failures retain the previous image and surface a Spanish toast.
-- Mock returns a stable placeholder URL in dev stage.
+- ✅ File picker accepts JPG/PNG/WebP, ≤ 5 MB; client-side validation with Spanish errors (`ImageUploadField` validates type + size before invoking the upload action).
+- ✅ Upload shows progress state (spinner + "Subiendo imagen…") and replaces the placeholder on success.
+- ✅ Failures retain the previous image and surface a Spanish inline `role="alert"` (shared `useToast` migration still tracked under C3).
+- ✅ Mocks return stable picsum URLs in dev stage — `mockUploadItemImage`, `mockUploadProfileImage`.
 
-**API**
+**API (wired through `api()` with FormData)**
 
-- `POST /profile/{profileId}/image` (multipart)
-- Item image upload path: **confirm during the week** — either a dedicated endpoint or pass an uploaded URL into `POST /item/{itemId}/update`.
+- `POST /profile/{profileId}/image` (multipart) — used by `uploadProfileImage`.
+- `POST /upload/image` (multipart) — assumed shape for item uploads (returns `{ url }`). **Backend confirmation pending — tracked as carry-over C7.**
 
-**Tasks**
+**Tasks — status**
 
-- [ ] `actions/uploadProfileImage.ts` (+ mock)
-- [ ] `actions/uploadItemImage.ts` (+ mock) — clarify endpoint shape with backend
-- [ ] `ImageUploadField` shadcn-styled component
-- [ ] Wire into `ItemFormDialog` and a minimal profile-image control
-- [ ] Tests: validation, success, failure
+- [x] `actions/uploadProfileImage.ts` under `src/sections/auth/actions/` (+ paired `mockUploadProfileImage`).
+- [x] `actions/uploadItemImage.ts` under `src/sections/catalog/actions/` (+ paired `mockUploadItemImage`). Endpoint shape flagged.
+- [x] `ImageUploadField` reusable component in `src/components/` (validation, progress, error, embedded gallery/camera picker sheet).
+- [x] Wired into `ItemFormDialog` (replaces `ImagePickerSheet`, which was deleted).
+- [x] Minimal `ProfilePage` at `/profile` reachable from `NavShell`; `AuthContext` exposes `updateProfile` so the uploaded URL persists in-memory.
+- [x] Tests: 4 `ImageUploadField` tests (validation reject, size reject, success, failure-preserves-previous) + updated CatalogPage create flow to mock `uploadItemImage`. 51/51 green.
+- [x] `vite build` passes; `npm run lint` clean (only the 4 pre-existing `react-refresh/only-export-components` warnings).
 
-**Risks**
+**Pending / follow-ups parked for later weeks:**
 
-- Item image endpoint not explicit in the OpenAPI surface — confirm before kickoff.
+- [ ] **Confirm item-image endpoint with backend (C7).** `/upload/image` is an assumption. If backend prefers a per-catalog or per-item route, swap the URL in `uploadItemImage.ts` — the component contract stays unchanged.
+- [ ] **Persist profile picture server-side.** Today `ProfilePage` calls `uploadProfileImage` and updates the in-memory `AuthContext.profile` only. Once the profile update endpoint is wired (`POST /profile/{id}/update`), the new URL should be persisted there.
+- [ ] **Profile read action.** `mockFetchProfile` already returns a placeholder picture URL, so the avatar in `NavShell` renders in dev. Production round-trip on `GET /profile` already returns the URL — no extra work.
+- [ ] **Toast migration** — inline `role="alert"` works for now; revisit during W8 hardening with the shared `useToast` (C3).
 
 ---
 
@@ -473,7 +479,7 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 | 2 | Private Catalog (list + create) | ✅ shipped | branch `ALK-3-W2` | Replace hand-rolled dialog with shadcn `Dialog` primitive → W8; migrate edit shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` → W3 |
 | 3 | Private Catalog (edit + items) | ✅ shipped | branch `ALK-3-W3` | Shared shadcn `Dialog` primitive → W8 (C9); collapse `mockFetchEditableCatalog` into `mockFetchCatalog` → W8 |
 | 4 | Private Product CRUD | ✅ shipped | branch `ALK-4-W4` | Real image upload → W5; shared shadcn `Dialog` primitive → W8 (C9) |
-| 5 | Image upload | ⏳ pending | — | — |
+| 5 | Image upload | ✅ shipped | branch `ALK-4-W5` | Confirm item-image endpoint with backend (C7); persist profile picture via profile update endpoint → post-W8 |
 | 6 | Public Catalog wired | ⏳ pending | — | — |
 | 7 | Password recovery | ⏳ pending | — | — |
 | 8 | Hardening | ⏳ pending | — | — |

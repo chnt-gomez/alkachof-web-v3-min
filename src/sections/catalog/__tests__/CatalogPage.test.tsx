@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
@@ -12,6 +12,7 @@ vi.mock('../actions/updateCatalog')
 vi.mock('../actions/updateItem')
 vi.mock('../actions/createItem')
 vi.mock('../actions/deleteItem')
+vi.mock('../actions/uploadItemImage')
 
 import { fetchCatalog } from '@/sections/catalogs/actions/fetchCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
@@ -19,6 +20,7 @@ import { updateCatalog } from '../actions/updateCatalog'
 import { updateItem } from '../actions/updateItem'
 import { createItem } from '../actions/createItem'
 import { deleteItem } from '../actions/deleteItem'
+import { uploadItemImage } from '../actions/uploadItemImage'
 
 const mockCatalog: Catalog = {
   _id: 'cat1',
@@ -80,6 +82,7 @@ beforeEach(() => {
     ...patch,
   }))
   vi.mocked(deleteItem).mockResolvedValue(undefined)
+  vi.mocked(uploadItemImage).mockResolvedValue('https://example.com/uploaded.png')
   vi.mocked(createItem).mockResolvedValue({
     _id: 'item_new',
     catalogId: 'cat1',
@@ -232,8 +235,8 @@ describe('CatalogPage', () => {
     await user.click(imgButton)
     const galleryInput = document.querySelector('input[type="file"]:not([capture])') as HTMLInputElement
     const file = new File(['x'], 'foto.png', { type: 'image/png' })
-    Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:test', writable: true })
     await user.upload(galleryInput, file)
+    await waitFor(() => expect(uploadItemImage).toHaveBeenCalledWith(file))
 
     await user.click(screen.getByRole('button', { name: /^agregar$/i }))
 

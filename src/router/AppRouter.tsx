@@ -3,6 +3,7 @@ import { HomePage } from '@/sections/home/HomePage'
 import { CatalogPage } from '@/sections/catalog/CatalogPage'
 import { ProductPage } from '@/sections/product/ProductPage'
 import { PublicCatalogPage } from '@/sections/publicCatalog/PublicCatalogPage'
+import { ProfilePage } from '@/sections/profile/ProfilePage'
 import { LoginPage } from '@/sections/auth/LoginPage'
 import { SignupPage } from '@/sections/auth/SignupPage'
 import { AuthProvider } from '@/sections/auth/AuthContext'
@@ -22,6 +23,7 @@ export function AppRouter() {
               <Route path="/" element={<HomePage />} />
               <Route path="/product/:id" element={<ProductPage />} />
               <Route path="/edit/catalog/:catalogId" element={<CatalogPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

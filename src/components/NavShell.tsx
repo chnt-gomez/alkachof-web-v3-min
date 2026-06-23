@@ -20,7 +20,19 @@ export function NavShell() {
           </Link>
           {isAuthenticated ? (
             <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">{profile?.alias ?? 'Mi cuenta'}</span>
+              <Link
+                to="/profile"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                {profile?.profile_picture_url && (
+                  <img
+                    src={profile.profile_picture_url}
+                    alt={profile.alias ?? 'Perfil'}
+                    className="h-7 w-7 rounded-full object-cover"
+                  />
+                )}
+                <span>{profile?.alias ?? 'Mi cuenta'}</span>
+              </Link>
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 Salir
               </Button>
