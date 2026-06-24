@@ -12,6 +12,7 @@ type AuthState = {
   login: (credentials: LoginCredentials) => Promise<void>
   signup: (data: SignupData) => Promise<SignupResult>
   logout: () => void
+  updateProfile: (patch: Partial<Profile>) => void
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -55,6 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
   }, [])
 
+  const updateProfile = useCallback((patch: Partial<Profile>) => {
+    setProfile((prev) => (prev ? { ...prev, ...patch } : prev))
+  }, [])
+
   const value = useMemo<AuthState>(
     () => ({
       profile,
@@ -63,8 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       signup,
       logout,
+      updateProfile,
     }),
-    [profile, isBooting, login, signup, logout]
+    [profile, isBooting, login, signup, logout, updateProfile]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

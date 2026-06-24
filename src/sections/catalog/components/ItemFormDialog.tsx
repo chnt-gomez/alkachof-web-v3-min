@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ImagePickerSheet } from './ImagePickerSheet'
+import { ImageUploadField } from '@/components/ImageUploadField'
+import { uploadItemImage } from '../actions/uploadItemImage'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
 export type ItemFormPayload = {
@@ -30,7 +31,6 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showPicker, setShowPicker] = useState(false)
 
   function validate(): ItemFormPayload | null {
     setError(null)
@@ -103,20 +103,12 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
           </div>
 
           <div className="flex flex-col gap-4 p-5">
-            <button
-              type="button"
-              className="flex w-full flex-col items-center justify-center overflow-hidden rounded-xl border bg-muted transition-opacity hover:opacity-80"
-              onClick={() => setShowPicker(true)}
-              aria-label={imgPath ? 'Cambiar imagen' : 'Agregar imagen'}
-            >
-              {imgPath ? (
-                <img src={imgPath} alt={name || 'Producto'} className="w-full object-contain" />
-              ) : (
-                <div className="flex h-32 w-full items-center justify-center text-xs text-muted-foreground">
-                  Toca para agregar imagen
-                </div>
-              )}
-            </button>
+            <ImageUploadField
+              value={imgPath}
+              onChange={setImgPath}
+              upload={uploadItemImage}
+              alt={name || 'Producto'}
+            />
 
             <Field label="Nombre">
               <input
@@ -183,9 +175,6 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
         </div>
       </div>
 
-      {showPicker && (
-        <ImagePickerSheet onPick={setImgPath} onClose={() => setShowPicker(false)} />
-      )}
     </>
   )
 }
