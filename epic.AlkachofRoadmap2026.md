@@ -48,7 +48,8 @@ The front end needs several changes in order to be pre-production ready. We will
 - ✅ **Week 4 — Private Product CRUD** — shipped on branch `ALK-4-W4`. See the Week 4 section.
 - ✅ **Week 5 — Image upload** — shipped on branch `ALK-4-W5`. See the Week 5 section.
 - ✅ **Week 6 — Public Catalog wired to the API** — shipped on branch `ALK-9-W6`. See the Week 6 section.
-- ⏳ Weeks 7–8 — not started.
+- ✅ **Week 7 — Password recovery + email verification** — shipped on branch `ALK-2-W7`. See the Week 7 section.
+- ⏳ Week 8 — not started.
 
 A consolidated punch list of every parked follow-up lives in the **"Carry-over backlog"** section below the weekly plans. Treat that section as the canonical list of work that must close before MVP ships to production.
 
@@ -371,9 +372,9 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 7 — Password recovery + email verification
+## Week 7 — Password recovery + email verification ✅ SHIPPED on `ALK-2-W7`
 
-**Goal:** sellers can reset a forgotten password and activate a newly-created account from the verification email (closes Login Screens epic #2 and unblocks the W1 follow-up).
+**Goal:** sellers can reset a forgotten password and activate a newly-created account from the verification email (closes Login Screens epic #2 and the W1 email-verification follow-up).
 
 **User stories**
 
@@ -381,26 +382,32 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - As a seller, I can click the recovery email link, validate the token, and set a new password.
 - As a new seller, I can click the verification link from the signup email to activate my account, then land on `/login`.
 
-**Acceptance criteria**
+**Acceptance criteria — status**
 
-- `/recover` form calls `POST /recover`. Spanish success message shown regardless of whether the email exists (anti-enumeration).
-- `/reset/:token` validates via `GET /validate/{token}` on mount. Invalid token → Spanish error and a link back to `/recover`.
-- Submitting calls `POST /reset` with the token + new password. Success → redirect to `/login` with a Spanish confirmation toast.
-- `/verify/:token` calls `GET /validate/{token}` on mount. Success → Spanish "Cuenta activada" + button to `/login`. Failure → Spanish error + button to re-signup or contact support.
+- ✅ `/recover` form calls `POST /recover`. Spanish "Revisa tu correo" confirmation shown regardless of backend outcome (anti-enumeration).
+- ✅ `/reset/:token` validates via `GET /validate/{token}` on mount. Invalid token → Spanish "Enlace inválido" with a CTA back to `/recover`.
+- ✅ Submitting calls `POST /reset` with the token + new password. Success → "Contraseña actualizada" screen and auto-redirect to `/login`. (Shared `useToast` deferred to W8/C3 — inline confirmation screen used instead.)
+- ✅ `/verify/:token` calls `GET /validate/{token}` on mount. Success → Spanish "Cuenta activada" + button to `/login`. Failure → Spanish error with buttons to re-signup or go to login.
+- ✅ `LoginPage` now links to `/recover` ("¿Olvidaste tu contraseña?").
 
-**API**
+**API (wired through `api()` with `authenticated: false`)**
 
 - `POST /recover`
 - `GET /validate/{token}` (shared by reset and verify flows)
 - `POST /reset`
 
-**Tasks**
+**Tasks — status**
 
-- [ ] `actions/requestRecovery.ts`, `actions/validateToken.ts`, `actions/resetPassword.ts` (+ mocks)
-- [ ] `RecoverPage`, `ResetPasswordPage`, `VerifyEmailPage`
-- [ ] Register `/recover`, `/reset/:token`, `/verify/:token`; link recover from `LoginPage`
-- [ ] Confirm with backend whether `/validate/{token}` distinguishes verification tokens from reset tokens (one endpoint vs. two semantically different uses)
-- [ ] Tests for both pages
+- [x] `actions/requestRecovery.ts`, `actions/validateToken.ts`, `actions/resetPassword.ts` (+ paired mocks: `mockRequestRecovery`, `mockValidateToken`, `mockResetPassword`).
+- [x] `RecoverPage`, `ResetPasswordPage`, `VerifyEmailPage` under `src/sections/auth/`.
+- [x] Routes registered in `AppRouter.tsx`; "Recupérala" link added to `LoginPage`.
+- [x] Page-level tests: recover happy + anti-enumeration + empty-field validation, reset happy + invalid-token + mismatched-password, verify success + error (9 new, 61/61 green total).
+- [x] `vite build` passes; `npm run lint` clean (only the 4 pre-existing `react-refresh/only-export-components` warnings).
+
+**Pending / follow-ups parked for later weeks:**
+
+- [ ] **Confirm `/validate/{token}` semantics with backend (C8).** Today both reset and verify flows hit the same endpoint. If the backend distinguishes token types, split into two actions — the UI contract stays unchanged.
+- [ ] **Toast on reset success** — currently uses a confirmation screen + auto-redirect. Migrate onto the shared `useToast` once it lands in W8 (C3).
 
 ---
 
@@ -434,7 +441,7 @@ Single source of truth for work surfaced mid-epic that did not ship in its origi
 
 | # | Item | Origin | Owner | Status |
 |---|------|--------|-------|--------|
-| C1 | Email verification page (`/verify/:token` → `GET /validate/{token}`) | W1 | W7 | ⏳ pending |
+| C1 | Email verification page (`/verify/:token` → `GET /validate/{token}`) | W1 | W7 | ✅ closed in W7 |
 | C2 | Proactive JWT refresh (refresh before `exp`, not on 401) | W1 | W8 | ⏳ pending |
 | C3 | Migrate login/signup inline alerts to shared `useToast` hook | W1 | W8 | ⏳ pending |
 | C4 | Replace `ProtectedRoute` boot "Cargando..." with a real skeleton | W1 | W8 | ⏳ pending |
@@ -486,5 +493,5 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 | 4 | Private Product CRUD | ✅ shipped | branch `ALK-4-W4` | Real image upload → W5; shared shadcn `Dialog` primitive → W8 (C9) |
 | 5 | Image upload | ✅ shipped | branch `ALK-4-W5` | Confirm item-image endpoint with backend (C7); persist profile picture via profile update endpoint → post-W8 |
 | 6 | Public Catalog wired | ✅ shipped | branch `ALK-9-W6` | Live backend smoke against seeded ids → W8 |
-| 7 | Password recovery | ⏳ pending | — | — |
+| 7 | Password recovery | ✅ shipped | branch `ALK-2-W7` | Confirm `/validate/{token}` token-type semantics with backend (C8); migrate reset-success notice to shared `useToast` → W8 (C3) |
 | 8 | Hardening | ⏳ pending | — | — |

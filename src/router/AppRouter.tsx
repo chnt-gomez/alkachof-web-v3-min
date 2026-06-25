@@ -6,6 +6,9 @@ import { PublicCatalogPage } from '@/sections/publicCatalog/PublicCatalogPage'
 import { ProfilePage } from '@/sections/profile/ProfilePage'
 import { LoginPage } from '@/sections/auth/LoginPage'
 import { SignupPage } from '@/sections/auth/SignupPage'
+import { RecoverPage } from '@/sections/auth/RecoverPage'
+import { ResetPasswordPage } from '@/sections/auth/ResetPasswordPage'
+import { VerifyEmailPage } from '@/sections/auth/VerifyEmailPage'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { NavShell } from '@/components/NavShell'
 import { ProtectedRoute } from './ProtectedRoute'
@@ -17,6 +20,9 @@ export function AppRouter() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/recover" element={<RecoverPage />} />
+          <Route path="/reset/:token" element={<ResetPasswordPage />} />
+          <Route path="/verify/:token" element={<VerifyEmailPage />} />
           <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
           <Route element={<NavShell />}>
             <Route element={<ProtectedRoute />}>
