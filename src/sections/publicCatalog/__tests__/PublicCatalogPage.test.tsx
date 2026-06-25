@@ -5,6 +5,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { PublicCatalogPage } from '../PublicCatalogPage'
 import type { Catalog } from '../actions/fetchPublicCatalog'
 import type { Item } from '../actions/fetchCatalogItems'
+import { ApiError } from '@/lib/api'
 
 vi.mock('../actions/fetchPublicCatalog')
 vi.mock('../actions/fetchCatalogItems')
@@ -121,10 +122,18 @@ describe('PublicCatalogPage', () => {
   })
 
   it('renders error message when the request fails', async () => {
-    vi.mocked(fetchPublicCatalog).mockRejectedValue(new Error('Catalog not found (404)'))
+    vi.mocked(fetchPublicCatalog).mockRejectedValue(new Error('Falla de red'))
     renderPage()
 
-    expect(await screen.findByText('Catalog not found (404)')).toBeInTheDocument()
+    expect(await screen.findByText('Falla de red')).toBeInTheDocument()
+  })
+
+  it('renders the not-found view when the catalog returns 404', async () => {
+    vi.mocked(fetchPublicCatalog).mockRejectedValue(new ApiError('Not found', 404))
+    vi.mocked(fetchCatalogItems).mockRejectedValue(new ApiError('Not found', 404))
+    renderPage('does-not-exist')
+
+    expect(await screen.findByText('Catálogo no encontrado')).toBeInTheDocument()
   })
 
   it('renders the subscribe button in the jumbotron', async () => {

@@ -47,7 +47,8 @@ The front end needs several changes in order to be pre-production ready. We will
 - ✅ **Week 3 — Private Catalog (edit metadata + item list)** — shipped on branch `ALK-3-W3`. See the Week 3 section.
 - ✅ **Week 4 — Private Product CRUD** — shipped on branch `ALK-4-W4`. See the Week 4 section.
 - ✅ **Week 5 — Image upload** — shipped on branch `ALK-4-W5`. See the Week 5 section.
-- ⏳ Weeks 6–8 — not started.
+- ✅ **Week 6 — Public Catalog wired to the API** — shipped on branch `ALK-9-W6`. See the Week 6 section.
+- ⏳ Weeks 7–8 — not started.
 
 A consolidated punch list of every parked follow-up lives in the **"Carry-over backlog"** section below the weekly plans. Treat that section as the canonical list of work that must close before MVP ships to production.
 
@@ -334,7 +335,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 6 — Public Catalog View wired to the API
+## Week 6 — Public Catalog View wired to the API ✅ SHIPPED on `ALK-9-W6`
 
 **Goal:** `/public/catalog/:catalogId` reads from the real backend; the existing UI (`CatalogJumbotron`, `CatalogItemList`, `ProductDetailDialog`) keeps working unchanged.
 
@@ -356,13 +357,17 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - `GET /catalog/{catalogId}` (public read)
 - `GET /catalog/{catalogId}/items`
 
-**Tasks**
+**Tasks — status**
 
-- [ ] Update `PublicCatalogContext` to call real actions when `!IS_DEV_STAGE`
-- [ ] Add `unauthenticated: true` flag on `api.ts` to skip auth header
-- [ ] 404 component for invalid catalog
-- [ ] End-to-end smoke against `localhost:3001` with each seeded id
-- [ ] Update the existing page-level test to cover the new error path
+- [x] `fetchPublicCatalog` and `fetchCatalogItems` migrated onto `api()` with `authenticated: false` so no `Authorization` header is sent on public reads.
+- [x] `api()` already exposed the `authenticated` flag from W1 — no wrapper changes required; reusing the existing knob.
+- [x] `CatalogNotFound` component renders a Spanish not-found state when the backend returns `ApiError(404)`. `PublicCatalogContext` now exposes a `notFound` flag separate from `error`.
+- [x] Page-level test updated: generic error path still covered, plus a new test that asserts the not-found view when the API throws `ApiError(_, 404)`. 52/52 green.
+- [ ] End-to-end smoke against `localhost:3001` with each seeded id — pending manual verification by the user (dev stage default still serves mocks; flip `VITE_DEV_STAGE=false` to hit the real backend).
+
+**Pending / follow-ups parked for later weeks:**
+
+- [ ] **Live backend smoke** — verify the three seeded ids (`6a0365fdf74fdcb617a8a5b6`, `…5c3`, `…5d0`) round-trip against `localhost:3001` with `VITE_DEV_STAGE=false`. **Owner: Week 8 hardening.**
 
 ---
 
@@ -480,6 +485,6 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 | 3 | Private Catalog (edit + items) | ✅ shipped | branch `ALK-3-W3` | Shared shadcn `Dialog` primitive → W8 (C9); collapse `mockFetchEditableCatalog` into `mockFetchCatalog` → W8 |
 | 4 | Private Product CRUD | ✅ shipped | branch `ALK-4-W4` | Real image upload → W5; shared shadcn `Dialog` primitive → W8 (C9) |
 | 5 | Image upload | ✅ shipped | branch `ALK-4-W5` | Confirm item-image endpoint with backend (C7); persist profile picture via profile update endpoint → post-W8 |
-| 6 | Public Catalog wired | ⏳ pending | — | — |
+| 6 | Public Catalog wired | ✅ shipped | branch `ALK-9-W6` | Live backend smoke against seeded ids → W8 |
 | 7 | Password recovery | ⏳ pending | — | — |
 | 8 | Hardening | ⏳ pending | — | — |
