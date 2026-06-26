@@ -5,25 +5,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from './useAuth'
+import { useToast } from '@/components/ui/useToast'
 
 type LocationState = { from?: string }
 
 export function LoginPage() {
   const { login } = useAuth()
+  const toast = useToast()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as LocationState | null)?.from ?? '/'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
     if (!email || !password) {
-      setError('Ingresa tu correo y contraseña')
+      toast.error('Ingresa tu correo y contraseña')
       return
     }
     setSubmitting(true)
@@ -31,7 +31,7 @@ export function LoginPage() {
       await login({ email, password })
       navigate(from, { replace: true })
     } catch {
-      setError('Correo o contraseña incorrectos')
+      toast.error('Correo o contraseña incorrectos')
     } finally {
       setSubmitting(false)
     }
@@ -67,11 +67,6 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? 'Ingresando...' : 'Ingresar'}
             </Button>

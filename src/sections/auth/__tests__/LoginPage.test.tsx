@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LoginPage } from '../LoginPage'
 import { AuthProvider } from '../AuthContext'
+import { ToastProvider } from '@/components/ui/toast'
 
 vi.mock('../actions/login')
 vi.mock('../actions/fetchProfile')
@@ -14,12 +15,14 @@ import { fetchProfile } from '../actions/fetchProfile'
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/login']}>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<div>Inicio</div>} />
-        </Routes>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<div>Inicio</div>} />
+          </Routes>
+        </AuthProvider>
+      </ToastProvider>
     </MemoryRouter>,
   )
 }

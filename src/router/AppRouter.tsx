@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { NotFoundPage } from '@/components/NotFoundPage'
+import { ToastProvider } from '@/components/ui/toast'
 import { HomePage } from '@/sections/home/HomePage'
 import { CatalogPage } from '@/sections/catalog/CatalogPage'
 import { ProductPage } from '@/sections/product/ProductPage'
@@ -19,25 +20,27 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/recover" element={<RecoverPage />} />
-            <Route path="/reset/:token" element={<ResetPasswordPage />} />
-            <Route path="/verify/:token" element={<VerifyEmailPage />} />
-            <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
-            <Route element={<NavShell />}>
-              <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/product/:id" element={<ProductPage />} />
-                <Route path="/edit/catalog/:catalogId" element={<CatalogPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+        <ToastProvider>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/recover" element={<RecoverPage />} />
+              <Route path="/reset/:token" element={<ResetPasswordPage />} />
+              <Route path="/verify/:token" element={<VerifyEmailPage />} />
+              <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
+              <Route element={<NavShell />}>
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/product/:id" element={<ProductPage />} />
+                  <Route path="/edit/catalog/:catalogId" element={<CatalogPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                </Route>
               </Route>
-            </Route>
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </AuthProvider>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </AuthProvider>
+        </ToastProvider>
       </ErrorBoundary>
     </BrowserRouter>
   )
