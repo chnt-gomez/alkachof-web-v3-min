@@ -1,4 +1,6 @@
-import { clearTokens, getRefreshToken, getToken, setTokens } from './auth'
+import { clearTokens, getRefreshToken, getToken, getTokenExpiryMs, setTokens } from './auth'
+
+const PROACTIVE_REFRESH_BUFFER_MS = 30_000
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
 
@@ -56,7 +58,16 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
     })
 
-  let res = await send(getToken())
+  let token = getToken()
+  if (authenticated && token) {
+    const expiry = getTokenExpiryMs(token)
+    if (expiry !== null && expiry - Date.now() < PROACTIVE_REFRESH_BUFFER_MS) {
+      const refreshed = await refreshAccessToken()
+      if (refreshed) token = refreshed
+    }
+  }
+
+  let res = await send(token)
 
   if (res.status === 401 && authenticated) {
     const newToken = await refreshAccessToken()
