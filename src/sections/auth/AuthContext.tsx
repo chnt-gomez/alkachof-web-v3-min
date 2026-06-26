@@ -1,21 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { clearTokens, getToken, setTokens } from '@/lib/auth'
 import { login as loginAction, type LoginCredentials } from './actions/login'
-import { signup as signupAction, type SignupData, type SignupResult } from './actions/signup'
+import { signup as signupAction, type SignupData } from './actions/signup'
 import { fetchProfile } from './actions/fetchProfile'
 import type { Profile } from './types'
-
-type AuthState = {
-  profile: Profile | null
-  isAuthenticated: boolean
-  isBooting: boolean
-  login: (credentials: LoginCredentials) => Promise<void>
-  signup: (data: SignupData) => Promise<SignupResult>
-  logout: () => void
-  updateProfile: (patch: Partial<Profile>) => void
-}
-
-const AuthContext = createContext<AuthState | null>(null)
+import { AuthContext, type AuthState } from './authContextValue'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -74,10 +63,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth(): AuthState {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider')
-  return ctx
 }

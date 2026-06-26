@@ -1,6 +1,6 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/sections/auth/AuthContext'
+import { useAuth } from '@/sections/auth/useAuth'
 
 export function NavShell() {
   const { isAuthenticated, profile, logout } = useAuth()
