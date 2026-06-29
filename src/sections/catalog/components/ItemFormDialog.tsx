@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog } from '@/components/ui/dialog'
 import { ImageUploadField } from '@/components/ImageUploadField'
 import { uploadItemImage } from '../actions/uploadItemImage'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
@@ -84,24 +84,7 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
   const saveLabel = mode === 'create' ? 'Agregar' : 'Guardar'
 
   return (
-    <>
-      <div
-        className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
-        onClick={onClose}
-      >
-        <div
-          role="dialog"
-          aria-label={title}
-          className="relative w-full max-w-md overflow-y-auto rounded-t-2xl bg-background max-h-[90vh] sm:rounded-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between border-b px-5 py-4">
-            <h2 className="text-base font-semibold">{title}</h2>
-            <button onClick={onClose} aria-label="Cerrar">
-              <X size={18} />
-            </button>
-          </div>
-
+    <Dialog onClose={onClose} ariaLabel={title} title={title}>
           <div className="flex flex-col gap-4 p-5">
             <ImageUploadField
               value={imgPath}
@@ -172,10 +155,7 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
               {saving ? 'Guardando…' : saveLabel}
             </Button>
           </div>
-        </div>
-      </div>
-
-    </>
+    </Dialog>
   )
 }
 

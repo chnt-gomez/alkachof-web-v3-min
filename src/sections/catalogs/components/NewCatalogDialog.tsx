@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createCatalog, type CreateCatalogInput, type PayOption, type DeliveryType } from '../actions/createCatalog'
@@ -79,25 +79,8 @@ export function NewCatalogDialog({ onClose, onCreated }: Props) {
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Nuevo catálogo"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-md overflow-y-auto rounded-t-2xl bg-background max-h-[90vh] sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="text-base font-semibold">Nuevo catálogo</h2>
-          <button onClick={onClose} aria-label="Cerrar">
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4 p-5">
+    <Dialog onClose={onClose} ariaLabel="Nuevo catálogo" title="Nuevo catálogo">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4 p-5">
           <div className="space-y-2">
             <Label htmlFor="alias">Nombre</Label>
             <Input
@@ -179,7 +162,6 @@ export function NewCatalogDialog({ onClose, onCreated }: Props) {
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Dialog>
   )
 }

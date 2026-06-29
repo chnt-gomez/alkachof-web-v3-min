@@ -1,4 +1,4 @@
-import { useAuth } from '@/sections/auth/AuthContext'
+import { useAuth } from '@/sections/auth/useAuth'
 import { uploadProfileImage } from '@/sections/auth/actions/uploadProfileImage'
 import { ImageUploadField } from '@/components/ImageUploadField'
 

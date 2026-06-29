@@ -49,7 +49,7 @@ The front end needs several changes in order to be pre-production ready. We will
 - ✅ **Week 5 — Image upload** — shipped on branch `ALK-4-W5`. See the Week 5 section.
 - ✅ **Week 6 — Public Catalog wired to the API** — shipped on branch `ALK-9-W6`. See the Week 6 section.
 - ✅ **Week 7 — Password recovery + email verification** — shipped on branch `ALK-2-W7`. See the Week 7 section.
-- ⏳ Week 8 — not started.
+- ✅ **Week 8 — Hardening + barebones polish** — shipped on branch `ALK-2-W8`. See the Week 8 section.
 
 A consolidated punch list of every parked follow-up lives in the **"Carry-over backlog"** section below the weekly plans. Treat that section as the canonical list of work that must close before MVP ships to production.
 
@@ -411,27 +411,34 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 ---
 
-## Week 8 — Hardening + barebones polish
+## Week 8 — Hardening + barebones polish ✅ SHIPPED on `ALK-2-W8`
 
 **Goal:** the MVP is stable enough to share with real sellers. No new features.
 
-**Scope**
+**Scope — status**
 
-- Global error boundary with a Spanish fallback UI.
-- `/404` route + catch-all handling.
-- Loading skeletons on every async page (including `ProtectedRoute` boot state — replaces the current "Cargando..." text from W1).
-- A single `useToast` hook for all form feedback; migrate the W1 login/signup inline alerts onto it.
-- Proactive JWT refresh (decode `exp` and refresh before expiry) so the first request after expiry doesn't pay a 401-hop. Carried over from W1.
-- Refresh-token race guard (single in-flight `/refresh` promise) — only if a bug surfaces.
-- Split `useAuth` out of `AuthContext.tsx` to clear the `react-refresh/only-export-components` warning (matches treatment of other context files in the repo).
-- `vite build` passes; `npm run lint` clean; `npm test` green.
-- Manual run-through of every user story above on a phone-sized viewport.
-- README updated with `VITE_API_BASE_URL` and the dev-stage flag.
+- ✅ Global `ErrorBoundary` with Spanish fallback wrapping the router (`src/components/ErrorBoundary.tsx`).
+- ✅ `/404` route — silent catch-all redirect replaced with `NotFoundPage` (`src/components/NotFoundPage.tsx`).
+- ✅ `Skeleton` primitive (`src/components/ui/skeleton.tsx`); `ProtectedRoute` boot now renders shimmer placeholders instead of "Cargando..." text (closes C4).
+- ✅ Minimal `useToast` hook + `ToastProvider` (`src/components/ui/toast.tsx`, `useToast.ts`); W1 login/signup inline alerts migrated to toast (closes C3).
+- ✅ Proactive JWT refresh — `getTokenExpiryMs` decodes `exp` and `api()` refreshes within 30s of expiry instead of waiting for a 401 (closes C2).
+- ⏸️ Refresh-token race guard (C5) — left out per the roadmap's "conditional" tag; no concurrent-refresh bug reproduced in tests.
+- ✅ `useAuth` split out of `AuthContext.tsx` into `useAuth.ts` + `authContextValue.ts` (closes C6).
+- ✅ Shared `Dialog` primitive in `src/components/ui/dialog.tsx`; `NewCatalogDialog`, `EditCatalogModal`, `ItemFormDialog`, `DeleteItemConfirm` now wrap it instead of repeating the hand-rolled `inset-0` shell (closes C9).
+- ✅ `vite build` passes; `npm run lint` clean (3 pre-existing `react-refresh/only-export-components` warnings remain on `button.tsx`, `EditCatalogContext.tsx`, `PublicCatalogContext.tsx`); `npm test` green (67/67).
+- ✅ README added with `VITE_API_BASE_URL` and `VITE_DEV_STAGE` documentation.
 
 **Acceptance criteria**
 
 - A new seller can: sign up → create a catalog → add three products with images → share the public link → recover their password — all without console errors.
 - All seeded users from `CLAUDE.md` work against the local backend.
+
+**Pending / follow-ups parked for post-MVP:**
+
+- [ ] **Manual phone-viewport run-through against `localhost:3001`** with `VITE_DEV_STAGE=false`, including the seeded user/catalog ids — owner: user.
+- [ ] **Backend confirmation on C7 (item image upload endpoint shape) and C8 (`/validate/{token}` token-type semantics).** Both are blocked on backend coordination, not on the UI.
+- [ ] **Collapse `mockFetchEditableCatalog` into `mockFetchCatalog`.** Cosmetic mock cleanup — not blocking.
+- [ ] **Live-backend smoke for the three seeded public catalog ids** carried over from W6 — folds into the same manual run-through above.
 
 ---
 
@@ -442,14 +449,14 @@ Single source of truth for work surfaced mid-epic that did not ship in its origi
 | # | Item | Origin | Owner | Status |
 |---|------|--------|-------|--------|
 | C1 | Email verification page (`/verify/:token` → `GET /validate/{token}`) | W1 | W7 | ✅ closed in W7 |
-| C2 | Proactive JWT refresh (refresh before `exp`, not on 401) | W1 | W8 | ⏳ pending |
-| C3 | Migrate login/signup inline alerts to shared `useToast` hook | W1 | W8 | ⏳ pending |
-| C4 | Replace `ProtectedRoute` boot "Cargando..." with a real skeleton | W1 | W8 | ⏳ pending |
-| C5 | Refresh-token race guard (single in-flight `/refresh` promise) | W1 | W8 (only if reproduces) | ⏳ conditional |
-| C6 | Split `useAuth` out of `AuthContext.tsx` (fast-refresh lint warning) | W1 | W8 | ⏳ pending |
-| C7 | Item image upload endpoint shape — confirm with backend | roadmap draft | W5 | ⏳ pending |
-| C8 | Confirm `/validate/{token}` is shared by reset + verify tokens or split | W1 | W7 | ⏳ pending |
-| C9 | Replace hand-rolled modal overlay with shared shadcn `Dialog` primitive (covers `NewCatalogDialog`, `AddProductModal`, `EditCatalogModal`) | W2 | W8 | ⏳ pending |
+| C2 | Proactive JWT refresh (refresh before `exp`, not on 401) | W1 | W8 | ✅ closed in W8 |
+| C3 | Migrate login/signup inline alerts to shared `useToast` hook | W1 | W8 | ✅ closed in W8 |
+| C4 | Replace `ProtectedRoute` boot "Cargando..." with a real skeleton | W1 | W8 | ✅ closed in W8 |
+| C5 | Refresh-token race guard (single in-flight `/refresh` promise) | W1 | W8 (only if reproduces) | ⏸️ not reproduced; left open |
+| C6 | Split `useAuth` out of `AuthContext.tsx` (fast-refresh lint warning) | W1 | W8 | ✅ closed in W8 |
+| C7 | Item image upload endpoint shape — confirm with backend | roadmap draft | W5 | ⏳ pending (backend) |
+| C8 | Confirm `/validate/{token}` is shared by reset + verify tokens or split | W1 | W7 | ⏳ pending (backend) |
+| C9 | Replace hand-rolled modal overlay with shared shadcn `Dialog` primitive (covers `NewCatalogDialog`, `AddProductModal`, `EditCatalogModal`) | W2 | W8 | ✅ closed in W8 |
 | C10 | Migrate `/edit/catalog/:catalogId` shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` for proper auth + 401-refresh | W2 | W3 | ✅ closed in W3 |
 
 Post-MVP carry-over (tracked here so it isn't lost, but explicitly not required for MVP launch):
@@ -494,4 +501,4 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 | 5 | Image upload | ✅ shipped | branch `ALK-4-W5` | Confirm item-image endpoint with backend (C7); persist profile picture via profile update endpoint → post-W8 |
 | 6 | Public Catalog wired | ✅ shipped | branch `ALK-9-W6` | Live backend smoke against seeded ids → W8 |
 | 7 | Password recovery | ✅ shipped | branch `ALK-2-W7` | Confirm `/validate/{token}` token-type semantics with backend (C8); migrate reset-success notice to shared `useToast` → W8 (C3) |
-| 8 | Hardening | ⏳ pending | — | — |
+| 8 | Hardening | ✅ shipped | branch `ALK-2-W8` | C5 left open (not reproduced); C7/C8 backend-blocked; manual phone smoke against `localhost:3001` pending user |

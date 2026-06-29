@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog } from '@/components/ui/dialog'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 
@@ -60,21 +60,7 @@ export function EditCatalogModal({ onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-md overflow-y-auto rounded-t-2xl bg-background max-h-[90vh] sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="text-base font-semibold">Editar catálogo</h2>
-          <button onClick={onClose} aria-label="Cerrar">
-            <X size={18} />
-          </button>
-        </div>
-
+    <Dialog onClose={onClose} ariaLabel="Editar catálogo" title="Editar catálogo">
         <div className="flex flex-col gap-4 p-5">
           <Field label="Nombre del catálogo">
             <input
@@ -169,8 +155,7 @@ export function EditCatalogModal({ onClose }: Props) {
             {saving ? 'Guardando…' : 'Guardar'}
           </Button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   )
 }
 

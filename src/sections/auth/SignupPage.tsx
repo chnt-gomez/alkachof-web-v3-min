@@ -4,32 +4,32 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuth } from './AuthContext'
+import { useAuth } from './useAuth'
+import { useToast } from '@/components/ui/useToast'
 
 export function SignupPage() {
   const { signup } = useAuth()
+  const toast = useToast()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
     if (!email || !password) {
-      setError('Completa todos los campos')
+      toast.error('Completa todos los campos')
       return
     }
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres')
+      toast.error('La contraseña debe tener al menos 6 caracteres')
       return
     }
     if (password !== confirm) {
-      setError('Las contraseñas no coinciden')
+      toast.error('Las contraseñas no coinciden')
       return
     }
     setSubmitting(true)
@@ -37,7 +37,7 @@ export function SignupPage() {
       await signup({ email, password })
       setDone(true)
     } catch {
-      setError('No pudimos crear la cuenta. Intenta de nuevo.')
+      toast.error('No pudimos crear la cuenta. Intenta de nuevo.')
     } finally {
       setSubmitting(false)
     }
@@ -103,11 +103,6 @@ export function SignupPage() {
                 onChange={(e) => setConfirm(e.target.value)}
               />
             </div>
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? 'Creando...' : 'Crear cuenta'}
             </Button>
