@@ -1,29 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(222.2 84% 4.9%);
+  --color-background: hsl(80 33% 98%);
+  --color-foreground: hsl(156 32% 12%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222.2 84% 4.9%);
-  --color-primary: hsl(222.2 47.4% 11.2%);
-  --color-primary-foreground: hsl(210 40% 98%);
-  --color-secondary: hsl(210 40% 96.1%);
-  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-muted: hsl(210 40% 96.1%);
-  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  --color-accent: hsl(210 40% 96.1%);
-  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(210 40% 98%);
-  --color-border: hsl(214.3 31.8% 91.4%);
-  --color-input: hsl(214.3 31.8% 91.4%);
-  --color-ring: hsl(222.2 84% 4.9%);
-  --radius: 0.5rem;
+  --color-card-foreground: hsl(156 32% 12%);
+  --color-primary: hsl(152 44% 26%);
+  --color-primary-deep: hsl(158 48% 16%);
+  --color-primary-foreground: hsl(140 45% 97%);
+  --color-secondary: hsl(140 28% 93%);
+  --color-secondary-foreground: hsl(152 44% 22%);
+  --color-muted: hsl(120 18% 94%);
+  --color-muted-foreground: hsl(155 10% 40%);
+  --color-accent: hsl(84 55% 88%);
+  --color-accent-foreground: hsl(120 40% 18%);
+  --color-destructive: hsl(4 72% 50%);
+  --color-destructive-foreground: hsl(10 60% 98%);
+  --color-border: hsl(140 16% 88%);
+  --color-input: hsl(140 16% 85%);
+  --color-ring: hsl(152 44% 30%);
+  --radius: 1rem;
 }
 
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-1;
+    @apply w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none ring-offset-background transition-shadow focus:ring-2 focus:ring-ring focus:ring-offset-1;
   }
 }
 
@@ -38,5 +39,21 @@
     margin: 0;
     font-family: system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+  }
+  #root {
+    min-height: 100dvh;
+  }
+  /* Phone-column app frame: on wider viewports the app renders as a
+     centered mobile column; on real phones it stays edge-to-edge. */
+  @media (min-width: 640px) {
+    body {
+      background-color: hsl(150 14% 91%);
+    }
+    #root {
+      max-width: 28rem;
+      margin-inline: auto;
+      background-color: var(--color-background);
+      box-shadow: 0 0 48px rgb(20 45 30 / 0.14);
+    }
   }
 }
