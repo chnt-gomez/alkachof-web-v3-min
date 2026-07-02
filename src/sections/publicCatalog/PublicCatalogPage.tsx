@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom'
+import { LoaderCircle, Sprout } from 'lucide-react'
 import { PublicCatalogProvider, usePublicCatalog } from './context/PublicCatalogContext'
 import { CatalogJumbotron } from './components/CatalogJumbotron'
 import { CatalogItemList } from './components/CatalogItemList'
@@ -9,7 +10,12 @@ function PublicCatalogContent() {
   const { isLoading, error, notFound } = usePublicCatalog()
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Cargando catálogo…</p>
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 py-20" aria-busy="true">
+        <LoaderCircle size={28} className="animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Cargando catálogo…</p>
+      </div>
+    )
   }
 
   if (notFound) {
@@ -25,6 +31,10 @@ function PublicCatalogContent() {
       <CatalogJumbotron />
       <CatalogItemList />
       <CatalogFaq />
+      <footer className="flex items-center justify-center gap-1.5 pb-6 pt-4 text-xs text-muted-foreground">
+        <Sprout size={13} />
+        Catálogo creado con Alkachof
+      </footer>
     </>
   )
 }
@@ -38,7 +48,7 @@ export function PublicCatalogPage() {
 
   return (
     <PublicCatalogProvider catalogId={catalogId}>
-      <main className="flex min-h-screen flex-col gap-4 p-4">
+      <main className="flex min-h-dvh flex-col gap-5 p-4">
         <PublicCatalogContent />
       </main>
     </PublicCatalogProvider>

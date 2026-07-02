@@ -12,7 +12,11 @@ export function CatalogItemList() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
 
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">Sin productos aún.</p>
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed p-8 text-center">
+        <p className="text-sm text-muted-foreground">Sin productos aún.</p>
+      </div>
+    )
   }
 
   return (
@@ -21,7 +25,7 @@ export function CatalogItemList() {
         {items.map((item) => (
           <li key={item._id} className="mb-3 break-inside-avoid">
             <button
-              className="flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="flex w-full flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               onClick={() => setSelectedItem(item)}
             >
               {item.imgPath ? (
@@ -37,11 +41,13 @@ export function CatalogItemList() {
                   Sin imagen
                 </div>
               )}
-              <div className="flex flex-col gap-0.5 p-2">
-                <p className="line-clamp-2 text-xs font-large leading-tight">{item.name}</p>
-                <p className="text-xs font-semibold text-primary">{formatPrice(item.price)}</p>
+              <div className="flex flex-col gap-1 p-2.5">
+                <p className="line-clamp-2 text-sm font-medium leading-tight">{item.name}</p>
+                <p className="text-sm font-bold text-primary">{formatPrice(item.price)}</p>
                 {item.stock === 0 && (
-                  <p className="text-xs text-destructive">Sin existencias</p>
+                  <p className="self-start rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                    Sin existencias
+                  </p>
                 )}
               </div>
             </button>

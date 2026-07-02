@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AuthScreen } from '@/components/AuthScreen'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -62,20 +63,20 @@ export function ResetPasswordPage() {
 
   if (status === 'validating') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <p aria-busy="true" className="text-sm text-muted-foreground">
+      <AuthScreen>
+        <p aria-busy="true" className="text-center text-sm text-muted-foreground">
           Validando enlace...
         </p>
-      </div>
+      </AuthScreen>
     )
   }
 
   if (status === 'invalid') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
+      <AuthScreen>
+        <Card className="w-full">
           <CardHeader>
-            <CardTitle>Enlace inválido</CardTitle>
+            <CardTitle className="text-xl">Enlace inválido</CardTitle>
             <CardDescription>
               El enlace para restablecer tu contraseña no es válido o ya expiró.
             </CardDescription>
@@ -86,16 +87,16 @@ export function ResetPasswordPage() {
             </Link>
           </CardContent>
         </Card>
-      </div>
+      </AuthScreen>
     )
   }
 
   if (status === 'done') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
+      <AuthScreen>
+        <Card className="w-full">
           <CardHeader>
-            <CardTitle>Contraseña actualizada</CardTitle>
+            <CardTitle className="text-xl">Contraseña actualizada</CardTitle>
             <CardDescription>Ya puedes iniciar sesión con tu nueva contraseña.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -104,15 +105,15 @@ export function ResetPasswordPage() {
             </Link>
           </CardContent>
         </Card>
-      </div>
+      </AuthScreen>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+    <AuthScreen>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Nueva contraseña</CardTitle>
+          <CardTitle className="text-xl">Nueva contraseña</CardTitle>
           <CardDescription>Define una contraseña para tu cuenta</CardDescription>
         </CardHeader>
         <CardContent>
@@ -148,6 +149,6 @@ export function ResetPasswordPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </AuthScreen>
   )
 }

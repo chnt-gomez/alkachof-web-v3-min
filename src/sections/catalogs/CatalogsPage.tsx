@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Plus, Store } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { fetchMyCatalogs } from './actions/fetchMyCatalogs'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
@@ -33,11 +34,12 @@ export function CatalogsPage() {
   }
 
   return (
-    <section className="flex flex-col gap-4 p-4">
-      <header className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Mis catálogos</h1>
+    <section className="flex flex-col gap-4 p-5">
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Mis catálogos</h1>
         {status === 'ready' && catalogs.length > 0 && (
           <Button size="sm" onClick={() => setShowDialog(true)}>
+            <Plus size={14} />
             Nuevo catálogo
           </Button>
         )}
@@ -46,7 +48,7 @@ export function CatalogsPage() {
       {status === 'loading' && <CatalogsSkeleton />}
 
       {status === 'error' && (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-4">
+        <div role="alert" className="flex flex-col items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
           <p className="text-sm text-destructive">No pudimos cargar tus catálogos.</p>
           <Button size="sm" variant="outline" onClick={load}>
             Reintentar
@@ -55,7 +57,10 @@ export function CatalogsPage() {
       )}
 
       {status === 'ready' && catalogs.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-md border border-dashed p-8 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+            <Store size={26} />
+          </span>
           <h2 className="text-base font-semibold">Aún no tienes catálogos</h2>
           <p className="text-sm text-muted-foreground">
             Crea tu primer catálogo para empezar a publicar tus productos.
@@ -83,7 +88,7 @@ function CatalogsSkeleton() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Cargando catálogos">
       {[0, 1].map((i) => (
-        <div key={i} className="h-24 animate-pulse rounded-md bg-muted" />
+        <div key={i} className="h-24 animate-pulse rounded-2xl bg-muted" />
       ))}
     </div>
   )
