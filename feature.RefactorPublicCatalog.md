@@ -63,3 +63,11 @@ Requirement: Public Catalog is a work in progress and it neeeds a couple of re-f
 ## NOTES ##
 
 Images are the most important component of the application. Our customers value the simplicity and it's the only marketing channel available for them. NEVER STRECTH OR EDIT THE RATIO OF IMAGES IN ORDER TO FIT THE UI.
+
+---
+
+## Drift notes (added 2026-06-11)
+
+- **All three requirements shipped:** `Suscribirme` button in `CatalogJumbotron`, masonry `columns-2` grid in `CatalogItemList`, and `ProductDetailDialog` with `object-contain` enlarged image.
+- **Image-display rules were promoted to CLAUDE.md** under "Golden rules → Image display" (no `object-cover`, no fixed image heights, `max-h-[90vh] overflow-y-auto` on dialogs). That section is now the canonical rule; this file is the original requirement.
+- **`handleSubscribe()` is still a placeholder** in `CatalogJumbotron.tsx`. Wire it up when the subscription action lands.

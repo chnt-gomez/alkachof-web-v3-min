@@ -1,37 +1,33 @@
-import { Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { useParams } from 'react-router-dom'
+import { EditCatalogProvider } from './context/EditCatalogContext'
+import { CatalogHeader } from './components/CatalogHeader'
+import { ProductGrid } from './components/ProductGrid'
+import { useEditCatalog } from './context/EditCatalogContext'
 
-const MOCK_PRODUCTS = [
-  { id: '1', name: 'Product A', description: 'Short description of product A.', price: 29.99 },
-  { id: '2', name: 'Product B', description: 'Short description of product B.', price: 49.99 },
-  { id: '3', name: 'Product C', description: 'Short description of product C.', price: 19.99 },
-]
+function CatalogContent() {
+  const { isLoading, error } = useEditCatalog()
+
+  if (isLoading) return <p className="p-4 text-sm text-muted-foreground">Cargando catálogo…</p>
+  if (error) return <p className="p-4 text-sm text-destructive">{error}</p>
+
+  return (
+    <>
+      <CatalogHeader />
+      <ProductGrid />
+    </>
+  )
+}
 
 export function CatalogPage() {
+  const { catalogId } = useParams<{ catalogId: string }>()
+
+  if (!catalogId) return null
+
   return (
-    <main className="flex min-h-screen flex-col gap-4 p-4">
-      <h1 className="text-xl font-semibold">Catalog</h1>
-      <ul className="flex flex-col gap-4">
-        {MOCK_PRODUCTS.map((product) => (
-          <li key={product.id}>
-            <Card>
-              <CardHeader>
-                <CardTitle>{product.name}</CardTitle>
-                <CardDescription>{product.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-medium">${product.price.toFixed(2)}</p>
-              </CardContent>
-              <CardFooter>
-                <Button asChild variant="outline" size="sm">
-                  <Link to={`/product/${product.id}`}>View details</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          </li>
-        ))}
-      </ul>
-    </main>
+    <EditCatalogProvider catalogId={catalogId}>
+      <main className="flex min-h-screen flex-col gap-4 p-4">
+        <CatalogContent />
+      </main>
+    </EditCatalogProvider>
   )
 }
