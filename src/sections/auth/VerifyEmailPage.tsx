@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { AuthScreen } from '@/components/AuthScreen'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { validateToken } from './actions/validateToken'
@@ -26,20 +27,20 @@ export function VerifyEmailPage() {
 
   if (status === 'validating') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <p aria-busy="true" className="text-sm text-muted-foreground">
+      <AuthScreen>
+        <p aria-busy="true" className="text-center text-sm text-muted-foreground">
           Activando tu cuenta...
         </p>
-      </div>
+      </AuthScreen>
     )
   }
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
+      <AuthScreen>
+        <Card className="w-full">
           <CardHeader>
-            <CardTitle>No pudimos activar tu cuenta</CardTitle>
+            <CardTitle className="text-xl">No pudimos activar tu cuenta</CardTitle>
             <CardDescription>
               El enlace de activación no es válido o ya expiró. Vuelve a registrarte para recibir uno nuevo.
             </CardDescription>
@@ -55,15 +56,15 @@ export function VerifyEmailPage() {
             </Link>
           </CardContent>
         </Card>
-      </div>
+      </AuthScreen>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+    <AuthScreen>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Cuenta activada</CardTitle>
+          <CardTitle className="text-xl">Cuenta activada</CardTitle>
           <CardDescription>Tu cuenta está lista. Ya puedes iniciar sesión.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -72,6 +73,6 @@ export function VerifyEmailPage() {
           </Link>
         </CardContent>
       </Card>
-    </div>
+    </AuthScreen>
   )
 }

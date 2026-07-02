@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { AuthScreen } from '@/components/AuthScreen'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -45,10 +46,10 @@ export function SignupPage() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
+      <AuthScreen>
+        <Card className="w-full">
           <CardHeader>
-            <CardTitle>Revisa tu correo</CardTitle>
+            <CardTitle className="text-xl">Revisa tu correo</CardTitle>
             <CardDescription>
               Te enviamos un enlace para activar tu cuenta. Una vez verificada podrás iniciar sesión.
             </CardDescription>
@@ -59,15 +60,15 @@ export function SignupPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </AuthScreen>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+    <AuthScreen>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Crear cuenta</CardTitle>
+          <CardTitle className="text-xl">Crear cuenta</CardTitle>
           <CardDescription>Empieza a publicar tu catálogo en Alkachof</CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,12 +110,12 @@ export function SignupPage() {
           </form>
           <p className="mt-4 text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="text-primary underline-offset-4 hover:underline">
+            <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
               Inicia sesión
             </Link>
           </p>
         </CardContent>
       </Card>
-    </div>
+    </AuthScreen>
   )
 }
