@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 import { PublicCatalogProvider, usePublicCatalog } from './context/PublicCatalogContext'
 import { CatalogJumbotron } from './components/CatalogJumbotron'
 import { CatalogItemList } from './components/CatalogItemList'
+import { CatalogFaq } from './components/CatalogFaq'
 import { CatalogNotFound } from './components/CatalogNotFound'
 
 function PublicCatalogContent() {
@@ -23,6 +24,7 @@ function PublicCatalogContent() {
     <>
       <CatalogJumbotron />
       <CatalogItemList />
+      <CatalogFaq />
     </>
   )
 }
