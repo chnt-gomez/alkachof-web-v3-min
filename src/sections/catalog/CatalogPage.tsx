@@ -1,4 +1,3 @@
-import { useParams } from 'react-router-dom'
 import { LoaderCircle } from 'lucide-react'
 import { EditCatalogProvider } from './context/EditCatalogContext'
 import { CatalogHeader } from './components/CatalogHeader'
@@ -27,12 +26,8 @@ function CatalogContent() {
 }
 
 export function CatalogPage() {
-  const { catalogId } = useParams<{ catalogId: string }>()
-
-  if (!catalogId) return null
-
   return (
-    <EditCatalogProvider catalogId={catalogId}>
+    <EditCatalogProvider>
       <main className="flex flex-col gap-4 p-4">
         <CatalogContent />
       </main>

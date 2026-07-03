@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { fetchCatalog } from '@/sections/catalogs/actions/fetchCatalog'
+import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog as updateCatalogAction } from '../actions/updateCatalog'
 import { updateItem as updateItemAction } from '../actions/updateItem'
@@ -22,13 +22,7 @@ type EditCatalogState = {
 
 const EditCatalogContext = createContext<EditCatalogState | null>(null)
 
-export function EditCatalogProvider({
-  catalogId,
-  children,
-}: {
-  catalogId: string
-  children: React.ReactNode
-}) {
+export function EditCatalogProvider({ children }: { children: React.ReactNode }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null)
   const [items, setItems] = useState<Item[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -37,20 +31,24 @@ export function EditCatalogProvider({
   useEffect(() => {
     setIsLoading(true)
     setError(null)
-    Promise.all([fetchCatalog(catalogId), fetchCatalogItems(catalogId)])
-      .then(([catalogData, itemsData]) => {
+    // The owner's catalog is resolved from the auth token, then its items are
+    // loaded with the id the backend returns.
+    fetchMyCatalog()
+      .then(async (catalogData) => {
+        const itemsData = await fetchCatalogItems(catalogData._id)
         setCatalog(catalogData)
         setItems(itemsData)
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setIsLoading(false))
-  }, [catalogId])
+  }, [])
 
   async function updateCatalog(patch: Partial<Catalog>) {
     const previous = catalog
-    if (previous) setCatalog({ ...previous, ...patch })
+    if (!previous) return
+    setCatalog({ ...previous, ...patch })
     try {
-      const updated = await updateCatalogAction(catalogId, patch)
+      const updated = await updateCatalogAction(previous._id, patch)
       setCatalog(updated)
     } catch (err) {
       setCatalog(previous)

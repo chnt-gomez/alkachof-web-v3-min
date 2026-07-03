@@ -1,21 +1,12 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { NotFoundPage } from '@/components/NotFoundPage'
-import { ToastProvider } from '@/components/ui/toast'
-import { HomePage } from '@/sections/home/HomePage'
-import { CatalogPage } from '@/sections/catalog/CatalogPage'
-import { ProductPage } from '@/sections/product/ProductPage'
-import { PublicCatalogPage } from '@/sections/publicCatalog/PublicCatalogPage'
-import { ProfilePage } from '@/sections/profile/ProfilePage'
-import { LoginPage } from '@/sections/auth/LoginPage'
-import { SignupPage } from '@/sections/auth/SignupPage'
-import { RecoverPage } from '@/sections/auth/RecoverPage'
-import { ResetPasswordPage } from '@/sections/auth/ResetPasswordPage'
-import { VerifyEmailPage } from '@/sections/auth/VerifyEmailPage'
-import { AuthProvider } from '@/sections/auth/AuthContext'
-import { NavShell } from '@/components/NavShell'
-import { ProtectedRoute } from './ProtectedRoute'
+### Routing refactor
 
+# Problem
+Alkachof has a solid routing mechanism but the routing logic itself lacks logic and is very difficult to navigate. 
+
+## Components Architecture
+Alkachof has a very simple access structure: Visitors can view catalogs and Owners can edit Catalogs and products. Following thet logic the current navigation strategy makes no semse: 
+
+```javascript
 export function AppRouter() {
   return (
     <BrowserRouter>
@@ -33,7 +24,7 @@ export function AppRouter() {
                 <Route element={<ProtectedRoute />}>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/product/:id" element={<ProductPage />} />
-                  <Route path="/catalog" element={<CatalogPage />} />
+                  <Route path="/edit/catalog/:catalogId" element={<CatalogPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Route>
               </Route>
@@ -45,3 +36,13 @@ export function AppRouter() {
     </BrowserRouter>
   )
 }
+
+````
+
+CatalogPage should be refactored so the owner of the catalog can simply go to /catalog. The authentication token provided should be enough for the backend to recognize the ownership and fetch the catalog owner id along with the catalog details. You can see the swagger.js file with the full definition of the endpoints.
+
+## Acceptance criteria
+
+Remove the URL /edit/catalog/:catalogId and use instead /catalog.
+The redirection should work and re route the authenticated user to its actual catalog
+Use the swagger file to see how to get a catalog from the API using the token of the owner
