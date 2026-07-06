@@ -31,7 +31,7 @@ function renderPage() {
     <MemoryRouter initialEntries={['/']}>
       <Routes>
         <Route path="/" element={<CatalogsPage />} />
-        <Route path="/edit/catalog/:catalogId" element={<div>Catálogo edit</div>} />
+        <Route path="/catalog" element={<div>Catálogo edit</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -61,7 +61,7 @@ describe('CatalogsPage', () => {
     expect(screen.getByText('Tienda B')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /abrir catálogo tienda a/i })).toHaveAttribute(
       'href',
-      '/edit/catalog/a',
+      '/catalog',
     )
   })
 

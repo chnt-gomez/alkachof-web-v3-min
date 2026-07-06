@@ -6,7 +6,7 @@ import { CatalogPage } from '../CatalogPage'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
-vi.mock('@/sections/catalogs/actions/fetchCatalog')
+vi.mock('@/sections/catalogs/actions/fetchMyCatalog')
 vi.mock('../actions/fetchCatalogItems')
 vi.mock('../actions/updateCatalog')
 vi.mock('../actions/updateItem')
@@ -14,7 +14,7 @@ vi.mock('../actions/createItem')
 vi.mock('../actions/deleteItem')
 vi.mock('../actions/uploadItemImage')
 
-import { fetchCatalog } from '@/sections/catalogs/actions/fetchCatalog'
+import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog } from '../actions/updateCatalog'
 import { updateItem } from '../actions/updateItem'
@@ -61,11 +61,11 @@ const mockItems: Item[] = [
   },
 ]
 
-function renderPage(catalogId = 'cat1') {
+function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`/edit/catalog/${catalogId}`]}>
+    <MemoryRouter initialEntries={['/catalog']}>
       <Routes>
-        <Route path="/edit/catalog/:catalogId" element={<CatalogPage />} />
+        <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/catalog/:catalogId" element={<div>Vista pública</div>} />
       </Routes>
     </MemoryRouter>,
@@ -74,7 +74,7 @@ function renderPage(catalogId = 'cat1') {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(fetchCatalog).mockResolvedValue(mockCatalog)
+  vi.mocked(fetchMyCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(updateCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(updateItem).mockImplementation(async (itemId, patch) => ({
@@ -98,7 +98,7 @@ beforeEach(() => {
 
 describe('CatalogPage', () => {
   it('shows loading state before data resolves', () => {
-    vi.mocked(fetchCatalog).mockReturnValue(new Promise(() => {}))
+    vi.mocked(fetchMyCatalog).mockReturnValue(new Promise(() => {}))
     vi.mocked(fetchCatalogItems).mockReturnValue(new Promise(() => {}))
     renderPage()
     expect(screen.getByText('Cargando catálogo…')).toBeInTheDocument()
@@ -171,7 +171,7 @@ describe('CatalogPage', () => {
   })
 
   it('shows error message when fetch fails', async () => {
-    vi.mocked(fetchCatalog).mockRejectedValue(new Error('Error de red'))
+    vi.mocked(fetchMyCatalog).mockRejectedValue(new Error('Error de red'))
     renderPage()
     expect(await screen.findByText('Error de red')).toBeInTheDocument()
   })

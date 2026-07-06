@@ -7,7 +7,7 @@ type Props = { catalog: Catalog }
 export function CatalogCard({ catalog }: Props) {
   return (
     <Link
-      to={`/edit/catalog/${catalog._id}`}
+      to="/catalog"
       className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.98]"
       aria-label={`Abrir catálogo ${catalog.alias}`}
     >

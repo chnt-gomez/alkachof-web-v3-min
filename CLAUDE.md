@@ -27,10 +27,20 @@ Small-screen-first e-commerce platform. All UI targets phone resolutions — no 
 All routes are registered in `src/router/AppRouter.tsx`. Adding a section = create the folder + register one `<Route>` there.
 
 Current routes:
+
+Public:
+- `/catalog/:catalogId` → `PublicCatalogPage` (visitor view of a catalog by id)
+- `/login`, `/signup`, `/recover`, `/reset/:token`, `/verify/:token` → auth pages
+
+Protected (wrapped in `NavShell` + `ProtectedRoute`):
 - `/` → `HomePage`
-- `/catalog` → `CatalogPage`
+- `/catalog` → `CatalogPage` (owner's own catalog editor — resolved from the auth token, no id in the URL)
 - `/product/:id` → `ProductPage`
-- `/public/catalog/:catalogId` → `PublicCatalogPage`
+- `/profile` → `ProfilePage`
+
+- `*` → `NotFoundPage`
+
+Note: each user owns exactly one catalog. `/catalog` (no id) is the owner editing their own catalog; `/catalog/:catalogId` is the public visitor view.
 
 ### Sections pattern
 
@@ -155,8 +165,8 @@ Use a **CSS `columns-2`** masonry layout (not `grid grid-cols-2`) for product li
 Data has been seeded for testing the UI
 Public Catalog available ids: 6a0365fdf74fdcb617a8a5b6, 6a0365fdf74fdcb617a8a5c3, 6a0365fdf74fdcb617a8a5d0
 
-Users/Passwords:    user@admin.com / admin
-                    user2@admin.com / admin 
-                    user3@admin.com / admin
+Users/Passwords:    user@admin.com / password
+                    user2@admin.com / password
+                    user3@admin.com / password
 
 
