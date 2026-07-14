@@ -1,4 +1,8 @@
-import { X } from 'lucide-react'
+import { useState } from 'react'
+import { X, Minus, Plus } from 'lucide-react'
+import { useCart } from '@/sections/cart/context/CartContext'
+import { useToast } from '@/components/ui/useToast'
+import { Button } from '@/components/ui/button'
 import type { Item } from '../actions/fetchCatalogItems'
 
 function formatPrice(cents: number) {
@@ -11,6 +15,27 @@ type Props = {
 }
 
 export function ProductDetailDialog({ item, onClose }: Props) {
+  const [quantity, setQuantity] = useState(1)
+  const [isAdding, setIsAdding] = useState(false)
+  const { addItem } = useCart()
+  const toast = useToast()
+
+  const handleAddToCart = async () => {
+    setIsAdding(true)
+    try {
+      await addItem(item, quantity)
+      toast.success('Agregado al carrito')
+      onClose()
+    } catch {
+      // Error is already handled in context
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  const canAdd = item.stock > 0
+  const qtyDisabled = quantity >= item.stock
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
@@ -66,6 +91,43 @@ export function ProductDetailDialog({ item, onClose }: Props) {
                 ))}
               </div>
             </div>
+          )}
+
+          {canAdd && (
+            <div className="flex flex-col gap-2 pt-2">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted p-1">
+                <button
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-background"
+                  aria-label="Disminuir cantidad"
+                >
+                  <Minus size={16} />
+                </button>
+                <span className="flex-1 text-center font-medium">{quantity}</span>
+                <button
+                  onClick={() => setQuantity((q) => Math.min(item.stock, q + 1))}
+                  disabled={qtyDisabled}
+                  className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-background disabled:opacity-50"
+                  aria-label="Aumentar cantidad"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              <Button
+                onClick={handleAddToCart}
+                disabled={isAdding}
+                className="w-full"
+              >
+                {isAdding ? 'Agregando...' : 'Agregar al carrito'}
+              </Button>
+            </div>
+          )}
+
+          {!canAdd && (
+            <Button disabled className="w-full" variant="secondary">
+              Sin existencias
+            </Button>
           )}
         </div>
       </div>

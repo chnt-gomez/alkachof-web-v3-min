@@ -27,6 +27,8 @@ vi.mock('@/sections/auth/useAuth', () => ({
 import { fetchPublicCatalog } from '../actions/fetchPublicCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { fetchCatalogQuestions } from '../actions/fetchCatalogQuestions'
+import { ToastProvider } from '@/components/ui/toast'
+import { CartProvider } from '@/sections/cart/context/CartContext'
 
 const mockCatalog: Catalog = {
   _id: 'abc123',
@@ -70,14 +72,19 @@ const mockItems: Item[] = [
 function renderPage(catalogId = 'abc123') {
   return render(
     <MemoryRouter initialEntries={[`/public/catalog/${catalogId}`]}>
-      <Routes>
-        <Route path="/public/catalog/:catalogId" element={<PublicCatalogPage />} />
-      </Routes>
+      <ToastProvider>
+        <CartProvider>
+          <Routes>
+            <Route path="/public/catalog/:catalogId" element={<PublicCatalogPage />} />
+          </Routes>
+        </CartProvider>
+      </ToastProvider>
     </MemoryRouter>,
   )
 }
 
 beforeEach(() => {
+  localStorage.clear()
   vi.mocked(fetchPublicCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(fetchCatalogQuestions).mockResolvedValue([])
@@ -266,5 +273,35 @@ describe('PublicCatalogPage', () => {
     const img = await screen.findByRole('img', { name: /bolsa tejida/i })
     expect(img).toHaveClass('object-contain')
     expect(img.className).not.toMatch(/object-cover/)
+  })
+
+  it('shows the cart book-tag on landing with no count badge', async () => {
+    renderPage()
+
+    const tag = await screen.findByRole('button', { name: /ver carrito/i })
+    expect(tag).toBeInTheDocument()
+    // badge is hidden while the cart is empty — the tag holds only the icon
+    expect(tag.textContent).toBe('')
+  })
+
+  it('updates the book-tag badge after adding an item to the cart', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+    await user.click(screen.getByRole('button', { name: /agregar al carrito/i }))
+
+    const tag = await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i })
+    expect(tag).toHaveTextContent('1')
+  })
+
+  it('opens the cart drawer when the book-tag is clicked', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /ver carrito/i }))
+
+    expect(screen.getByText('Tu carrito')).toBeInTheDocument()
+    expect(screen.getByText('Tu carrito está vacío')).toBeInTheDocument()
   })
 })
