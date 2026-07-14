@@ -8,6 +8,7 @@ import { ProductPage } from '@/sections/product/ProductPage'
 import { PublicCatalogPage } from '@/sections/publicCatalog/PublicCatalogPage'
 import { ProfilePage } from '@/sections/profile/ProfilePage'
 import { CartPage } from '@/sections/cart/CartPage'
+import { TransactionsPage } from '@/sections/transactions/TransactionsPage'
 import { LoginPage } from '@/sections/auth/LoginPage'
 import { SignupPage } from '@/sections/auth/SignupPage'
 import { RecoverPage } from '@/sections/auth/RecoverPage'
@@ -39,6 +40,7 @@ export function AppRouter() {
                     <Route path="/catalog" element={<CatalogPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/cart" element={<CartPage />} />
+                    <Route path="/transactions" element={<TransactionsPage />} />
                   </Route>
                 </Route>
                 <Route path="*" element={<NotFoundPage />} />

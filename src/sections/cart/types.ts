@@ -3,6 +3,8 @@ export type CartLine = {
   quantity: number
 }
 
+import type { Transaction } from '@/sections/transactions/types'
+
 export type Cart = {
   id: string
   ownerId: string
@@ -11,15 +13,9 @@ export type Cart = {
   discountCodeApplied: string | null
 }
 
-export type Transaction = {
-  id: string
-  purchaseIds: string[]
-  buyerId: string
-  sellerId: string
-  status: 'STARTED' | 'REJECTED' | 'PROCESSING' | 'READY-FOR-PICKUP' | 'EN-ROUTE' | 'DELIVERED' | 'RETURNED'
-  dateCreated: string
-  dateUpdated: string
-}
+// The transactions section owns this domain type; re-exported here so cart
+// consumers (checkout) can keep importing it from '@/sections/cart/types'.
+export type { Transaction }
 
 export type CheckoutResult = {
   purchases: string[]
