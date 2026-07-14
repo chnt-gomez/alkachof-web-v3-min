@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { LoaderCircle, Sprout } from 'lucide-react'
 import { PublicCatalogProvider, usePublicCatalog } from './context/PublicCatalogContext'
@@ -5,8 +6,11 @@ import { CatalogJumbotron } from './components/CatalogJumbotron'
 import { CatalogItemList } from './components/CatalogItemList'
 import { CatalogFaq } from './components/CatalogFaq'
 import { CatalogNotFound } from './components/CatalogNotFound'
+import { CartBookTag } from '@/sections/cart/components/CartBookTag'
+import { CartDrawer } from '@/sections/cart/components/CartDrawer'
 
-function PublicCatalogContent() {
+function PublicCatalogContent({ catalogId }: { catalogId: string }) {
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const { isLoading, error, notFound } = usePublicCatalog()
 
   if (isLoading) {
@@ -35,6 +39,16 @@ function PublicCatalogContent() {
         <Sprout size={13} />
         Catálogo creado con Alkachof
       </footer>
+
+      <CartBookTag
+        catalogId={catalogId}
+        onClick={() => setIsDrawerOpen(true)}
+      />
+      <CartDrawer
+        catalogId={catalogId}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+      />
     </>
   )
 }
@@ -49,7 +63,7 @@ export function PublicCatalogPage() {
   return (
     <PublicCatalogProvider catalogId={catalogId}>
       <main className="flex min-h-dvh flex-col gap-5 p-4">
-        <PublicCatalogContent />
+        <PublicCatalogContent catalogId={catalogId} />
       </main>
     </PublicCatalogProvider>
   )

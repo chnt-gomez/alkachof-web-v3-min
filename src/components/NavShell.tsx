@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { Store, CircleUserRound } from 'lucide-react'
+import { Store, CircleUserRound, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/BrandMark'
 import { cn } from '@/lib/utils'
@@ -7,6 +7,7 @@ import { useAuth } from '@/sections/auth/useAuth'
 
 const TABS = [
   { to: '/', label: 'Inicio', icon: Store },
+  { to: '/cart', label: 'Carrito', icon: ShoppingCart },
   { to: '/profile', label: 'Perfil', icon: CircleUserRound },
 ]
 
