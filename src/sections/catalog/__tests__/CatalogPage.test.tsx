@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { CatalogPage } from '../CatalogPage'
+import { ToastProvider } from '@/components/ui/toast'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
@@ -13,6 +14,7 @@ vi.mock('../actions/updateItem')
 vi.mock('../actions/createItem')
 vi.mock('../actions/deleteItem')
 vi.mock('../actions/uploadItemImage')
+vi.mock('../actions/broadcastCatalog')
 
 import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
@@ -21,6 +23,7 @@ import { updateItem } from '../actions/updateItem'
 import { createItem } from '../actions/createItem'
 import { deleteItem } from '../actions/deleteItem'
 import { uploadItemImage } from '../actions/uploadItemImage'
+import { broadcastCatalog } from '../actions/broadcastCatalog'
 
 const mockCatalog: Catalog = {
   _id: 'cat1',
@@ -63,12 +66,14 @@ const mockItems: Item[] = [
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/catalog']}>
-      <Routes>
-        <Route path="/catalog" element={<CatalogPage />} />
-        <Route path="/catalog/:catalogId" element={<div>Vista pública</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/catalog']}>
+        <Routes>
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/catalog/:catalogId" element={<div>Vista pública</div>} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   )
 }
 
@@ -94,6 +99,7 @@ beforeEach(() => {
     sizes: [],
     updatedOn: new Date().toISOString(),
   })
+  vi.mocked(broadcastCatalog).mockResolvedValue({ ok: true })
 })
 
 describe('CatalogPage', () => {
@@ -327,5 +333,71 @@ describe('CatalogPage', () => {
 
     expect(await screen.findByText(/aún no tienes productos/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /agregar primer producto/i })).toBeInTheDocument()
+  })
+
+  it('opens the announce composer when Anunciar is clicked', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /anunciar/i }))
+
+    expect(screen.getByRole('dialog', { name: /anunciar a suscriptores/i })).toBeInTheDocument()
+  })
+
+  it('disables sending until a non-empty message is typed', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /anunciar/i }))
+    const send = screen.getByRole('button', { name: /enviar anuncio/i })
+    expect(send).toBeDisabled()
+
+    await user.type(screen.getByPlaceholderText(/nuevos productos/i), 'Hola suscriptores')
+    expect(send).toBeEnabled()
+  })
+
+  it('sends a broadcast and puts the button on cooldown', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /anunciar/i }))
+    await user.type(screen.getByPlaceholderText(/nuevos productos/i), 'Nuevos rebozos')
+    await user.click(screen.getByRole('button', { name: /enviar anuncio/i }))
+
+    expect(broadcastCatalog).toHaveBeenCalledWith('cat1', 'Nuevos rebozos', null)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /anunciar a suscriptores/i })).not.toBeInTheDocument(),
+    )
+    expect(screen.getByText(/próximo anuncio disponible/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /anunciar/i })).toBeDisabled()
+  })
+
+  it('sends the selected item id with the announcement', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /anunciar/i }))
+    const dialog = screen.getByRole('dialog', { name: /anunciar a suscriptores/i })
+    await user.type(within(dialog).getByPlaceholderText(/nuevos productos/i), 'Mira este producto')
+    await user.click(within(dialog).getByRole('button', { name: 'Bolsa tejida' }))
+    await user.click(within(dialog).getByRole('button', { name: /enviar anuncio/i }))
+
+    expect(broadcastCatalog).toHaveBeenCalledWith('cat1', 'Mira este producto', 'item1')
+  })
+
+  it('shows an inline error and cooldown when the daily allowance is used', async () => {
+    vi.mocked(broadcastCatalog).mockResolvedValue({
+      ok: false,
+      reason: 'cooldown',
+      availableAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /anunciar/i }))
+    await user.type(screen.getByPlaceholderText(/nuevos productos/i), 'Otro anuncio')
+    await user.click(screen.getByRole('button', { name: /enviar anuncio/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/ya enviaste un anuncio hoy/i)
   })
 })

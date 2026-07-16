@@ -36,6 +36,8 @@ Protected (wrapped in `NavShell` + `ProtectedRoute`):
 - `/` → `HomePage`
 - `/catalog` → `CatalogPage` (owner's own catalog editor — resolved from the auth token, no id in the URL)
 - `/product/:id` → `ProductPage`
+- `/cart` → `CartPage`
+- `/transactions` → `TransactionsPage` (the "Pedidos" tab — buyer/seller order history)
 - `/profile` → `ProfilePage`
 
 - `*` → `NotFoundPage`
@@ -103,7 +105,16 @@ Key components and their file paths for quick reference:
 | `CatalogItemList` | `src/sections/publicCatalog/components/CatalogItemList.tsx` |
 | `ProductDetailDialog` | `src/sections/publicCatalog/components/ProductDetailDialog.tsx` |
 | `PublicCatalogContext` | `src/sections/publicCatalog/context/PublicCatalogContext.tsx` |
+| `TransactionsPage` | `src/sections/transactions/TransactionsPage.tsx` |
+| `TransactionDetailDialog` | `src/sections/transactions/components/TransactionDetailDialog.tsx` |
 | UI primitives | `src/components/ui/` (`button.tsx`, `card.tsx`) |
+| Shared formatters | `src/lib/format.ts` (`formatPrice` cents→MXN, `formatDate` es-MX) |
+
+### Transactions section (`src/sections/transactions/`)
+
+The "Pedidos" page (4th `NavShell` tab) lists the user's transactions split by role — **Compras** (buyer) and **Ventas** (seller) — with status-chip filtering, "Cargar más" pagination, and a per-transaction detail dialog. State lives in the `useTransactions` hook (role/filter/skip pagination, accumulates pages); no Context — it's a read-mostly page. `Transaction` is a domain type owned here (`types.ts`) and re-exported from `src/sections/cart/types.ts`.
+
+It talks to two backend endpoints (both mocked in dev stage per the mock rules): `GET /transaction/all?role&status&limit&skip` (→ `TransactionListResult`) and `GET /transaction/:id/purchases` (→ `PurchaseLine[]`). Money is cents everywhere; format with `formatPrice`. Deferred (Phase 2): action buttons in the detail dialog wired to the existing `/transaction/:id` status/code/confirm endpoints.
 
 ### Development stage
 

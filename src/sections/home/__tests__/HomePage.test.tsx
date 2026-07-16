@@ -47,9 +47,13 @@ const sampleItem = (overrides: Partial<Item> = {}): Item => ({
 
 const sampleNotification = (overrides: Partial<Notification> = {}): Notification => ({
   _id: 'notif1',
-  message: 'Tienes una nueva pregunta en tu catálogo',
-  createdAt: new Date().toISOString(),
-  read: false,
+  userId: 'me',
+  notificationType: 'catalog-update',
+  notificationAssociatedId: 'cat1',
+  notificationTitle: 'Rebozos Oaxaca',
+  notificationDescription: 'Tienes una nueva pregunta en tu catálogo',
+  notificationStatus: 'unread',
+  notificationDate: new Date().toISOString(),
   ...overrides,
 })
 
@@ -109,8 +113,8 @@ describe('HomePage', () => {
 
   it('renders notifications when there are some', async () => {
     vi.mocked(fetchNotifications).mockResolvedValue([
-      sampleNotification({ _id: 'n1', message: 'Primera notificación' }),
-      sampleNotification({ _id: 'n2', message: 'Segunda notificación' }),
+      sampleNotification({ _id: 'n1', notificationDescription: 'Primera notificación' }),
+      sampleNotification({ _id: 'n2', notificationDescription: 'Segunda notificación' }),
     ])
     renderPage()
 
@@ -146,7 +150,7 @@ describe('HomePage', () => {
     expect(await screen.findByText('Tienda de Prueba')).toBeInTheDocument()
 
     vi.mocked(fetchNotifications).mockResolvedValueOnce([
-      sampleNotification({ message: 'Notificación recuperada' }),
+      sampleNotification({ notificationDescription: 'Notificación recuperada' }),
     ])
     await userEvent.setup().click(screen.getByRole('button', { name: /reintentar/i }))
 

@@ -1,16 +1,21 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Pencil, ExternalLink, MapPin } from 'lucide-react'
+import { Pencil, ExternalLink, MapPin, Megaphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import { EditCatalogModal } from './EditCatalogModal'
+import { AnnounceDialog, formatAvailableAt } from './AnnounceDialog'
 
 export function CatalogHeader() {
-  const { catalog } = useEditCatalog()
+  const { catalog, items } = useEditCatalog()
   const [editing, setEditing] = useState(false)
+  const [announcing, setAnnouncing] = useState(false)
+  const [cooldownUntil, setCooldownUntil] = useState<string | null>(null)
 
   if (!catalog) return null
+
+  const onCooldown = cooldownUntil !== null && new Date(cooldownUntil).getTime() > Date.now()
 
   return (
     <>
@@ -69,19 +74,47 @@ export function CatalogHeader() {
           </div>
         )}
 
-        <Button
-          asChild
-          size="sm"
-          className="self-start bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground/90"
-        >
-          <Link to={`/catalog/${catalog._id}`}>
-            <ExternalLink size={14} />
-            Ver catálogo
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            asChild
+            size="sm"
+            className="bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground/90"
+          >
+            <Link to={`/catalog/${catalog._id}`}>
+              <ExternalLink size={14} />
+              Ver catálogo
+            </Link>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setAnnouncing(true)}
+            disabled={onCooldown}
+            className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+          >
+            <Megaphone size={14} />
+            Anunciar
+          </Button>
+        </div>
+
+        {onCooldown && cooldownUntil && (
+          <p className="text-xs text-primary-foreground/70">
+            Próximo anuncio disponible {formatAvailableAt(cooldownUntil)}.
+          </p>
+        )}
       </section>
 
       {editing && <EditCatalogModal onClose={() => setEditing(false)} />}
+
+      {announcing && (
+        <AnnounceDialog
+          catalogId={catalog._id}
+          items={items}
+          onCooldown={setCooldownUntil}
+          onClose={() => setAnnouncing(false)}
+        />
+      )}
     </>
   )
 }
