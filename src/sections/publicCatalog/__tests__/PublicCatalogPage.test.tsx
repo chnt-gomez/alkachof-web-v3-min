@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
@@ -12,10 +12,15 @@ vi.mock('../actions/fetchCatalogItems')
 vi.mock('../actions/fetchCatalogQuestions')
 vi.mock('../actions/askQuestion')
 vi.mock('../actions/answerQuestion')
+vi.mock('@/sections/cart/actions/checkoutCart')
+
+// Toggleable auth state so most tests run as a visitor while the checkout
+// flow can flip to an authenticated user.
+const authState = vi.hoisted(() => ({ isAuthenticated: false }))
 vi.mock('@/sections/auth/useAuth', () => ({
   useAuth: () => ({
-    profile: null,
-    isAuthenticated: false,
+    profile: authState.isAuthenticated ? { alias: 'Ana' } : null,
+    isAuthenticated: authState.isAuthenticated,
     isBooting: false,
     login: vi.fn(),
     signup: vi.fn(),
@@ -27,6 +32,7 @@ vi.mock('@/sections/auth/useAuth', () => ({
 import { fetchPublicCatalog } from '../actions/fetchPublicCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { fetchCatalogQuestions } from '../actions/fetchCatalogQuestions'
+import { checkoutCart } from '@/sections/cart/actions/checkoutCart'
 import { ToastProvider } from '@/components/ui/toast'
 import { CartProvider } from '@/sections/cart/context/CartContext'
 
@@ -85,6 +91,7 @@ function renderPage(catalogId = 'abc123') {
 
 beforeEach(() => {
   localStorage.clear()
+  authState.isAuthenticated = false
   vi.mocked(fetchPublicCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(fetchCatalogQuestions).mockResolvedValue([])
@@ -303,5 +310,98 @@ describe('PublicCatalogPage', () => {
 
     expect(screen.getByText('Tu carrito')).toBeInTheDocument()
     expect(screen.getByText('Tu carrito está vacío')).toBeInTheDocument()
+  })
+
+  it('shows an added item and its subtotal in the drawer without a backend call', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+    await user.click(screen.getByRole('button', { name: /agregar al carrito/i }))
+
+    await user.click(await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }))
+
+    // drawer lists the line item and the subtotal derived client-side
+    expect(await screen.findByText('Subtotal')).toBeInTheDocument()
+    // the item name now appears both on the catalog card and in the drawer line
+    expect(screen.getAllByText('Bolsa tejida').length).toBeGreaterThan(1)
+    // the line snapshots its own price, so the drawer shows the real amount
+    // (card + drawer line + subtotal) rather than $0.00
+    expect(screen.getAllByText('$350.00').length).toBeGreaterThanOrEqual(2)
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /finalizar pedido|inicia sesión/i })).toBeInTheDocument()
+  })
+
+  it('keeps a separate, persisted cart per catalog', async () => {
+    const user = userEvent.setup()
+
+    // Each catalog serves its own items so addItem keys by the right catalog.
+    const itemsA: Item[] = [{ ...mockItems[0], _id: 'a1', name: 'Producto A', catalogId: 'cat-a' }]
+    const itemsB: Item[] = [{ ...mockItems[0], _id: 'b1', name: 'Producto B', catalogId: 'cat-b' }]
+    vi.mocked(fetchCatalogItems).mockImplementation((id: string) =>
+      Promise.resolve(id === 'cat-b' ? itemsB : itemsA),
+    )
+
+    // Catalog A: add an item → badge shows 1
+    const viewA = renderPage('cat-a')
+    await user.click(await screen.findByRole('button', { name: /producto a/i }))
+    await user.click(screen.getByRole('button', { name: /agregar al carrito/i }))
+    expect(
+      await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }),
+    ).toBeInTheDocument()
+    viewA.unmount()
+
+    // Catalog B: starts empty — A's item does not leak across
+    const viewB = renderPage('cat-b')
+    const tagB = await screen.findByRole('button', { name: /ver carrito/i })
+    expect(tagB.textContent).toBe('')
+    await user.click(await screen.findByRole('button', { name: /producto b/i }))
+    await user.click(screen.getByRole('button', { name: /agregar al carrito/i }))
+    expect(
+      await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }),
+    ).toBeInTheDocument()
+    viewB.unmount()
+
+    // Returning to catalog A: its cart is still there
+    renderPage('cat-a')
+    expect(
+      await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows a loading indicator then a confirmation with the correct total on checkout', async () => {
+    const user = userEvent.setup()
+    authState.isAuthenticated = true
+    vi.mocked(checkoutCart).mockResolvedValue({
+      purchases: ['p1'],
+      transaction: {
+        id: 'txn-123',
+        purchaseIds: ['p1'],
+        buyerId: 'buyer1',
+        sellerId: 'seller1',
+        status: 'STARTED',
+        dateCreated: '2026-07-21T00:00:00Z',
+        dateUpdated: '2026-07-21T00:00:00Z',
+      },
+    })
+
+    renderPage()
+
+    // add an item and open the drawer
+    await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+    await user.click(screen.getByRole('button', { name: /agregar al carrito/i }))
+    await user.click(await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }))
+
+    // finalize the purchase → the button turns into a progress bar
+    fireEvent.click(screen.getByRole('button', { name: /finalizar pedido/i }))
+    expect(screen.getByRole('progressbar', { name: /procesando pedido/i })).toBeInTheDocument()
+    expect(screen.getByText('Procesando…')).toBeInTheDocument()
+
+    // then the confirmation shows with the real total (not $0.00)
+    expect(await screen.findByText('¡Pedido enviado!', {}, { timeout: 2500 })).toBeInTheDocument()
+    expect(screen.getByText('txn-123')).toBeInTheDocument()
+    // summary line + Total both read the snapshotted price
+    expect(screen.getAllByText('$350.00').length).toBeGreaterThanOrEqual(2)
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument()
   })
 })

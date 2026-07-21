@@ -9,4 +9,7 @@ export default defineConfig({
       '@': '/Volumes/BANK/Projects/alkachof/alkachof-web-v3-min/src',
     },
   },
+  server: {
+    allowedHosts: ['rosita-nonsynonymous-carmella.ngrok-free.dev']
+  }
 })

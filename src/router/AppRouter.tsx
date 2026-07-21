@@ -7,7 +7,6 @@ import { CatalogPage } from '@/sections/catalog/CatalogPage'
 import { ProductPage } from '@/sections/product/ProductPage'
 import { PublicCatalogPage } from '@/sections/publicCatalog/PublicCatalogPage'
 import { ProfilePage } from '@/sections/profile/ProfilePage'
-import { CartPage } from '@/sections/cart/CartPage'
 import { TransactionsPage } from '@/sections/transactions/TransactionsPage'
 import { LoginPage } from '@/sections/auth/LoginPage'
 import { SignupPage } from '@/sections/auth/SignupPage'
@@ -39,7 +38,6 @@ export function AppRouter() {
                     <Route path="/product/:id" element={<ProductPage />} />
                     <Route path="/catalog" element={<CatalogPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/cart" element={<CartPage />} />
                     <Route path="/transactions" element={<TransactionsPage />} />
                   </Route>
                 </Route>
