@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Check } from 'lucide-react'
 import { fetchPublicCatalog, type Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
-import { fetchCatalogItems, type Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
-import { useCart } from '../context/CartContext'
 import { Button } from '@/components/ui/button'
-import type { CheckoutResult } from '../types'
+import type { CartLine, CheckoutResult } from '../types'
 
 function formatPrice(cents: number) {
   return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
@@ -12,35 +10,25 @@ function formatPrice(cents: number) {
 
 type Props = {
   catalogId: string
+  // Snapshot of the lines that were purchased, captured at checkout time —
+  // the live cart is already emptied by the time this renders.
+  lines: CartLine[]
   checkoutResult: CheckoutResult
   onClose: () => void
 }
 
-export function CheckoutConfirmation({ catalogId, checkoutResult, onClose }: Props) {
-  const { linesFor } = useCart()
+export function CheckoutConfirmation({ catalogId, lines, checkoutResult, onClose }: Props) {
   const [catalog, setCatalog] = useState<Catalog | null>(null)
-  const [items, setItems] = useState<Item[]>([])
-
-  const lines = linesFor(catalogId)
 
   useEffect(() => {
-    Promise.all([
-      fetchPublicCatalog(catalogId),
-      fetchCatalogItems(catalogId),
-    ])
-      .then(([c, i]) => {
-        setCatalog(c)
-        setItems(i)
-      })
+    fetchPublicCatalog(catalogId)
+      .then(setCatalog)
       .catch(() => {
         // errors handled upstream
       })
   }, [catalogId])
 
-  const total = lines.reduce((sum, line) => {
-    const item = items.find((i) => i._id === line.itemId)
-    return sum + (item?.price ?? 0) * line.quantity
-  }, 0)
+  const total = lines.reduce((sum, line) => sum + line.price * line.quantity, 0)
 
   const payOptionsLabels: Record<string, string> = {
     cash: 'Efectivo',
@@ -56,7 +44,7 @@ export function CheckoutConfirmation({ catalogId, checkoutResult, onClose }: Pro
   }
 
   return (
-    <div className="flex flex-col gap-6 p-5">
+    <div className="flex flex-col gap-6 p-5 animate-sheet-pop">
       <div className="flex flex-col items-center gap-2 text-center">
         <div className="rounded-full bg-green-100 p-3">
           <Check size={24} className="text-green-600" />
@@ -69,21 +57,17 @@ export function CheckoutConfirmation({ catalogId, checkoutResult, onClose }: Pro
 
       <div className="flex flex-col gap-3 rounded-lg bg-muted p-4">
         <h3 className="text-sm font-semibold">Resumen del pedido</h3>
-        {lines.map((line) => {
-          const item = items.find((i) => i._id === line.itemId)
-          if (!item) return null
-          return (
-            <div key={line.itemId} className="flex items-start justify-between text-sm">
-              <div className="flex-1">
-                <p className="font-medium">{item.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  Cantidad: {line.quantity}
-                </p>
-              </div>
-              <p className="font-semibold">{formatPrice(item.price * line.quantity)}</p>
+        {lines.map((line) => (
+          <div key={line.itemId} className="flex items-start justify-between text-sm">
+            <div className="flex-1">
+              <p className="font-medium">{line.name}</p>
+              <p className="text-xs text-muted-foreground">
+                Cantidad: {line.quantity}
+              </p>
             </div>
-          )
-        })}
+            <p className="font-semibold">{formatPrice(line.price * line.quantity)}</p>
+          </div>
+        ))}
 
         <div className="border-t pt-2">
           <div className="flex items-center justify-between font-bold">

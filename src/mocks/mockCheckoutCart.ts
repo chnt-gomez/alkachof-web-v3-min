@@ -1,16 +1,16 @@
-import { deleteCartFromStore, getCartByIdFromStore } from './mockCartStore'
 import { randomId } from './random'
-import type { CheckoutResult, Transaction } from '@/sections/cart/types'
+import type { CartLine, CheckoutResult, Transaction } from '@/sections/cart/types'
 
 const userId = 'mock-user-id'
 const sellerId = 'mock-seller-id'
 
-export function mockCheckoutCart(cartId: string): Promise<CheckoutResult> {
-  const cart = getCartByIdFromStore(cartId)
-  if (!cart) throw new Error('Cart not found')
-  if (cart.items.length === 0) throw new Error('Cart is empty')
+export function mockCheckoutCart(
+  _catalogId: string,
+  lines: CartLine[]
+): Promise<CheckoutResult> {
+  if (lines.length === 0) throw new Error('El carrito está vacío')
 
-  const purchases = cart.items.map(() => randomId())
+  const purchases = lines.map(() => randomId())
   const transaction: Transaction = {
     id: randomId(),
     purchaseIds: purchases,
@@ -20,8 +20,6 @@ export function mockCheckoutCart(cartId: string): Promise<CheckoutResult> {
     dateCreated: new Date().toISOString(),
     dateUpdated: new Date().toISOString(),
   }
-
-  deleteCartFromStore(cartId)
 
   return Promise.resolve({
     purchases,

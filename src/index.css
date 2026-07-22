@@ -28,6 +28,60 @@
   }
 }
 
+/* Subtle entrance for overlays/sheets: fade the backdrop, pop the panel. */
+@keyframes overlay-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-overlay-fade {
+  animation: overlay-fade 0.18s ease-out;
+}
+
+.animate-sheet-pop {
+  animation: sheet-pop 0.22s ease-out;
+}
+
+/* Left-to-right progress fill used to turn the checkout button into a bar. */
+@keyframes progress-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.animate-progress-fill {
+  animation: progress-fill 1s linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-overlay-fade,
+  .animate-sheet-pop {
+    animation: none;
+  }
+  /* Keep the fill instant rather than removing the progress feedback entirely. */
+  .animate-progress-fill {
+    animation-duration: 0.01s;
+  }
+}
+
 @layer base {
   * {
     box-sizing: border-box;
