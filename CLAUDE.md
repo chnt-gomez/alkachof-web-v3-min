@@ -36,13 +36,12 @@ Protected (wrapped in `NavShell` + `ProtectedRoute`):
 - `/` → `HomePage`
 - `/catalog` → `CatalogPage` (owner's own catalog editor — resolved from the auth token, no id in the URL)
 - `/product/:id` → `ProductPage`
-- `/cart` → `CartPage`
 - `/transactions` → `TransactionsPage` (the "Pedidos" tab — buyer/seller order history)
 - `/profile` → `ProfilePage`
 
 - `*` → `NotFoundPage`
 
-Note: each user owns exactly one catalog. `/catalog` (no id) is the owner editing their own catalog; `/catalog/:catalogId` is the public visitor view.
+Note: each user owns exactly one catalog. `/catalog` (no id) is the owner editing their own catalog; `/catalog/:catalogId` is the public visitor view. **The shopping cart has no route** — it's a client-side drawer accessible from within the `PublicCatalogPage`.
 
 ### Sections pattern
 
@@ -105,10 +104,31 @@ Key components and their file paths for quick reference:
 | `CatalogItemList` | `src/sections/publicCatalog/components/CatalogItemList.tsx` |
 | `ProductDetailDialog` | `src/sections/publicCatalog/components/ProductDetailDialog.tsx` |
 | `PublicCatalogContext` | `src/sections/publicCatalog/context/PublicCatalogContext.tsx` |
+| `CartDrawer` | `src/sections/cart/components/CartDrawer.tsx` |
 | `TransactionsPage` | `src/sections/transactions/TransactionsPage.tsx` |
 | `TransactionDetailDialog` | `src/sections/transactions/components/TransactionDetailDialog.tsx` |
 | UI primitives | `src/components/ui/` (`button.tsx`, `card.tsx`) |
 | Shared formatters | `src/lib/format.ts` (`formatPrice` cents→MXN, `formatDate` es-MX) |
+
+### Shopping cart section (`src/sections/cart/`)
+
+The shopping cart is **entirely client-side**: items are added, updated, and removed without any backend calls. State persists in `localStorage` (key: `alkachof.cart`) across browser reloads. Only the `checkout` operation calls the backend.
+
+**Architecture:**
+- `CartProvider` wraps the whole app and manages cart state via `useCart()` hook
+- Cart state is organized by catalog: `StoredCart` is `Record<string, CartLine[]>` (catalogId → items)
+- Only `checkout` makes a backend call via `checkoutCartAction`; all other operations are synchronous
+
+**Operations (all from `useCart()`):**
+- `addItem(item, quantity)` — adds or increments an item in the catalog's cart
+- `setQuantity(catalogId, itemId, quantity)` — sets quantity to a value; quantity ≤ 0 removes the line
+- `removeLine(catalogId, itemId)` — removes a single line item
+- `clearCart(catalogId)` — empties the entire cart for a catalog
+- `linesFor(catalogId)` — returns `CartLine[]` for a catalog (empty if no cart)
+- `countFor(catalogId)` — returns total item count (sum of quantities)
+- `checkout(catalogId)` — sends items to backend and clears the local cart on success
+
+**CartDrawer component** is the UI that renders the shopping cart as a drawer (not a page). It's only visible when a user is on a catalog page.
 
 ### Transactions section (`src/sections/transactions/`)
 
