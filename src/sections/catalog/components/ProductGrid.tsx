@@ -37,28 +37,31 @@ export function ProductGrid() {
           </Button>
         </div>
       ) : (
-        <ul className="columns-2 gap-3">
+        <ul className="flex flex-col gap-2">
           {items.map((item) => (
-            <li key={item._id} className="relative mb-3 break-inside-avoid">
+            <li
+              key={item._id}
+              className="flex items-stretch gap-3 overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-primary hover:shadow-md"
+            >
               <button
-                className="flex w-full flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="flex min-w-0 flex-1 items-center gap-3 p-2 text-left focus:outline-none"
                 onClick={() => setEditingItem(item)}
                 aria-label={item.name || 'Producto sin nombre'}
               >
                 {item.imgPath ? (
-                  <div className="flex w-full items-center justify-center overflow-hidden bg-muted">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
                     <img
                       src={item.imgPath}
                       alt={item.name || 'Producto'}
-                      className="w-full object-contain"
+                      className="max-h-full w-full object-contain"
                     />
                   </div>
                 ) : (
-                  <div className="flex h-24 w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-muted text-center text-[10px] leading-tight text-muted-foreground">
                     Sin imagen
                   </div>
                 )}
-                <div className="flex flex-col gap-1 p-2.5">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <p className="line-clamp-2 text-sm font-medium leading-tight">
                     {item.name || 'Producto sin nombre'}
                   </p>
@@ -74,9 +77,9 @@ export function ProductGrid() {
                 type="button"
                 onClick={() => setDeletingItem(item)}
                 aria-label={`Eliminar ${item.name || 'producto'}`}
-                className="absolute right-1.5 top-1.5 rounded-full bg-background/80 p-1.5 text-destructive shadow-sm transition-colors hover:bg-background"
+                className="flex shrink-0 items-center px-3 text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} />
               </button>
             </li>
           ))}
