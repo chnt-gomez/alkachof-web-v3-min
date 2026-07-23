@@ -236,14 +236,6 @@ export function CatalogFaq() {
         Preguntas frecuentes
       </h2>
 
-      {isAuthenticated ? (
-        <AskQuestionForm onSubmit={handleAsk} />
-      ) : (
-        <p className="rounded-xl border border-dashed bg-card p-3 text-sm text-muted-foreground">
-          Inicia sesión para hacer una pregunta al vendedor.
-        </p>
-      )}
-
       {isLoading && (
         <p className="text-sm text-muted-foreground">Cargando preguntas…</p>
       )}
@@ -265,6 +257,14 @@ export function CatalogFaq() {
             />
           ))}
         </ul>
+      )}
+
+      {isAuthenticated ? (
+        <AskQuestionForm onSubmit={handleAsk} />
+      ) : (
+        <p className="rounded-xl border border-dashed bg-card p-3 text-sm text-muted-foreground">
+          Inicia sesión para hacer una pregunta al vendedor.
+        </p>
       )}
     </section>
   )

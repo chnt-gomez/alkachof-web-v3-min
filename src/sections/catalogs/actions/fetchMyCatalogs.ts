@@ -7,6 +7,6 @@ export type { Catalog }
 
 export async function fetchMyCatalogs(): Promise<Catalog[]> {
   if (IS_DEV_STAGE) return mockFetchMyCatalogs()
-  const data = await api<{ catalogs: Catalog[] }>('/catalog')
+  const data = await api<{ catalogs: Catalog[] }>('/catalog/saved')
   return data.catalogs
 }

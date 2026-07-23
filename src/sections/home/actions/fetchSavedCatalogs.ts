@@ -8,6 +8,6 @@ export type { Catalog }
 /** Catalogs from other sellers that the user bookmarked while browsing. */
 export async function fetchSavedCatalogs(): Promise<Catalog[]> {
   if (IS_DEV_STAGE) return mockFetchSavedCatalogs()
-  const data = await api<{ catalogs: Catalog[] }>('/catalogs/saved')
+  const data = await api<{ catalogs: Catalog[] }>('/catalog/saved')
   return data.catalogs
 }
