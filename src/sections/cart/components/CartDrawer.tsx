@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useAuth } from '@/sections/auth/useAuth'
 import { useCart } from '../context/CartContext'
 import { Button } from '@/components/ui/button'
 import { CartLineItem } from './CartLineItem'
 import { CheckoutConfirmation } from './CheckoutConfirmation'
+import { GuestCheckoutPrompt } from './GuestCheckoutPrompt'
 import type { CartLine, CheckoutResult } from '../types'
 
 // The checkout button fills left-to-right as a progress bar over this window
@@ -24,12 +24,11 @@ type Props = {
 
 export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
   const { isAuthenticated } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
   const { linesFor, checkout } = useCart()
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null)
   const [purchasedLines, setPurchasedLines] = useState<CartLine[]>([])
   const [isCheckingOut, setIsCheckingOut] = useState(false)
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false)
 
   const cartLines = linesFor(catalogId)
 
@@ -42,8 +41,10 @@ export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
   if (!isOpen) return null
 
   const handleCheckout = async () => {
+    // Guests can build a cart, but completing the purchase requires an account.
+    // Encourage them to sign up instead of hitting the checkout endpoint.
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: location.pathname } })
+      setShowGuestPrompt(true)
       return
     }
 
@@ -67,6 +68,10 @@ export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
   // Subtotal is derived from the cart lines themselves — each line snapshots
   // its price at add time, so no catalog re-fetch is needed.
   const subtotal = displayLines.reduce((sum, line) => sum + line.price * line.quantity, 0)
+
+  if (showGuestPrompt) {
+    return <GuestCheckoutPrompt onClose={() => setShowGuestPrompt(false)} />
+  }
 
   if (checkoutResult) {
     return (
@@ -154,11 +159,7 @@ export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
                     />
                   )}
                   <span className="relative z-10">
-                    {isCheckingOut
-                      ? 'Procesando…'
-                      : isAuthenticated
-                        ? 'Finalizar pedido'
-                        : 'Inicia sesión para completar'}
+                    {isCheckingOut ? 'Procesando…' : 'Finalizar pedido'}
                   </span>
                 </Button>
                 <Button

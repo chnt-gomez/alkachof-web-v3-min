@@ -103,8 +103,10 @@ Key components and their file paths for quick reference:
 | `CatalogJumbotron` | `src/sections/publicCatalog/components/CatalogJumbotron.tsx` |
 | `CatalogItemList` | `src/sections/publicCatalog/components/CatalogItemList.tsx` |
 | `ProductDetailDialog` | `src/sections/publicCatalog/components/ProductDetailDialog.tsx` |
+| `CatalogFaq` | `src/sections/publicCatalog/components/CatalogFaq.tsx` |
 | `PublicCatalogContext` | `src/sections/publicCatalog/context/PublicCatalogContext.tsx` |
 | `CartDrawer` | `src/sections/cart/components/CartDrawer.tsx` |
+| `GuestCheckoutPrompt` | `src/sections/cart/components/GuestCheckoutPrompt.tsx` |
 | `TransactionsPage` | `src/sections/transactions/TransactionsPage.tsx` |
 | `TransactionDetailDialog` | `src/sections/transactions/components/TransactionDetailDialog.tsx` |
 | UI primitives | `src/components/ui/` (`button.tsx`, `card.tsx`) |
@@ -129,6 +131,15 @@ The shopping cart is **entirely client-side**: items are added, updated, and rem
 - `checkout(catalogId)` — sends items to backend and clears the local cart on success
 
 **CartDrawer component** is the UI that renders the shopping cart as a drawer (not a page). It's only visible when a user is on a catalog page.
+
+### Public catalog & guest (unauthenticated) access
+
+The public catalog (`/catalog/:catalogId`) is reachable without logging in. `PublicCatalogPage` sits inside `AuthProvider`, so its components use `useAuth()` to gate behavior:
+
+- **Guests may browse and add items to the cart** — the cart is client-side (`localStorage`) and requires no account.
+- **Checkout is the auth gate.** In `CartDrawer`, a guest who taps "Finalizar pedido" gets the `GuestCheckoutPrompt` dialog (encourages "Crear cuenta" / "Ya tengo cuenta", passing the catalog path as `location.state.from` so login returns them here). No checkout backend call is made for guests. Authenticated users check out normally.
+- **The "Suscribirme" button (`CatalogJumbotron`) renders only for authenticated users** — hidden entirely for guests.
+- **Questions (`CatalogFaq`) has no answer/flag action UI.** The owner-only "Responder"/flag controls were removed for _all_ users; answering questions will be handled in a separate effort. The section still renders questions read-only, keeps the "Haz una pregunta" form (auth-gated) and still hides `inappropriate`-flagged questions from non-owners.
 
 ### Transactions section (`src/sections/transactions/`)
 

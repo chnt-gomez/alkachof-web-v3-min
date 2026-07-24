@@ -166,7 +166,16 @@ describe('PublicCatalogPage', () => {
     expect(await screen.findByText('Catálogo no encontrado')).toBeInTheDocument()
   })
 
-  it('renders the subscribe button in the jumbotron', async () => {
+  it('hides the subscribe button from guests', async () => {
+    renderPage()
+
+    // wait for the jumbotron to render, then assert the button is absent
+    expect(await screen.findByText('Mi Tienda Artesanal')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /suscribirme/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the subscribe button to authenticated users', async () => {
+    authState.isAuthenticated = true
     renderPage()
 
     expect(await screen.findByRole('button', { name: /suscribirme/i })).toBeInTheDocument()
@@ -367,6 +376,24 @@ describe('PublicCatalogPage', () => {
     expect(
       await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }),
     ).toBeInTheDocument()
+  })
+
+  it('prompts a guest to sign up on checkout instead of sending the order', async () => {
+    const user = userEvent.setup()
+    // authState.isAuthenticated stays false (guest) from beforeEach
+
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+    await user.click(screen.getByRole('button', { name: /agregar al carrito/i }))
+    await user.click(await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }))
+
+    await user.click(screen.getByRole('button', { name: /finalizar pedido/i }))
+
+    // the signup-encouragement dialog appears and no checkout call is made
+    expect(await screen.findByText('Crea una cuenta para comprar')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /crear cuenta/i })).toBeInTheDocument()
+    expect(checkoutCart).not.toHaveBeenCalled()
   })
 
   it('shows a loading indicator then a confirmation with the correct total on checkout', async () => {
