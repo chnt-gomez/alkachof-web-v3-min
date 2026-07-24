@@ -7,9 +7,14 @@ type Props = { catalogs: Catalog[] }
 export function SavedCatalogList({ catalogs }: Props) {
   if (catalogs.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Aún no has guardado catálogos.
-      </p>
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+          <Bookmark size={22} />
+        </span>
+        <p className="text-sm text-muted-foreground">
+          Aún no tienes catálogos guardados. Cuando te subscribas a algunos, aparecerán aquí.
+        </p>
+      </div>
     )
   }
 

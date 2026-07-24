@@ -1,5 +1,6 @@
 import { MapPin, Bell } from 'lucide-react'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
+import { useAuth } from '@/sections/auth/useAuth'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
 
 function handleSubscribe() {
@@ -8,6 +9,7 @@ function handleSubscribe() {
 
 export function CatalogJumbotron() {
   const { catalog } = usePublicCatalog()
+  const { isAuthenticated } = useAuth()
 
   if (!catalog) return null
 
@@ -56,13 +58,15 @@ export function CatalogJumbotron() {
         </div>
       </div>
 
-      <button
-        onClick={handleSubscribe}
-        className="flex items-center gap-2 self-start rounded-full bg-primary-foreground px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition-transform active:scale-[0.97]"
-      >
-        <Bell size={14} />
-        Suscribirme
-      </button>
+      {isAuthenticated && (
+        <button
+          onClick={handleSubscribe}
+          className="flex items-center gap-2 self-start rounded-full bg-primary-foreground px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition-transform active:scale-[0.97]"
+        >
+          <Bell size={14} />
+          Suscribirme
+        </button>
+      )}
     </section>
   )
 }
