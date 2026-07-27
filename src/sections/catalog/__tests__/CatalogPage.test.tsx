@@ -15,8 +15,10 @@ vi.mock('../actions/createItem')
 vi.mock('../actions/deleteItem')
 vi.mock('../actions/uploadItemImage')
 vi.mock('../actions/broadcastCatalog')
+vi.mock('@/sections/publicCatalog/actions/fetchCatalogLocation')
 
 import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
+import { fetchCatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog } from '../actions/updateCatalog'
 import { updateItem } from '../actions/updateItem'
@@ -81,6 +83,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(fetchMyCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
+  vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
   vi.mocked(updateCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(updateItem).mockImplementation(async (itemId, patch) => ({
     ...mockItems.find((i) => i._id === itemId)!,

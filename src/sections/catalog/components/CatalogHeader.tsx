@@ -4,7 +4,7 @@ import { Pencil, ExternalLink, MapPin, Megaphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
 import { useEditCatalog } from '../context/EditCatalogContext'
-import { EditCatalogModal } from './EditCatalogModal'
+import { EditCatalogScreen } from './EditCatalogScreen'
 import { AnnounceDialog, formatAvailableAt } from './AnnounceDialog'
 
 export function CatalogHeader() {
@@ -105,7 +105,7 @@ export function CatalogHeader() {
         )}
       </section>
 
-      {editing && <EditCatalogModal onClose={() => setEditing(false)} />}
+      {editing && <EditCatalogScreen onClose={() => setEditing(false)} />}
 
       {announcing && (
         <AnnounceDialog

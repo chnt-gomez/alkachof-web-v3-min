@@ -9,6 +9,7 @@ import { ApiError } from '@/lib/api'
 
 vi.mock('../actions/fetchPublicCatalog')
 vi.mock('../actions/fetchCatalogItems')
+vi.mock('../actions/fetchCatalogLocation')
 vi.mock('../actions/fetchCatalogQuestions')
 vi.mock('../actions/askQuestion')
 vi.mock('../actions/answerQuestion')
@@ -31,6 +32,7 @@ vi.mock('@/sections/auth/useAuth', () => ({
 
 import { fetchPublicCatalog } from '../actions/fetchPublicCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
+import { fetchCatalogLocation } from '../actions/fetchCatalogLocation'
 import { fetchCatalogQuestions } from '../actions/fetchCatalogQuestions'
 import { checkoutCart } from '@/sections/cart/actions/checkoutCart'
 import { ToastProvider } from '@/components/ui/toast'
@@ -94,6 +96,7 @@ beforeEach(() => {
   authState.isAuthenticated = false
   vi.mocked(fetchPublicCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
+  vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
   vi.mocked(fetchCatalogQuestions).mockResolvedValue([])
 })
 
@@ -114,11 +117,10 @@ describe('PublicCatalogPage', () => {
     expect(screen.getByText('Bienvenidos a nuestra tienda')).toBeInTheDocument()
   })
 
-  it('renders catalog description and location', async () => {
+  it('renders catalog description', async () => {
     renderPage()
 
     expect(await screen.findByText('Productos hechos a mano en Oaxaca')).toBeInTheDocument()
-    expect(screen.getByText('Oaxaca, México')).toBeInTheDocument()
   })
 
   it('renders all catalog items', async () => {
