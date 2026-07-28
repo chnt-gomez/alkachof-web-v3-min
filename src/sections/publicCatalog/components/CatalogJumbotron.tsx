@@ -1,7 +1,8 @@
-import { MapPin, Bell } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
 import { useAuth } from '@/sections/auth/useAuth'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
+import { CatalogLocationCard } from './CatalogLocationCard'
 
 function handleSubscribe() {
   // placeholder
@@ -31,12 +32,7 @@ export function CatalogJumbotron() {
         <p className="text-sm text-primary-foreground/70">{catalog.description}</p>
       )}
 
-      {catalog.location && (
-        <p className="flex items-center gap-1.5 text-sm text-primary-foreground/70">
-          <MapPin size={14} className="shrink-0" />
-          {catalog.location}
-        </p>
-      )}
+      <CatalogLocationCard catalogId={catalog._id} />
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">

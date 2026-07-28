@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { MapPin, Pencil, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog } from '@/components/ui/dialog'
 import { useEditCatalog } from '../context/EditCatalogContext'
+import { LocationEditDialog } from './LocationEditDialog'
+import { fetchCatalogLocation, type CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 
 const PAY_OPTIONS: Array<{ value: Catalog['payOptions'][number]; label: string }> = [
@@ -17,11 +19,16 @@ const DELIVERY_OPTIONS: Array<{ value: Catalog['deliveryType'][number]; label: s
   { value: 'shipping', label: 'Envío a domicilio' },
 ]
 
+function summarizeLocation(loc: CatalogLocation): string {
+  const line1 = [loc.street_name, loc.number].filter(Boolean).join(' ')
+  return [line1, loc.neighborhood, loc.city, loc.state].filter(Boolean).join(', ')
+}
+
 type Props = {
   onClose: () => void
 }
 
-export function EditCatalogModal({ onClose }: Props) {
+export function EditCatalogScreen({ onClose }: Props) {
   const { catalog, updateCatalog } = useEditCatalog()
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -29,28 +36,40 @@ export function EditCatalogModal({ onClose }: Props) {
   const [alias, setAlias] = useState(catalog?.alias ?? '')
   const [welcomeText, setWelcomeText] = useState(catalog?.welcomeText ?? '')
   const [description, setDescription] = useState(catalog?.description ?? '')
-  const [location, setLocation] = useState(catalog?.location ?? '')
-  const [locationZip, setLocationZip] = useState(catalog?.locationZip ?? '')
   const [payOptions, setPayOptions] = useState<Catalog['payOptions']>(catalog?.payOptions ?? [])
   const [deliveryType, setDeliveryType] = useState<Catalog['deliveryType']>(catalog?.deliveryType ?? [])
 
+  const [location, setLocation] = useState<CatalogLocation | null>(null)
+  const [editingLocation, setEditingLocation] = useState(false)
+
+  useEffect(() => {
+    if (!catalog) return
+    let active = true
+    fetchCatalogLocation(catalog._id)
+      .then((loc) => {
+        if (active) setLocation(loc)
+      })
+      .catch(() => {
+        // A missing location just means the "add location" affordance is shown.
+      })
+    return () => {
+      active = false
+    }
+  }, [catalog])
+
   function togglePay(val: Catalog['payOptions'][number]) {
-    setPayOptions((prev) =>
-      prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
-    )
+    setPayOptions((prev) => (prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]))
   }
 
   function toggleDelivery(val: Catalog['deliveryType'][number]) {
-    setDeliveryType((prev) =>
-      prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
-    )
+    setDeliveryType((prev) => (prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]))
   }
 
   async function handleSave() {
     setSaving(true)
     setSaveError(null)
     try {
-      await updateCatalog({ alias, welcomeText, description, location, locationZip, payOptions, deliveryType })
+      await updateCatalog({ alias, welcomeText, description, payOptions, deliveryType })
       onClose()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'No se pudo guardar el catálogo')
@@ -60,8 +79,22 @@ export function EditCatalogModal({ onClose }: Props) {
   }
 
   return (
-    <Dialog onClose={onClose} ariaLabel="Editar catálogo" title="Editar catálogo">
-        <div className="flex flex-col gap-4 p-5">
+    <div className="fixed inset-0 z-50 flex justify-center bg-black/60">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Editar catálogo"
+        className="flex h-full w-full max-w-md flex-col bg-background"
+      >
+        <header className="flex items-center justify-between border-b px-4 py-3">
+          <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 hover:bg-muted">
+            <X size={20} />
+          </button>
+          <h1 className="text-base font-semibold">Editar catálogo</h1>
+          <span className="w-8" aria-hidden="true" />
+        </header>
+
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
           <Field label="Nombre del catálogo">
             <input
               className="input"
@@ -90,22 +123,27 @@ export function EditCatalogModal({ onClose }: Props) {
           </Field>
 
           <Field label="Ubicación">
-            <input
-              className="input"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Ej. Oaxaca, México"
-            />
-          </Field>
-
-          <Field label="Código postal">
-            <input
-              className="input"
-              value={locationZip}
-              onChange={(e) => setLocationZip(e.target.value)}
-              placeholder="Ej. 68000"
-              inputMode="numeric"
-            />
+            <div className="flex flex-col gap-2 rounded-2xl border border-border p-3">
+              {location ? (
+                <p className="flex items-start gap-1.5 text-sm text-foreground">
+                  <MapPin size={14} className="mt-0.5 shrink-0 text-primary" />
+                  {summarizeLocation(location) || 'Ubicación registrada'}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Aún no has agregado una ubicación.
+                </p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="self-start"
+                onClick={() => setEditingLocation(true)}
+              >
+                <Pencil size={14} />
+                {location ? 'Editar ubicación' : 'Agregar ubicación'}
+              </Button>
+            </div>
           </Field>
 
           <Field label="Métodos de pago">
@@ -155,7 +193,17 @@ export function EditCatalogModal({ onClose }: Props) {
             {saving ? 'Guardando…' : 'Guardar'}
           </Button>
         </div>
-    </Dialog>
+      </div>
+
+      {editingLocation && catalog && (
+        <LocationEditDialog
+          catalogId={catalog._id}
+          location={location}
+          onSaved={setLocation}
+          onClose={() => setEditingLocation(false)}
+        />
+      )}
+    </div>
   )
 }
 

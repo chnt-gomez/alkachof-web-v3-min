@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Pencil, ExternalLink, MapPin, Megaphone } from 'lucide-react'
+import { Pencil, ExternalLink, MapPin, Megaphone, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
 import { useEditCatalog } from '../context/EditCatalogContext'
-import { EditCatalogModal } from './EditCatalogModal'
+import { EditCatalogScreen } from './EditCatalogScreen'
+import { ShareCatalogDialog } from './ShareCatalogDialog'
 import { AnnounceDialog, formatAvailableAt } from './AnnounceDialog'
 
 export function CatalogHeader() {
   const { catalog, items } = useEditCatalog()
   const [editing, setEditing] = useState(false)
   const [announcing, setAnnouncing] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [cooldownUntil, setCooldownUntil] = useState<string | null>(null)
 
   if (!catalog) return null
@@ -89,6 +91,16 @@ export function CatalogHeader() {
           <Button
             size="sm"
             variant="outline"
+            onClick={() => setSharing(true)}
+            className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+          >
+            <Share2 size={14} />
+            Compartir
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => setAnnouncing(true)}
             disabled={onCooldown}
             className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
@@ -105,7 +117,15 @@ export function CatalogHeader() {
         )}
       </section>
 
-      {editing && <EditCatalogModal onClose={() => setEditing(false)} />}
+      {editing && <EditCatalogScreen onClose={() => setEditing(false)} />}
+
+      {sharing && (
+        <ShareCatalogDialog
+          catalogId={catalog._id}
+          catalogName={catalog.alias}
+          onClose={() => setSharing(false)}
+        />
+      )}
 
       {announcing && (
         <AnnounceDialog
