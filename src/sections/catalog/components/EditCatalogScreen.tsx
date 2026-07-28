@@ -79,118 +79,120 @@ export function EditCatalogScreen({ onClose }: Props) {
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Editar catálogo"
-      className="fixed inset-0 z-50 flex flex-col bg-background"
-    >
-      <header className="flex items-center justify-between border-b px-4 py-3">
-        <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 hover:bg-muted">
-          <X size={20} />
-        </button>
-        <h1 className="text-base font-semibold">Editar catálogo</h1>
-        <span className="w-8" aria-hidden="true" />
-      </header>
+    <div className="fixed inset-0 z-50 flex justify-center bg-black/60">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Editar catálogo"
+        className="flex h-full w-full max-w-md flex-col bg-background"
+      >
+        <header className="flex items-center justify-between border-b px-4 py-3">
+          <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 hover:bg-muted">
+            <X size={20} />
+          </button>
+          <h1 className="text-base font-semibold">Editar catálogo</h1>
+          <span className="w-8" aria-hidden="true" />
+        </header>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-        <Field label="Nombre del catálogo">
-          <input
-            className="input"
-            value={alias}
-            onChange={(e) => setAlias(e.target.value)}
-            placeholder="Ej. Mi Tienda Artesanal"
-          />
-        </Field>
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
+          <Field label="Nombre del catálogo">
+            <input
+              className="input"
+              value={alias}
+              onChange={(e) => setAlias(e.target.value)}
+              placeholder="Ej. Mi Tienda Artesanal"
+            />
+          </Field>
 
-        <Field label="Texto de bienvenida">
-          <input
-            className="input"
-            value={welcomeText}
-            onChange={(e) => setWelcomeText(e.target.value)}
-            placeholder="Ej. ¡Bienvenidos!"
-          />
-        </Field>
+          <Field label="Texto de bienvenida">
+            <input
+              className="input"
+              value={welcomeText}
+              onChange={(e) => setWelcomeText(e.target.value)}
+              placeholder="Ej. ¡Bienvenidos!"
+            />
+          </Field>
 
-        <Field label="Descripción">
-          <textarea
-            className="input min-h-[72px] resize-none"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe tu catálogo"
-          />
-        </Field>
+          <Field label="Descripción">
+            <textarea
+              className="input min-h-[72px] resize-none"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe tu catálogo"
+            />
+          </Field>
 
-        <Field label="Ubicación">
-          <div className="flex flex-col gap-2 rounded-2xl border border-border p-3">
-            {location ? (
-              <p className="flex items-start gap-1.5 text-sm text-foreground">
-                <MapPin size={14} className="mt-0.5 shrink-0 text-primary" />
-                {summarizeLocation(location) || 'Ubicación registrada'}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Aún no has agregado una ubicación.
-              </p>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={() => setEditingLocation(true)}
-            >
-              <Pencil size={14} />
-              {location ? 'Editar ubicación' : 'Agregar ubicación'}
-            </Button>
-          </div>
-        </Field>
+          <Field label="Ubicación">
+            <div className="flex flex-col gap-2 rounded-2xl border border-border p-3">
+              {location ? (
+                <p className="flex items-start gap-1.5 text-sm text-foreground">
+                  <MapPin size={14} className="mt-0.5 shrink-0 text-primary" />
+                  {summarizeLocation(location) || 'Ubicación registrada'}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Aún no has agregado una ubicación.
+                </p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="self-start"
+                onClick={() => setEditingLocation(true)}
+              >
+                <Pencil size={14} />
+                {location ? 'Editar ubicación' : 'Agregar ubicación'}
+              </Button>
+            </div>
+          </Field>
 
-        <Field label="Métodos de pago">
-          <div className="flex flex-col gap-2">
-            {PAY_OPTIONS.map(({ value, label }) => (
-              <label key={value} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={payOptions.includes(value)}
-                  onChange={() => togglePay(value)}
-                  className="h-4 w-4 accent-primary"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-        </Field>
+          <Field label="Métodos de pago">
+            <div className="flex flex-col gap-2">
+              {PAY_OPTIONS.map(({ value, label }) => (
+                <label key={value} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={payOptions.includes(value)}
+                    onChange={() => togglePay(value)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </Field>
 
-        <Field label="Tipo de entrega">
-          <div className="flex flex-col gap-2">
-            {DELIVERY_OPTIONS.map(({ value, label }) => (
-              <label key={value} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={deliveryType.includes(value)}
-                  onChange={() => toggleDelivery(value)}
-                  className="h-4 w-4 accent-primary"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-        </Field>
-      </div>
+          <Field label="Tipo de entrega">
+            <div className="flex flex-col gap-2">
+              {DELIVERY_OPTIONS.map(({ value, label }) => (
+                <label key={value} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={deliveryType.includes(value)}
+                    onChange={() => toggleDelivery(value)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </Field>
+        </div>
 
-      {saveError && (
-        <p role="alert" className="border-t px-5 py-2 text-sm text-destructive">
-          {saveError}
-        </p>
-      )}
+        {saveError && (
+          <p role="alert" className="border-t px-5 py-2 text-sm text-destructive">
+            {saveError}
+          </p>
+        )}
 
-      <div className="flex gap-3 border-t px-5 py-4">
-        <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
-          Cancelar
-        </Button>
-        <Button className="flex-1" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar'}
-        </Button>
+        <div className="flex gap-3 border-t px-5 py-4">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button className="flex-1" onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando…' : 'Guardar'}
+          </Button>
+        </div>
       </div>
 
       {editingLocation && catalog && (

@@ -68,7 +68,7 @@ export function LocationMapPicker({ value, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="h-64 overflow-hidden rounded-2xl border border-border">
+      <div className="h-[40vh] max-h-64 min-h-48 overflow-hidden rounded-2xl border border-border">
         <MapContainer
           center={[initialCenter.lat, initialCenter.lng]}
           zoom={value ? PIN_ZOOM : OVERVIEW_ZOOM}
@@ -91,11 +91,6 @@ export function LocationMapPicker({ value, onChange }: Props) {
 
       <p className="text-xs text-muted-foreground">
         Toca el mapa o arrastra el marcador para ajustar la ubicación exacta.
-      </p>
-
-      {/* TODO: temporary debug readout — remove before shipping. */}
-      <p className="rounded bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
-        DEBUG · lat: {value ? value.lat.toFixed(6) : '—'} · lng: {value ? value.lng.toFixed(6) : '—'}
       </p>
 
       {geoError && (

@@ -130,19 +130,23 @@ export function LocationEditDialog({ catalogId, location, onSaved, onClose }: Pr
         </div>
       </div>
 
-      {error && (
-        <p role="alert" className="border-t px-5 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {/* Pinned to the bottom of the scrolling dialog so the actions stay
+          reachable no matter how tall the map + address fields grow. */}
+      <div className="sticky bottom-0 border-t bg-background">
+        {error && (
+          <p role="alert" className="px-5 pt-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
-      <div className="flex gap-3 border-t px-5 py-4">
-        <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
-          Cancelar
-        </Button>
-        <Button className="flex-1" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar ubicación'}
-        </Button>
+        <div className="flex gap-3 px-5 py-4">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button className="flex-1" onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando…' : 'Guardar ubicación'}
+          </Button>
+        </div>
       </div>
     </Dialog>
   )
