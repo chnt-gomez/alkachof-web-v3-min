@@ -1,15 +1,43 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { Store, CircleUserRound, ReceiptText } from 'lucide-react'
+import { Store, CircleUserRound, ReceiptText, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/BrandMark'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/sections/auth/useAuth'
+import { useNotifications } from '@/sections/notifications/useNotifications'
 
 const TABS = [
   { to: '/', label: 'Inicio', icon: Store },
   { to: '/transactions', label: 'Pedidos', icon: ReceiptText },
   { to: '/profile', label: 'Perfil', icon: CircleUserRound },
 ]
+
+/**
+ * Bell linking to the home notification feed, with a live unread badge fed by
+ * `NotificationsProvider` (REST + socket).
+ */
+function NotificationBell() {
+  const { unseen } = useNotifications()
+  const label = unseen > 0 ? `Notificaciones, ${unseen} sin leer` : 'Notificaciones'
+
+  return (
+    <Link
+      to="/"
+      aria-label={label}
+      className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <Bell size={20} />
+      {unseen > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
+        >
+          {unseen > 9 ? '9+' : unseen}
+        </span>
+      )}
+    </Link>
+  )
+}
 
 export function NavShell() {
   const { isAuthenticated, profile } = useAuth()
@@ -22,19 +50,22 @@ export function NavShell() {
             <BrandMark />
           </Link>
           {isAuthenticated ? (
-            <Link to="/profile" aria-label="Mi perfil" className="shrink-0">
-              {profile?.profile_picture_url ? (
-                <img
-                  src={profile.profile_picture_url}
-                  alt={profile.alias ?? 'Perfil'}
-                  className="h-9 w-9 rounded-full border object-cover"
-                />
-              ) : (
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-bold text-secondary-foreground">
-                  {(profile?.alias ?? 'A').charAt(0).toUpperCase()}
-                </span>
-              )}
-            </Link>
+            <div className="flex shrink-0 items-center gap-3">
+              <NotificationBell />
+              <Link to="/profile" aria-label="Mi perfil" className="shrink-0">
+                {profile?.profile_picture_url ? (
+                  <img
+                    src={profile.profile_picture_url}
+                    alt={profile.alias ?? 'Perfil'}
+                    className="h-9 w-9 rounded-full border object-cover"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-bold text-secondary-foreground">
+                    {(profile?.alias ?? 'A').charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </Link>
+            </div>
           ) : (
             <Button variant="ghost" size="sm" asChild>
               <Link to="/login">Ingresar</Link>
