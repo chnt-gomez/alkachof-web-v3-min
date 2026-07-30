@@ -1,20 +1,33 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HomePage } from '../HomePage'
+import { ToastProvider } from '@/components/ui/toast'
+import { AuthProvider } from '@/sections/auth/AuthContext'
+import { NotificationsProvider } from '@/sections/notifications/context/NotificationsContext'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
-import type { Notification } from '../actions/fetchNotifications'
+import type { Notification } from '@/sections/notifications/actions/fetchNotifications'
 
 vi.mock('@/sections/catalogs/actions/fetchMyCatalog')
 vi.mock('@/sections/catalog/actions/fetchCatalogItems')
-vi.mock('../actions/fetchNotifications')
+vi.mock('@/sections/auth/actions/fetchProfile')
+vi.mock('@/sections/notifications/liveSocket')
+vi.mock('@/sections/notifications/actions/fetchNotifications', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/sections/notifications/actions/fetchNotifications')
+  >()),
+  fetchNotifications: vi.fn(),
+  fetchAllNotifications: vi.fn(),
+  markNotificationSeen: vi.fn(),
+}))
 vi.mock('../actions/fetchSavedCatalogs')
 
 import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogItems } from '@/sections/catalog/actions/fetchCatalogItems'
-import { fetchNotifications } from '../actions/fetchNotifications'
+import { fetchProfile } from '@/sections/auth/actions/fetchProfile'
+import { fetchNotifications } from '@/sections/notifications/actions/fetchNotifications'
 import { fetchSavedCatalogs } from '../actions/fetchSavedCatalogs'
 
 const sampleCatalog = (overrides: Partial<Catalog> = {}): Catalog => ({
@@ -55,24 +68,39 @@ const sampleNotification = (overrides: Partial<Notification> = {}): Notification
   ...overrides,
 })
 
+// HomePage reads notifications from NotificationsProvider, which activates on
+// login — so the page renders inside real providers with an authenticated
+// session (seeded token + mocked fetchProfile), never a mocked context.
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/']}>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/catalog" element={<div>Catálogo edit</div>} />
-        <Route path="/catalog/:catalogId" element={<div>Catálogo público</div>} />
-      </Routes>
+      <ToastProvider>
+        <AuthProvider>
+          <NotificationsProvider>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/catalog" element={<div>Catálogo edit</div>} />
+              <Route path="/catalog/:catalogId" element={<div>Catálogo público</div>} />
+            </Routes>
+          </NotificationsProvider>
+        </AuthProvider>
+      </ToastProvider>
     </MemoryRouter>,
   )
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  localStorage.setItem('alk.token', 'test-token')
+  vi.mocked(fetchProfile).mockResolvedValue({ _id: 'p1', userId: 'me', alias: 'Yo' })
   vi.mocked(fetchMyCatalog).mockResolvedValue(sampleCatalog())
   vi.mocked(fetchCatalogItems).mockResolvedValue([sampleItem()])
   vi.mocked(fetchNotifications).mockResolvedValue([])
   vi.mocked(fetchSavedCatalogs).mockResolvedValue([])
+})
+
+afterEach(() => {
+  localStorage.clear()
 })
 
 describe('HomePage', () => {
@@ -137,7 +165,7 @@ describe('HomePage', () => {
   it('shows the empty saved-catalogs message when there are none', async () => {
     renderPage()
 
-    expect(await screen.findByText(/aún no has guardado catálogos/i)).toBeInTheDocument()
+    expect(await screen.findByText(/aún no tienes catálogos guardados/i)).toBeInTheDocument()
   })
 
   it('surfaces a retryable error for a failed section without blanking the rest', async () => {

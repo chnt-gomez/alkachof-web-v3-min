@@ -1,4 +1,4 @@
-import type { Notification } from '@/sections/home/actions/fetchNotifications'
+import type { Notification } from '@/sections/notifications/actions/fetchNotifications'
 import { randomId } from './random'
 
 // Marking as seen is idempotent server-side and returns the updated notification

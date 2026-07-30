@@ -1,37 +1,19 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Megaphone, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ApiError } from '@/lib/api'
 import {
-  markNotificationSeen,
   notificationLink,
   type Notification,
-} from '../actions/fetchNotifications'
+} from '@/sections/notifications/actions/fetchNotifications'
 
-type Props = { notifications: Notification[] }
+type Props = {
+  notifications: Notification[]
+  /** Called with the notification id when a linkable row is clicked. */
+  onSeen: (id: string) => void
+}
 
-export function NotificationList({ notifications }: Props) {
-  // Local copy so clicks can optimistically flip `seenOn` and drop stale rows
-  // without waiting for the parent section to refetch.
-  const [items, setItems] = useState(notifications)
-  useEffect(() => setItems(notifications), [notifications])
-
-  async function handleSeen(id: string) {
-    setItems((prev) => prev.map((n) => (n._id === id ? { ...n, seenOn: true } : n)))
-    try {
-      const updated = await markNotificationSeen(id)
-      setItems((prev) => prev.map((n) => (n._id === id ? updated : n)))
-    } catch (err) {
-      // 404 → the notification no longer exists; drop it from the feed.
-      if (err instanceof ApiError && err.status === 404) {
-        setItems((prev) => prev.filter((n) => n._id !== id))
-      }
-      // Other failures leave the optimistic seen state in place.
-    }
-  }
-
-  if (items.length === 0) {
+export function NotificationList({ notifications, onSeen }: Props) {
+  if (notifications.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
         Nada por el momento
@@ -41,9 +23,9 @@ export function NotificationList({ notifications }: Props) {
 
   return (
     <ul className="flex flex-col gap-2">
-      {items.map((notification) => (
+      {notifications.map((notification) => (
         <li key={notification._id}>
-          <NotificationRow notification={notification} onSeen={handleSeen} />
+          <NotificationRow notification={notification} onSeen={onSeen} />
         </li>
       ))}
     </ul>

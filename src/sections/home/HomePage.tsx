@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogItems } from '@/sections/catalog/actions/fetchCatalogItems'
-import { fetchNotifications } from './actions/fetchNotifications'
+import { useNotifications } from '@/sections/notifications/useNotifications'
 import { fetchSavedCatalogs } from './actions/fetchSavedCatalogs'
 import { useAsyncSection } from './hooks/useAsyncSection'
 import { MyCatalogCard } from './components/MyCatalogCard'
@@ -17,7 +17,9 @@ export function HomePage() {
   }, [])
 
   const myCatalog = useAsyncSection(loadMyCatalog)
-  const notifications = useAsyncSection(useCallback(() => fetchNotifications(), []))
+  // Notifications come from the app-wide provider so live socket pushes show
+  // up here without a refetch.
+  const notifications = useNotifications()
   const savedCatalogs = useAsyncSection(useCallback(() => fetchSavedCatalogs(), []))
 
   return (
@@ -48,8 +50,11 @@ export function HomePage() {
             onRetry={notifications.reload}
           />
         )}
-        {notifications.status === 'ready' && notifications.data && (
-          <NotificationList notifications={notifications.data} />
+        {notifications.status === 'ready' && (
+          <NotificationList
+            notifications={notifications.notifications}
+            onSeen={notifications.markSeen}
+          />
         )}
       </section>
 

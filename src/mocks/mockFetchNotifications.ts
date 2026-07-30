@@ -1,4 +1,4 @@
-import type { Notification } from '@/sections/home/actions/fetchNotifications'
+import type { Notification } from '@/sections/notifications/actions/fetchNotifications'
 import { pick, randomId, randomInt } from './random'
 
 // Catalog broadcasts are the only source of notifications today. The server

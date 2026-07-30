@@ -4,6 +4,9 @@ const PROACTIVE_REFRESH_BUFFER_MS = 30_000
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
 
+/** API origin — also the Socket.IO host for the `/live` namespace. */
+export const API_BASE_URL = BASE_URL
+
 export class ApiError extends Error {
   readonly status: number
   /** Parsed JSON response body, when the server returned one. */
@@ -20,7 +23,7 @@ type ApiOptions = Omit<RequestInit, 'body'> & {
   authenticated?: boolean
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) return null
   const res = await fetch(`${BASE_URL}/refresh`, {

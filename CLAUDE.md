@@ -147,6 +147,12 @@ The "Pedidos" page (4th `NavShell` tab) lists the user's transactions split by r
 
 It talks to two backend endpoints (both mocked in dev stage per the mock rules): `GET /transaction/all?role&status&limit&skip` (→ `TransactionListResult`) and `GET /transaction/:id/purchases` (→ `PurchaseLine[]`). Money is cents everywhere; format with `formatPrice`. Deferred (Phase 2): action buttons in the detail dialog wired to the existing `/transaction/:id` status/code/confirm endpoints.
 
+### Notifications section (`src/sections/notifications/`)
+
+App-wide live notifications (contract: `followup.LiveNotificationsApi.md`). `NotificationsProvider` (mounted in `AppRouter` inside `AuthProvider`) owns the list: on login it fetches `GET /notification/recent` (REST is the source of truth) and opens a best-effort **Socket.IO v4** connection to the `/live` namespace on the API origin (`connectLiveSocket` in `liveSocket.ts`, JWT via `auth.token`). `notification:new` prepends + toasts; every socket `connect` re-syncs from REST (missed events are not replayed); `connect_error: Unauthorized` refreshes the token and reconnects; logout disconnects. `markSeen` is optimistic (`POST /notification/:id/seen`, 404 drops the row).
+
+Consumers: `useNotifications()` → `{ notifications, status, unseen, reload, markSeen }`. The `NavShell` header bell shows the `unseen` badge; `HomePage` renders the list via the presentational `NotificationList` (in `src/sections/home/components/`). The `Notification` type and `notificationLink()` (metadata → route) live in `actions/fetchNotifications.ts`. **In dev stage the socket is a no-op** — only the mocked REST fetch runs, so live pushes never arrive; `liveSocket.ts` guards on `IS_DEV_STAGE` itself and has no mock file (it makes no HTTP calls).
+
 ### Development stage
 
 The UI supports a **development stage** that bypasses the backend entirely. This is the default when running `npm run dev`.
