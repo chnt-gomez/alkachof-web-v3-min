@@ -71,6 +71,22 @@
   animation: progress-fill 1s linear forwards;
 }
 
+/* Deep-link highlight: draws the eye to a product card scrolled into view. */
+@keyframes product-highlight-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 4px var(--color-primary);
+  }
+}
+
+.product-highlight {
+  border-radius: 1rem;
+  animation: product-highlight-pulse 1.2s ease-in-out 2;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-overlay-fade,
   .animate-sheet-pop {
@@ -79,6 +95,12 @@
   /* Keep the fill instant rather than removing the progress feedback entirely. */
   .animate-progress-fill {
     animation-duration: 0.01s;
+  }
+  /* Swap the pulse for a static outline so the highlight is still visible. */
+  .product-highlight {
+    animation: none;
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
 }
 

@@ -62,7 +62,7 @@ const sampleNotification = (overrides: Partial<Notification> = {}): Notification
   _id: 'notif1',
   userId: 'me',
   message: 'Rebozos Oaxaca: ¡Nuevos rebozos de temporada ya disponibles!',
-  metadata: { id: 'cat1', type: 'CATALOG' },
+  metadata: { navigationUrl: '/catalog/cat1' },
   createdOn: new Date().toISOString(),
   seenOn: false,
   ...overrides,

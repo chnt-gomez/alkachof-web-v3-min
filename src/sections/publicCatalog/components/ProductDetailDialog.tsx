@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { X, Minus, Plus } from 'lucide-react'
+import { X, Minus, Plus, Share2 } from 'lucide-react'
 import { useCart } from '@/sections/cart/context/CartContext'
 import { useToast } from '@/components/ui/useToast'
 import { Button } from '@/components/ui/button'
+import { productShareUrl } from '@/lib/shareUrl'
 import type { Item } from '../actions/fetchCatalogItems'
 
 function formatPrice(cents: number) {
@@ -33,6 +34,24 @@ export function ProductDetailDialog({ item, onClose }: Props) {
     }
   }
 
+  const handleShare = () => {
+    const url = productShareUrl(item.catalogId, item._id)
+
+    // Copy in the background so the link lands on the clipboard either way.
+    // Don't await it — that would spend the gesture navigator.share() needs.
+    void navigator.clipboard?.writeText(url).catch(() => {})
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      navigator
+        .share({ title: item.name, text: `Mira este producto: ${item.name}`, url })
+        .catch(() => {
+          // Share sheet dismissed — the link is already copied, so stay quiet.
+        })
+    } else {
+      toast.success('Link copiado al portapapeles')
+    }
+  }
+
   const canAdd = item.stock > 0
   const qtyDisabled = quantity >= item.stock
 
@@ -45,6 +64,14 @@ export function ProductDetailDialog({ item, onClose }: Props) {
         className="relative flex w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-background max-h-[90vh] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          onClick={handleShare}
+          className="absolute left-3 top-3 z-10 rounded-full bg-background/80 p-1.5 text-foreground backdrop-blur-sm"
+          aria-label="Compartir producto"
+        >
+          <Share2 size={18} />
+        </button>
+
         <button
           onClick={onClose}
           className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-1.5 text-foreground backdrop-blur-sm"

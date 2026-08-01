@@ -40,10 +40,10 @@ function NotificationRow({
   onSeen: (id: string) => void
 }) {
   const unread = !notification.seenOn
-  const isBroadcast =
-    notification.metadata.type === 'ITEM' || notification.metadata.type === 'CATALOG'
-  const Icon = isBroadcast ? Megaphone : Bell
   const link = notificationLink(notification)
+  // Navigable notifications are catalog/product broadcasts; the ones without a
+  // target are informational (e.g. admin messages).
+  const Icon = link ? Megaphone : Bell
 
   const content = (
     <div
@@ -71,8 +71,8 @@ function NotificationRow({
     </div>
   )
 
-  // Deep link comes from `metadata` (§4 of the blueprint). Unknown types yield a
-  // non-clickable row. Clicking a linkable notification also marks it as seen.
+  // The API ships a ready-to-use relative path in `metadata.navigationUrl`.
+  // A linkable notification navigates and marks itself seen on click.
   if (link) {
     return (
       <Link
@@ -82,6 +82,22 @@ function NotificationRow({
       >
         {content}
       </Link>
+    )
+  }
+
+  // Informational notifications (no navigation target) don't navigate, but an
+  // unread one can still be dismissed — tapping it marks it seen. Once seen it's
+  // just a static message with no interactive affordance.
+  if (unread) {
+    return (
+      <button
+        type="button"
+        onClick={() => onSeen(notification._id)}
+        aria-label="Marcar como leída"
+        className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {content}
+      </button>
     )
   }
 
