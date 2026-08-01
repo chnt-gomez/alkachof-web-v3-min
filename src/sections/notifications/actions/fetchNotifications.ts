@@ -2,18 +2,14 @@ import { api } from '@/lib/api'
 import { IS_DEV_STAGE } from '@/lib/stage'
 import { mockFetchNotifications, mockMarkNotificationSeen } from '@/mocks'
 
-/**
- * What kind of entity a notification points at. Treat this as an **open set**:
- * a future backend release may add a type this build does not know, so always
- * fall through to a non-clickable notification rather than crashing.
- * Only `ITEM` and `CATALOG` are emitted today (by catalog broadcasts).
- */
-export type NotificationMetadataType = 'ITEM' | 'USER' | 'CATALOG' | 'TRANSACTION'
-
 export type NotificationMetadata = {
-  /** Id of the linked entity — combined with `type` to build the deep link. */
-  id: string
-  type: NotificationMetadataType
+  /**
+   * A **relative in-app path** to navigate to on click (always starts with `/`),
+   * or `null` for an informational notification with no navigation target (e.g.
+   * an admin message). The API composes this server-side — the client navigates
+   * to it as-is and never builds routes from entity ids.
+   */
+  navigationUrl: string | null
 }
 
 export type Notification = {
@@ -38,22 +34,16 @@ function sortByCreatedDesc(notifications: Notification[]): Notification[] {
 }
 
 /**
- * Build the client route a notification points at, from `metadata`. Returns
- * `null` for unknown types so the caller renders a non-clickable row.
+ * The in-app path a notification navigates to, or `null` when it's informational
+ * (render a non-clickable message). The API sends a ready-to-use relative path in
+ * `metadata.navigationUrl`; we only defend against a non-relative value — the API
+ * rejects absolute and protocol-relative (`//host`) URLs at write time, so this
+ * should never trigger.
  */
 export function notificationLink({ metadata }: Notification): string | null {
-  switch (metadata.type) {
-    case 'ITEM':
-      return `/product/${metadata.id}`
-    case 'CATALOG':
-      return `/catalog/${metadata.id}`
-    case 'TRANSACTION':
-      return '/transactions'
-    case 'USER':
-      return '/profile'
-    default:
-      return null
-  }
+  const url = metadata.navigationUrl
+  if (!url || !url.startsWith('/') || url.startsWith('//')) return null
+  return url
 }
 
 /** Number of unread notifications — derived client-side (no count endpoint). */

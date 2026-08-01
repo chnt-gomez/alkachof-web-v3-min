@@ -55,16 +55,17 @@ Payload is the full notification, identical to the REST shape:
   "userId": "64a1b2c3d4e5f6a7b8c9d0e1",
   "message": "My Shop: New drops this week!",
   "metadata": {
-    "id": "64a1b2c3d4e5f6a7b8c9d0a3",
-    "type": "ITEM"
+    "navigationUrl": "/catalog/64a1b2c3d4e5f6a7b8c9d0a4?product=64a1b2c3d4e5f6a7b8c9d0a3"
   },
   "createdOn": "2026-07-29T16:20:00.000Z",
   "seenOn": false
 }
 ```
 
-- `metadata.type` ∈ `ITEM | USER | CATALOG | TRANSACTION` — tells the UI which link to build.
-- `metadata.id` — the id of the entity of that type (item id, catalog id, …).
+- `metadata.navigationUrl` — a **relative in-app path** (always starts with `/`); navigate to
+  it as-is with the client router. `null` means the notification is **informational** (render
+  the message, no navigation). The API owns this mapping — the client never builds routes from
+  entity ids. See `followup.NotificationNavigationUrl.md` (in the API repo) for the full contract.
 - `seenOn` is a **boolean** (seen flag), not a date.
 
 Recommended handling: prepend to the in-memory notification list, bump the unseen badge, and
@@ -102,6 +103,7 @@ already knows, and cross-tab sync can lean on the catch-up fetch).
 1. Login → connect to `/live` with the access token.
 2. On `connect` → fetch `/notification/recent`, render list + unseen badge.
 3. On `notification:new` → prepend, bump badge, toast.
-4. On click → `POST /notification/{id}/seen`, navigate using `metadata.type` + `metadata.id`.
+4. On click → `POST /notification/{id}/seen`, then navigate to `metadata.navigationUrl` if set
+   (informational notifications have `null` and don't navigate).
 5. On token refresh → update `socket.auth.token`.
 6. On logout → `socket.disconnect()`.

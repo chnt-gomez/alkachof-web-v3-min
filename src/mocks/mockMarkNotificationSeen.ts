@@ -9,7 +9,7 @@ export function mockMarkNotificationSeen(id: string): Promise<Notification> {
     _id: id,
     userId: randomId(),
     message: 'Rebozos Oaxaca: ¡Nuevos rebozos de temporada ya disponibles! 🧣',
-    metadata: { id: randomId(), type: 'CATALOG' },
+    metadata: { navigationUrl: `/catalog/${randomId()}` },
     createdOn: new Date().toISOString(),
     seenOn: true,
   })
