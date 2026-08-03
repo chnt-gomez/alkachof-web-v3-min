@@ -46,6 +46,17 @@ export function useTransactions() {
     reload()
   }, [reload])
 
+  const patchTransaction = useCallback(
+    (id: string, status: TransactionStatus) => {
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, status, dateUpdated: new Date().toISOString() } : t,
+        ),
+      )
+    },
+    [],
+  )
+
   const loadMore = useCallback(async () => {
     setLoadingMore(true)
     try {
@@ -71,5 +82,6 @@ export function useTransactions() {
     loadingMore,
     loadMore,
     reload,
+    patchTransaction,
   }
 }

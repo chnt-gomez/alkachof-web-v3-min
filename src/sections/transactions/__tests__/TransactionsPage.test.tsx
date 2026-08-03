@@ -8,9 +8,11 @@ import type { PurchaseLine, TransactionSummary } from '../types'
 
 vi.mock('../actions/fetchTransactions')
 vi.mock('../actions/fetchTransactionPurchases')
+vi.mock('../actions/updateTransactionStatus')
 
 import { fetchTransactions } from '../actions/fetchTransactions'
 import { fetchTransactionPurchases } from '../actions/fetchTransactionPurchases'
+import { updateTransactionStatus } from '../actions/updateTransactionStatus'
 
 const ISO = new Date('2026-07-14T12:00:00Z').toISOString()
 
@@ -49,9 +51,9 @@ const sampleLine = (overrides: Partial<PurchaseLine> = {}): PurchaseLine => ({
   ...overrides,
 })
 
-function renderPage() {
+function renderPage(entry = '/transactions') {
   return render(
-    <MemoryRouter initialEntries={['/transactions']}>
+    <MemoryRouter initialEntries={[entry]}>
       <TransactionsPage />
     </MemoryRouter>,
   )
@@ -116,6 +118,47 @@ describe('TransactionsPage', () => {
     expect(screen.getByText('Cantidad: 2')).toBeInTheDocument()
   })
 
+  it('lets a seller advance a transaction status from the detail dialog', async () => {
+    const started = sampleSummary({ id: 't-seller', status: 'STARTED' })
+    vi.mocked(fetchTransactions).mockResolvedValue(listResult([started]))
+    vi.mocked(updateTransactionStatus).mockResolvedValue({
+      id: 't-seller',
+      purchaseIds: ['p1'],
+      buyerId: 'u2',
+      sellerId: 'me',
+      status: 'PROCESSING',
+      dateCreated: ISO,
+      dateUpdated: ISO,
+    })
+    renderPage()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Ventas' }))
+    const card = await screen.findByRole('button', { name: /pedido del/i })
+    await userEvent.click(card)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar en proceso' }))
+
+    await waitFor(() =>
+      expect(updateTransactionStatus).toHaveBeenCalledWith('t-seller', 'PROCESSING'),
+    )
+    // Status advanced in place: the PROCESSING actions replace the STARTED ones.
+    expect(await screen.findByRole('button', { name: 'Marcar en camino' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Marcar en proceso' })).not.toBeInTheDocument()
+  })
+
+  it('does not render status actions for a buyer', async () => {
+    vi.mocked(fetchTransactions).mockResolvedValue(
+      listResult([sampleSummary({ status: 'EN-ROUTE' })]),
+    )
+    renderPage()
+
+    const card = await screen.findByRole('button', { name: /pedido del/i })
+    await userEvent.click(card)
+
+    await screen.findByText('Detalle del pedido')
+    expect(screen.queryByText('Actualizar estado')).not.toBeInTheDocument()
+  })
+
   it('accumulates the next page when load more is tapped', async () => {
     vi.mocked(fetchTransactions)
       .mockResolvedValueOnce(listResult([sampleSummary({ id: 't1' })], 2))
@@ -126,6 +169,40 @@ describe('TransactionsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /cargar más/i }))
 
     await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2))
+  })
+
+  it('highlights the transaction named by a notification deep-link', async () => {
+    // jsdom has no layout engine, so scrollIntoView is undefined by default.
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    vi.mocked(fetchTransactions).mockResolvedValue(
+      listResult([sampleSummary({ id: 't1' }), sampleSummary({ id: 't2' })]),
+    )
+    renderPage('/transactions?transaction=t2')
+
+    const cards = await screen.findAllByRole('button', { name: /pedido del/i })
+    // The highlight class lands on the <li> wrapping the target's card.
+    await waitFor(() =>
+      expect(cards[1].closest('li')).toHaveClass('transaction-highlight'),
+    )
+    expect(cards[0].closest('li')).not.toHaveClass('transaction-highlight')
+    // scrollIntoView fires from a requestAnimationFrame callback.
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled())
+  })
+
+  it('switches to the seller tab when the deep-link names role=seller', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    renderPage('/transactions?transaction=t1&role=seller')
+
+    await waitFor(() =>
+      expect(fetchTransactions).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'seller' }),
+      ),
+    )
+    expect(screen.getByRole('tab', { name: 'Ventas' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
   })
 
   it('surfaces a retryable error when the list fails to load', async () => {
