@@ -51,7 +51,7 @@ export function CartLineItem({ line, catalogId }: Props) {
             <span className="w-6 text-center text-xs font-medium">{line.quantity}</span>
             <button
               onClick={() => handleQtyChange(line.quantity + 1)}
-              disabled={isMutating || line.quantity >= line.stock}
+              disabled={isMutating}
               className="flex h-6 w-6 items-center justify-center rounded transition-colors hover:bg-background disabled:opacity-50"
               aria-label="Aumentar"
             >

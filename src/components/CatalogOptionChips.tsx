@@ -8,11 +8,36 @@ const PAY_CHIPS: Record<Catalog['payOptions'][number], { icon: React.ReactNode; 
   other:    { icon: <CircleEllipsis size={13} />, label: 'Otro' },
 }
 
-const DELIVERY_CHIPS: Record<Catalog['deliveryType'][number], { icon: React.ReactNode; label: string }> = {
-  'location-pickup': { icon: <MapPin size={13} />,  label: 'Recoger en tienda' },
-  delivery:          { icon: <Truck size={13} />,   label: 'Entrega a domicilio' },
-  shipping:          { icon: <Package size={13} />, label: 'Envío a domicilio' },
-}
+export type DeliveryValue = Catalog['deliveryType'][number]
+
+// Single source of truth for delivery option display metadata — consumed by the
+// chips below, the owner catalog editor, and the shipping-info help modal.
+export const DELIVERY_OPTIONS: Array<{
+  value: DeliveryValue
+  icon: React.ReactNode
+  label: string
+  description?: string
+}> = [
+  { value: 'location-pickup', icon: <MapPin size={13} />, label: 'Recoger en tienda' },
+  {
+    value: 'delivery',
+    icon: <Truck size={13} />,
+    label: 'Entrega a domicilio',
+    description:
+      'Tú entregarás personalmente los productos en el domicilio de tu cliente. Usualmente esta opción no representa ningún costo adicional a tus clientes.',
+  },
+  {
+    value: 'shipping',
+    icon: <Package size={13} />,
+    label: 'Envío a domicilio',
+    description:
+      'Usarás un servicio externo de paquetería para enviar tus productos. Esta opción podría incrementar tus costos de venta, así que asegúrate de convenir un costo de envío con tus clientes.',
+  },
+]
+
+const DELIVERY_CHIPS = Object.fromEntries(
+  DELIVERY_OPTIONS.map((o) => [o.value, o]),
+) as Record<DeliveryValue, (typeof DELIVERY_OPTIONS)[number]>
 
 function Chip({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (

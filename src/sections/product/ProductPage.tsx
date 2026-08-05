@@ -67,7 +67,7 @@ export function ProductPage() {
                 </div>
               )}
               {item.price > 0 && <p className="text-xl font-bold">{formatPrice(item.price)}</p>}
-              {item.stock === 0 && <p className="text-sm text-destructive">Sin existencias</p>}
+              {item.outOfStock && <p className="text-sm text-destructive">Sin existencias</p>}
             </CardContent>
           </Card>
 

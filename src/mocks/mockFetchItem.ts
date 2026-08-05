@@ -15,9 +15,8 @@ export function mockFetchItem(itemId: string): Promise<Item> {
     name: pick(ITEM_NAMES),
     description: pick(ITEM_DESCRIPTIONS),
     price: randomInt(50, 2000),
-    stock: randomInt(0, 30),
     imgPath: `https://picsum.photos/seed/${itemId}/600/800`,
-    sizes: ['Único'],
+    outOfStock: false,
     updatedOn: new Date().toISOString(),
   }
   return Promise.resolve(item)

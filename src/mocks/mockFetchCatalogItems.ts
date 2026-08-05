@@ -10,8 +10,6 @@ const ITEM_DESCRIPTIONS = [
   'Colores naturales y auténticos',
   'Diseño tradicional con toque moderno',
 ]
-const SIZES = [['S', 'M', 'L', 'XL'], ['Único'], ['25cm', '30cm', '35cm']]
-
 export function mockFetchCatalogItems(catalogId: string): Promise<Item[]> {
   const itemCount = randomInt(4, 12)
   const items: Item[] = []
@@ -24,9 +22,8 @@ export function mockFetchCatalogItems(catalogId: string): Promise<Item[]> {
       name: pick(ITEM_NAMES),
       description: pick(ITEM_DESCRIPTIONS),
       price: randomInt(50, 2000),
-      stock: randomInt(0, 30),
       imgPath: `https://picsum.photos/seed/${seedId}/600/800`,
-      sizes: pick(SIZES),
+      outOfStock: randomInt(0, 4) === 0,
       updatedOn: new Date().toISOString(),
     }
     items.push(item)

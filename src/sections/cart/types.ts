@@ -6,7 +6,6 @@ export type CartLine = {
   name: string
   price: number
   imgPath: string
-  stock: number
 }
 
 import type { Transaction } from '@/sections/transactions/types'

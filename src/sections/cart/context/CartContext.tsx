@@ -99,7 +99,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
           name: item.name,
           price: item.price,
           imgPath: item.imgPath,
-          stock: item.stock,
         })
       }
       stored[item.catalogId] = catalogLines

@@ -9,9 +9,8 @@ export type ItemFormPayload = {
   name: string
   description: string
   price: number
-  stock: number
-  sizes: string[]
   imgPath: string
+  outOfStock: boolean
 }
 
 type Props = {
@@ -25,9 +24,8 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [price, setPrice] = useState(initial ? String(initial.price / 100) : '')
-  const [stock, setStock] = useState(initial ? String(initial.stock) : '')
-  const [sizes, setSizes] = useState(initial?.sizes.join(', ') ?? '')
   const [imgPath, setImgPath] = useState(initial?.imgPath ?? '')
+  const [outOfStock, setOutOfStock] = useState(initial?.outOfStock ?? false)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,22 +45,12 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
       }
       priceCents = Math.round(parsed * 100)
     }
-    let stockNum = 0
-    if (stock.trim()) {
-      const parsed = parseInt(stock, 10)
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        setError('Las existencias deben ser un número mayor o igual a cero.')
-        return null
-      }
-      stockNum = parsed
-    }
     return {
       name: name.trim(),
       description: description.trim(),
       price: priceCents,
-      stock: stockNum,
-      sizes: sizes.split(',').map((s) => s.trim()).filter(Boolean),
       imgPath,
+      outOfStock,
     }
   }
 
@@ -121,24 +109,17 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
               />
             </Field>
 
-            <Field label="Existencias">
-              <input
-                className="input"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                placeholder="Ej. 10"
-                inputMode="numeric"
-              />
-            </Field>
-
-            <Field label="Tallas (separadas por coma)">
-              <input
-                className="input"
-                value={sizes}
-                onChange={(e) => setSizes(e.target.value)}
-                placeholder="Ej. S, M, L, XL"
-              />
-            </Field>
+            {mode === 'edit' && (
+              <label className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={outOfStock}
+                  onChange={(e) => setOutOfStock(e.target.checked)}
+                />
+                <span className="text-sm font-medium">Sin existencias</span>
+              </label>
+            )}
 
             {error && (
               <p role="alert" className="text-sm text-destructive">

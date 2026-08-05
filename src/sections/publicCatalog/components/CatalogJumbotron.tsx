@@ -1,8 +1,10 @@
-import { Bell } from 'lucide-react'
+import { useState } from 'react'
+import { Bell, HelpCircle } from 'lucide-react'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
 import { useAuth } from '@/sections/auth/useAuth'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
 import { CatalogLocationCard } from './CatalogLocationCard'
+import { ShippingInfoDialog } from './ShippingInfoDialog'
 
 function handleSubscribe() {
   // placeholder
@@ -11,10 +13,12 @@ function handleSubscribe() {
 export function CatalogJumbotron() {
   const { catalog } = usePublicCatalog()
   const { isAuthenticated } = useAuth()
+  const [showShippingInfo, setShowShippingInfo] = useState(false)
 
   if (!catalog) return null
 
   return (
+    <>
     <section className="relative flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-deep p-6 text-primary-foreground shadow-lg shadow-primary/20">
       <div
         aria-hidden="true"
@@ -45,9 +49,19 @@ export function CatalogJumbotron() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-primary-foreground/60">
-            Envío
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary-foreground/60">
+              Envío
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowShippingInfo(true)}
+              aria-label="Información sobre opciones de envío"
+              className="text-primary-foreground/60 transition-colors hover:text-primary-foreground"
+            >
+              <HelpCircle size={14} />
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             <DeliveryOptionChips options={catalog.deliveryType} />
           </div>
@@ -64,5 +78,11 @@ export function CatalogJumbotron() {
         </button>
       )}
     </section>
+
+    {/* Rendered outside the section so it doesn't inherit its white text color */}
+    {showShippingInfo && (
+      <ShippingInfoDialog onClose={() => setShowShippingInfo(false)} />
+    )}
+    </>
   )
 }

@@ -7,9 +7,8 @@ export type Item = {
   name: string
   description: string
   price: number
-  stock: number
   imgPath: string
-  sizes: string[]
+  outOfStock: boolean
   updatedOn: string
   catalogId: string
 }

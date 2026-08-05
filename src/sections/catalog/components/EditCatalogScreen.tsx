@@ -5,18 +5,13 @@ import { useEditCatalog } from '../context/EditCatalogContext'
 import { LocationEditDialog } from './LocationEditDialog'
 import { fetchCatalogLocation, type CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
+import { DELIVERY_OPTIONS } from '@/components/CatalogOptionChips'
 
 const PAY_OPTIONS: Array<{ value: Catalog['payOptions'][number]; label: string }> = [
   { value: 'cash', label: 'Efectivo' },
   { value: 'credit', label: 'Tarjeta de crédito' },
   { value: 'transfer', label: 'Transferencia' },
   { value: 'other', label: 'Otro' },
-]
-
-const DELIVERY_OPTIONS: Array<{ value: Catalog['deliveryType'][number]; label: string }> = [
-  { value: 'location-pickup', label: 'Recoger en tienda' },
-  { value: 'delivery', label: 'Entrega a domicilio' },
-  { value: 'shipping', label: 'Envío a domicilio' },
 ]
 
 function summarizeLocation(loc: CatalogLocation): string {
@@ -146,7 +141,10 @@ export function EditCatalogScreen({ onClose }: Props) {
             </div>
           </Field>
 
-          <Field label="Métodos de pago">
+          <Field
+            label="Métodos de pago"
+            hint="Indica a tus clientes el tipo de pago que aceptas. Alkachof no gestiona ningún tipo de pago con tus clientes."
+          >
             <div className="flex flex-col gap-2">
               {PAY_OPTIONS.map(({ value, label }) => (
                 <label key={value} className="flex items-center gap-2 text-sm">
@@ -162,18 +160,26 @@ export function EditCatalogScreen({ onClose }: Props) {
             </div>
           </Field>
 
-          <Field label="Tipo de entrega">
-            <div className="flex flex-col gap-2">
-              {DELIVERY_OPTIONS.map(({ value, label }) => (
-                <label key={value} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={deliveryType.includes(value)}
-                    onChange={() => toggleDelivery(value)}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  {label}
-                </label>
+          <Field
+            label="Tipo de entrega"
+            hint="Indica el tipo de envío que puedes hacer. Alkachof no procesa ningún tipo de paquetería y los costos de envío los debes de resolver con tus clientes."
+          >
+            <div className="flex flex-col gap-3">
+              {DELIVERY_OPTIONS.map(({ value, label, description }) => (
+                <div key={value} className="flex flex-col gap-1">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={deliveryType.includes(value)}
+                      onChange={() => toggleDelivery(value)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    {label}
+                  </label>
+                  {description && (
+                    <p className="pl-6 text-xs text-muted-foreground">{description}</p>
+                  )}
+                </div>
               ))}
             </div>
           </Field>
@@ -207,12 +213,21 @@ export function EditCatalogScreen({ onClose }: Props) {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </label>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       {children}
     </div>
   )
