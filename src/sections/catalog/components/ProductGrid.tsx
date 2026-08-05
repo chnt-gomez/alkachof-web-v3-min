@@ -66,7 +66,7 @@ export function ProductGrid() {
                     {item.name || 'Producto sin nombre'}
                   </p>
                   <p className="text-sm font-bold text-primary">{formatPrice(item.price)}</p>
-                  {item.stock === 0 && (
+                  {item.outOfStock && (
                     <p className="self-start rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
                       Sin existencias
                     </p>

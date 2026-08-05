@@ -52,9 +52,6 @@ export function ProductDetailDialog({ item, onClose }: Props) {
     }
   }
 
-  const canAdd = item.stock > 0
-  const qtyDisabled = quantity >= item.stock
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
@@ -93,34 +90,21 @@ export function ProductDetailDialog({ item, onClose }: Props) {
 
           <p className="text-2xl font-semibold text-primary">{formatPrice(item.price)}</p>
 
+          {item.outOfStock && (
+            <span className="self-start rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+              Sin existencias
+            </span>
+          )}
+
           {item.description && (
             <p className="text-sm text-muted-foreground">{item.description}</p>
           )}
 
-          <div className="flex flex-col gap-1">
-            {item.stock > 0 ? (
-              <p className="text-sm text-muted-foreground">{item.stock} disponibles</p>
-            ) : (
-              <p className="text-sm font-medium text-destructive">Sin existencias</p>
-            )}
-          </div>
-
-          {item.sizes.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Tallas
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {item.sizes.map((s) => (
-                  <span key={s} className="rounded border px-2 py-1 text-sm">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {canAdd && (
+          {item.outOfStock ? (
+            <Button disabled className="w-full" variant="secondary">
+              Sin existencias
+            </Button>
+          ) : (
             <div className="flex flex-col gap-2 pt-2">
               <div className="flex items-center gap-2 rounded-lg border bg-muted p-1">
                 <button
@@ -132,8 +116,7 @@ export function ProductDetailDialog({ item, onClose }: Props) {
                 </button>
                 <span className="flex-1 text-center font-medium">{quantity}</span>
                 <button
-                  onClick={() => setQuantity((q) => Math.min(item.stock, q + 1))}
-                  disabled={qtyDisabled}
+                  onClick={() => setQuantity((q) => q + 1)}
                   className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-background disabled:opacity-50"
                   aria-label="Aumentar cantidad"
                 >
@@ -149,12 +132,6 @@ export function ProductDetailDialog({ item, onClose }: Props) {
                 {isAdding ? 'Agregando...' : 'Agregar al carrito'}
               </Button>
             </div>
-          )}
-
-          {!canAdd && (
-            <Button disabled className="w-full" variant="secondary">
-              Sin existencias
-            </Button>
           )}
         </div>
       </div>

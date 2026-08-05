@@ -47,9 +47,8 @@ const mockItems: Item[] = [
     name: 'Bolsa tejida',
     description: 'Hecha a mano',
     price: 35000,
-    stock: 5,
     imgPath: 'https://example.com/bolsa.jpg',
-    sizes: ['Único'],
+    outOfStock: false,
     updatedOn: '2024-01-01T00:00:00Z',
     catalogId: 'cat1',
   },
@@ -58,9 +57,8 @@ const mockItems: Item[] = [
     name: 'Aretes de plata',
     description: '',
     price: 12000,
-    stock: 0,
     imgPath: '',
-    sizes: [],
+    outOfStock: true,
     updatedOn: '2024-01-01T00:00:00Z',
     catalogId: 'cat1',
   },
@@ -97,9 +95,8 @@ beforeEach(() => {
     name: 'Nuevo producto',
     description: '',
     price: 10000,
-    stock: 1,
     imgPath: '',
-    sizes: [],
+    outOfStock: false,
     updatedOn: new Date().toISOString(),
   })
   vi.mocked(broadcastCatalog).mockResolvedValue({ ok: true })
@@ -137,8 +134,9 @@ describe('CatalogPage', () => {
     expect(screen.getByText('Aretes de plata')).toBeInTheDocument()
   })
 
-  it('shows out-of-stock label on product cards with no stock', async () => {
+  it('shows the out-of-stock badge on products flagged outOfStock', async () => {
     renderPage()
+    // 'Aretes de plata' (item2) is flagged outOfStock in the fixture
     expect(await screen.findByText('Sin existencias')).toBeInTheDocument()
   })
 
@@ -238,7 +236,6 @@ describe('CatalogPage', () => {
     const nameInput = await screen.findByPlaceholderText(/nombre del producto/i)
     await user.type(nameInput, 'Collar nuevo')
     await user.type(screen.getByPlaceholderText('Ej. 350'), '199.5')
-    await user.type(screen.getByPlaceholderText('Ej. 10'), '3')
 
     const imgButton = screen.getByRole('button', { name: /agregar imagen/i })
     await user.click(imgButton)
@@ -254,7 +251,6 @@ describe('CatalogPage', () => {
         catalogId: 'cat1',
         name: 'Collar nuevo',
         price: 19950,
-        stock: 3,
       }),
     )
     expect(screen.queryByRole('dialog', { name: 'Nuevo producto' })).not.toBeInTheDocument()
@@ -285,6 +281,21 @@ describe('CatalogPage', () => {
     await user.click(screen.getByRole('button', { name: /guardar/i }))
 
     expect(updateItem).toHaveBeenCalledWith('item1', expect.objectContaining({ name: 'Bolsa renovada' }))
+  })
+
+  it('toggles outOfStock through the edit dialog checkbox', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    // 'Bolsa tejida' (item1) starts in stock
+    await user.click(await screen.findByRole('button', { name: 'Bolsa tejida' }))
+    const checkbox = screen.getByRole('checkbox', { name: /sin existencias/i })
+    expect(checkbox).not.toBeChecked()
+
+    await user.click(checkbox)
+    await user.click(screen.getByRole('button', { name: /guardar/i }))
+
+    expect(updateItem).toHaveBeenCalledWith('item1', expect.objectContaining({ outOfStock: true }))
   })
 
   it('deletes a product after confirming', async () => {
@@ -318,9 +329,8 @@ describe('CatalogPage', () => {
       name: '',
       description: '',
       price: 0,
-      stock: 1,
       imgPath: 'https://example.com/blank.jpg',
-      sizes: [],
+      outOfStock: false,
       updatedOn: '2024-01-01T00:00:00Z',
     }
     vi.mocked(fetchCatalogItems).mockResolvedValue([blankItem])

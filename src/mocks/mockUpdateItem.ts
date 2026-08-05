@@ -7,9 +7,8 @@ export function mockUpdateItem(itemId: string, patch: Partial<Item>): Promise<It
     name: 'Producto',
     description: '',
     price: 0,
-    stock: 0,
     imgPath: '',
-    sizes: [],
+    outOfStock: false,
     updatedOn: new Date().toISOString(),
     ...patch,
   }

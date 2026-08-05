@@ -19,8 +19,8 @@ const mockItem: Item = {
   _id: 'item-1',
   name: 'Test Product',
   price: 1500,
-  stock: 10,
   imgPath: '/img.jpg',
+  outOfStock: false,
   catalogId: 'catalog-1',
   description: 'A test product',
   createdAt: new Date().toISOString(),
@@ -30,8 +30,8 @@ const mockItem2: Item = {
   _id: 'item-2',
   name: 'Another Product',
   price: 2000,
-  stock: 5,
   imgPath: '/img2.jpg',
+  outOfStock: false,
   catalogId: 'catalog-1',
   description: 'Another product',
   createdAt: new Date().toISOString(),
@@ -59,6 +59,9 @@ function TestComponent() {
       </button>
       <button onClick={() => setQuantity('catalog-1', 'item-1', 5)} data-testid="set-qty">
         Set Qty to 5
+      </button>
+      <button onClick={() => setQuantity('catalog-1', 'item-1', 0)} data-testid="set-qty-0">
+        Set Qty to 0
       </button>
       <button onClick={() => removeLine('catalog-1', 'item-1')} data-testid="remove-item">
         Remove Item
@@ -181,28 +184,12 @@ describe('CartContext', () => {
     })
 
     await act(async () => {
-      screen.getByTestId('set-qty').click()
+      screen.getByTestId('set-qty-0').click()
     })
 
-    // Set qty to 5
     await waitFor(() => {
-      expect(screen.getByTestId('cart-count')).toHaveTextContent('5')
-    })
-
-    // Now set to 0
-    const { rerender } = renderWithProviders(<TestComponent />)
-
-    await act(async () => {
-      // Manually call setQuantity with 0
-      const cart = new Promise<void>((resolve) => {
-        const interval = setInterval(() => {
-          const countEl = screen.getByTestId('cart-count')
-          if (countEl.textContent === '0') {
-            clearInterval(interval)
-            resolve()
-          }
-        }, 50)
-      })
+      expect(screen.getByTestId('cart-count')).toHaveTextContent('0')
+      expect(screen.queryByTestId('item-item-1')).not.toBeInTheDocument()
     })
   })
 
@@ -291,7 +278,7 @@ describe('CartContext', () => {
 
   it('should support multiple catalogs', async () => {
     function MultiCatalogComponent() {
-      const { linesFor, countFor, addItem } = useCart()
+      const { countFor, addItem } = useCart()
       const mockItemCatalog2: Item = { ...mockItem, catalogId: 'catalog-2' }
 
       return (

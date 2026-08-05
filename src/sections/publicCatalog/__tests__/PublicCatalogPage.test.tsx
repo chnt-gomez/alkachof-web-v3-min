@@ -58,9 +58,8 @@ const mockItems: Item[] = [
     name: 'Bolsa tejida',
     description: 'Hecha a mano con lana natural',
     price: 35000,
-    stock: 5,
     imgPath: 'https://example.com/bolsa.jpg',
-    sizes: ['Único'],
+    outOfStock: false,
     updatedOn: '2024-01-01T00:00:00Z',
     catalogId: 'abc123',
   },
@@ -69,9 +68,8 @@ const mockItems: Item[] = [
     name: 'Aretes de plata',
     description: '',
     price: 12000,
-    stock: 0,
     imgPath: '',
-    sizes: [],
+    outOfStock: true,
     updatedOn: '2024-01-01T00:00:00Z',
     catalogId: 'abc123',
   },
@@ -123,6 +121,21 @@ describe('PublicCatalogPage', () => {
     expect(await screen.findByText('Productos hechos a mano en Oaxaca')).toBeInTheDocument()
   })
 
+  it('opens the shipping-info modal from the help button in the Envío section', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /información sobre opciones de envío/i }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Opciones de envío' })
+    expect(dialog).toBeInTheDocument()
+    // all three buyer-facing options + the Alkachof disclaimer
+    expect(screen.getByText(/estará feliz de recibirte/i)).toBeInTheDocument()
+    expect(screen.getByText(/entregas informales por sus propios medios/i)).toBeInTheDocument()
+    expect(screen.getByText(/servicio de paquetería privado/i)).toBeInTheDocument()
+    expect(screen.getByText(/Alkachof no gestiona ningún tipo de entrega o envío/i)).toBeInTheDocument()
+  })
+
   it('renders all catalog items', async () => {
     renderPage()
 
@@ -130,20 +143,23 @@ describe('PublicCatalogPage', () => {
     expect(screen.getByText('Aretes de plata')).toBeInTheDocument()
   })
 
-  it('shows out-of-stock label on item card', async () => {
+  it('shows the out-of-stock badge on cards flagged outOfStock', async () => {
     renderPage()
 
-    // card list renders "Sin existencias" badge directly for stock=0 items
+    // 'Aretes de plata' (item2) is flagged outOfStock in the fixture
     expect(await screen.findByText('Sin existencias')).toBeInTheDocument()
   })
 
-  it('shows stock count inside product detail dialog', async () => {
+  it('disables add-to-cart in the detail dialog for an out-of-stock item', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+    await user.click(await screen.findByRole('button', { name: /aretes de plata/i }))
 
-    expect(screen.getByText('5 disponibles')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /agregar al carrito/i })).not.toBeInTheDocument()
+    // exact match targets the dialog's disabled button, not the card whose
+    // accessible name also contains the badge text
+    expect(screen.getByRole('button', { name: 'Sin existencias' })).toBeDisabled()
   })
 
   it('renders empty state when catalog has no items', async () => {
@@ -190,12 +206,10 @@ describe('PublicCatalogPage', () => {
     const card = await screen.findByRole('button', { name: /bolsa tejida/i })
     await user.click(card)
 
-    // card thumbnail + dialog image both render; description/sizes are dialog-only
+    // card thumbnail + dialog image both render; description is dialog-only
     expect(screen.getAllByRole('img', { name: /bolsa tejida/i })).toHaveLength(2)
     expect(screen.getByText('Hecha a mano con lana natural')).toBeInTheDocument()
     expect(screen.getAllByText('$350.00')).toHaveLength(2) // card + dialog
-    expect(screen.getByText('5 disponibles')).toBeInTheDocument()
-    expect(screen.getByText('Único')).toBeInTheDocument()
   })
 
   it('closes the product detail dialog when the close button is clicked', async () => {
