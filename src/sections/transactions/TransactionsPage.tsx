@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useTransactions } from './hooks/useTransactions'
+import { useTransactionDeepLink } from './hooks/useTransactionDeepLink'
 import { TransactionList } from './components/TransactionList'
 import { StatusFilterChips } from './components/StatusFilterChips'
 import { TransactionDetailDialog } from './components/TransactionDetailDialog'
@@ -24,8 +25,10 @@ export function TransactionsPage() {
     loadingMore,
     loadMore,
     reload,
+    patchTransaction,
   } = useTransactions()
   const [selected, setSelected] = useState<TransactionSummary | null>(null)
+  const { highlightedId, registerCard } = useTransactionDeepLink({ role, setRole, status })
 
   return (
     <div className="flex flex-col gap-4 p-5">
@@ -59,7 +62,12 @@ export function TransactionsPage() {
           <EmptyState role={role} />
         ) : (
           <>
-            <TransactionList transactions={transactions} onSelect={setSelected} />
+            <TransactionList
+              transactions={transactions}
+              onSelect={setSelected}
+              highlightedId={highlightedId}
+              registerCard={registerCard}
+            />
             {hasMore && (
               <Button
                 variant="outline"
@@ -74,7 +82,12 @@ export function TransactionsPage() {
         ))}
 
       {selected && (
-        <TransactionDetailDialog transaction={selected} onClose={() => setSelected(null)} />
+        <TransactionDetailDialog
+          transaction={selected}
+          role={role}
+          onUpdated={patchTransaction}
+          onClose={() => setSelected(null)}
+        />
       )}
     </div>
   )

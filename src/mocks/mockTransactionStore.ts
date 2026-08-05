@@ -106,3 +106,15 @@ export function getTransactionRecordById(id: string): MockTransactionRecord | un
   ensureSeeded()
   return store.get(id)
 }
+
+/** Mutate a record's status in place so the list and dialog reflect the change. */
+export function setTransactionRecordStatus(
+  id: string,
+  status: TransactionStatus,
+): MockTransactionRecord | undefined {
+  ensureSeeded()
+  const record = store.get(id)
+  if (!record) return undefined
+  record.summary = { ...record.summary, status, dateUpdated: new Date().toISOString() }
+  return record
+}

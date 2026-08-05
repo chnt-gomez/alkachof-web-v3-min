@@ -71,7 +71,8 @@
   animation: progress-fill 1s linear forwards;
 }
 
-/* Deep-link highlight: draws the eye to a product card scrolled into view. */
+/* Deep-link highlight: draws the eye to a card scrolled into view from a
+   notification (a product card in the catalog, or a transaction card in Pedidos). */
 @keyframes product-highlight-pulse {
   0%,
   100% {
@@ -82,7 +83,8 @@
   }
 }
 
-.product-highlight {
+.product-highlight,
+.transaction-highlight {
   border-radius: 1rem;
   animation: product-highlight-pulse 1.2s ease-in-out 2;
 }
@@ -97,7 +99,8 @@
     animation-duration: 0.01s;
   }
   /* Swap the pulse for a static outline so the highlight is still visible. */
-  .product-highlight {
+  .product-highlight,
+  .transaction-highlight {
     animation: none;
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;

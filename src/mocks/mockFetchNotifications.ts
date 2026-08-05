@@ -11,13 +11,20 @@ const BROADCASTS: { alias: string; message: string }[] = [
   { alias: 'Café de Altura', message: 'Ya está aquí la cosecha nueva de café de Oaxaca ☕' },
 ]
 
+// Transaction notifications point at a specific order in the "Pedidos" tab.
+const TRANSACTION_MESSAGES = [
+  'Tu pedido cambió a "En camino". 🚚',
+  'Recibiste una nueva venta, ¡prepárala!',
+  'Tu pedido fue entregado. ¡Gracias por tu compra!',
+]
+
 // Informational notifications carry no navigation target.
 const INFORMATIONAL = [
   'Tu cuenta ha sido revisada y aprobada.',
   'Actualizamos nuestros términos y condiciones.',
 ]
 
-type NavKind = 'catalog' | 'product' | 'informational'
+type NavKind = 'catalog' | 'product' | 'transaction' | 'informational'
 
 function buildMetadata(kind: NavKind): { navigationUrl: string | null } {
   switch (kind) {
@@ -25,6 +32,10 @@ function buildMetadata(kind: NavKind): { navigationUrl: string | null } {
       return { navigationUrl: `/catalog/${randomId()}` }
     case 'product':
       return { navigationUrl: `/catalog/${randomId()}?product=${randomId()}` }
+    case 'transaction':
+      return {
+        navigationUrl: `/transactions?transaction=${randomId()}&role=${pick(['buyer', 'seller'])}`,
+      }
     case 'informational':
       return { navigationUrl: null }
   }
@@ -32,13 +43,18 @@ function buildMetadata(kind: NavKind): { navigationUrl: string | null } {
 
 export function mockFetchNotifications(): Promise<Notification[]> {
   const notifications: Notification[] = Array.from({ length: randomInt(0, 4) }, () => {
-    const kind = pick(['catalog', 'product', 'informational'] as const)
-    const isInfo = kind === 'informational'
+    const kind = pick(['catalog', 'product', 'transaction', 'informational'] as const)
     const broadcast = pick(BROADCASTS)
+    const message =
+      kind === 'informational'
+        ? pick(INFORMATIONAL)
+        : kind === 'transaction'
+          ? pick(TRANSACTION_MESSAGES)
+          : `${broadcast.alias}: ${broadcast.message}`
     return {
       _id: randomId(),
       userId: randomId(),
-      message: isInfo ? pick(INFORMATIONAL) : `${broadcast.alias}: ${broadcast.message}`,
+      message,
       metadata: buildMetadata(kind),
       createdOn: new Date(Date.now() - randomInt(1, 72) * 3_600_000).toISOString(),
       seenOn: Math.random() < 0.5,
