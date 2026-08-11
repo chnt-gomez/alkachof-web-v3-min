@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -23,12 +23,15 @@ vi.mock('@/sections/notifications/actions/fetchNotifications', async (importOrig
   markNotificationSeen: vi.fn(),
 }))
 vi.mock('../actions/fetchSavedCatalogs')
+vi.mock('../actions/fetchNews')
 
 import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogItems } from '@/sections/catalog/actions/fetchCatalogItems'
 import { fetchProfile } from '@/sections/auth/actions/fetchProfile'
 import { fetchNotifications } from '@/sections/notifications/actions/fetchNotifications'
 import { fetchSavedCatalogs } from '../actions/fetchSavedCatalogs'
+import { fetchNews } from '../actions/fetchNews'
+import type { AdminMessage } from '../actions/fetchNews'
 
 const sampleCatalog = (overrides: Partial<Catalog> = {}): Catalog => ({
   _id: 'cat1',
@@ -54,6 +57,14 @@ const sampleItem = (overrides: Partial<Item> = {}): Item => ({
   outOfStock: false,
   updatedOn: new Date().toISOString(),
   catalogId: 'cat1',
+  ...overrides,
+})
+
+const sampleNews = (overrides: Partial<AdminMessage> = {}): AdminMessage => ({
+  _id: 'news1',
+  date: new Date().toISOString(),
+  title: 'Nuevas opciones de pago',
+  message: 'Ya puedes aceptar transferencias.',
   ...overrides,
 })
 
@@ -95,6 +106,7 @@ beforeEach(() => {
   vi.mocked(fetchMyCatalog).mockResolvedValue(sampleCatalog())
   vi.mocked(fetchCatalogItems).mockResolvedValue([sampleItem()])
   vi.mocked(fetchNotifications).mockResolvedValue([])
+  vi.mocked(fetchNews).mockResolvedValue([])
   vi.mocked(fetchSavedCatalogs).mockResolvedValue([])
 })
 
@@ -146,6 +158,32 @@ describe('HomePage', () => {
     expect(await screen.findByText('Primera notificación')).toBeInTheDocument()
     expect(screen.getByText('Segunda notificación')).toBeInTheDocument()
     expect(screen.queryByText('Nada por el momento')).not.toBeInTheDocument()
+  })
+
+  it('shows the empty news message when there are none', async () => {
+    renderPage()
+
+    expect(await screen.findByText('No hay noticias por el momento')).toBeInTheDocument()
+  })
+
+  it('opens a dialog with the full announcement when a news row is tapped', async () => {
+    vi.mocked(fetchNews).mockResolvedValue([
+      sampleNews({
+        _id: 'na',
+        title: 'Mantenimiento programado',
+        message: 'La plataforma estará en mantenimiento el sábado.',
+      }),
+    ])
+    renderPage()
+
+    await userEvent.setup().click(
+      await screen.findByRole('button', { name: /mantenimiento programado/i }),
+    )
+
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      within(dialog).getByText('La plataforma estará en mantenimiento el sábado.'),
+    ).toBeInTheDocument()
   })
 
   it('renders saved catalogs linking to their public view', async () => {

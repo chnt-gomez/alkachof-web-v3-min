@@ -4,9 +4,11 @@ import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogItems } from '@/sections/catalog/actions/fetchCatalogItems'
 import { useNotifications } from '@/sections/notifications/useNotifications'
 import { fetchSavedCatalogs } from './actions/fetchSavedCatalogs'
+import { fetchNews } from './actions/fetchNews'
 import { useAsyncSection } from './hooks/useAsyncSection'
 import { MyCatalogCard } from './components/MyCatalogCard'
 import { NotificationList } from './components/NotificationList'
+import { NewsList } from './components/NewsList'
 import { SavedCatalogList } from './components/SavedCatalogList'
 
 export function HomePage() {
@@ -20,6 +22,7 @@ export function HomePage() {
   // Notifications come from the app-wide provider so live socket pushes show
   // up here without a refetch.
   const notifications = useNotifications()
+  const news = useAsyncSection(useCallback(() => fetchNews(), []))
   const savedCatalogs = useAsyncSection(useCallback(() => fetchSavedCatalogs(), []))
 
   return (
@@ -56,6 +59,17 @@ export function HomePage() {
             onSeen={notifications.markSeen}
           />
         )}
+      </section>
+
+      <section className="flex flex-col gap-3" aria-labelledby="home-news">
+        <h2 id="home-news" className="text-lg font-semibold">
+          Noticias
+        </h2>
+        {news.status === 'loading' && <SectionSkeleton label="Cargando noticias" />}
+        {news.status === 'error' && (
+          <SectionError message="No pudimos cargar las noticias." onRetry={news.reload} />
+        )}
+        {news.status === 'ready' && news.data && <NewsList news={news.data} />}
       </section>
 
       <section className="flex flex-col gap-3" aria-labelledby="home-saved-catalogs">
