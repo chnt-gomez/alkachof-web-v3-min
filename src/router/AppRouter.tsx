@@ -13,6 +13,7 @@ import { SignupPage } from '@/sections/auth/SignupPage'
 import { RecoverPage } from '@/sections/auth/RecoverPage'
 import { ResetPasswordPage } from '@/sections/auth/ResetPasswordPage'
 import { VerifyEmailPage } from '@/sections/auth/VerifyEmailPage'
+import { AboutPage } from '@/sections/about/AboutPage'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { NotificationsProvider } from '@/sections/notifications/context/NotificationsContext'
 import { CartProvider } from '@/sections/cart/context/CartContext'
@@ -28,6 +29,7 @@ export function AppRouter() {
             <NotificationsProvider>
               <CartProvider>
                 <Routes>
+                  <Route path="/about" element={<AboutPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
                   <Route path="/recover" element={<RecoverPage />} />
