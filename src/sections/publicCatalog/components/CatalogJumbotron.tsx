@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Bell, HelpCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Bell, HelpCircle, MessageCircle } from 'lucide-react'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
 import { useAuth } from '@/sections/auth/useAuth'
+import { useChat } from '@/sections/chat/useChat'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
 import { CatalogLocationCard } from './CatalogLocationCard'
 import { ShippingInfoDialog } from './ShippingInfoDialog'
@@ -12,10 +14,34 @@ function handleSubscribe() {
 
 export function CatalogJumbotron() {
   const { catalog } = usePublicCatalog()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, profile } = useAuth()
+  const { findChatWith } = useChat()
+  const navigate = useNavigate()
   const [showShippingInfo, setShowShippingInfo] = useState(false)
 
   if (!catalog) return null
+
+  // Owners can't message themselves; the button only shows for other users.
+  const isOwner = profile?.userId === catalog.userId
+
+  // Reuse an existing conversation with this seller if one exists; otherwise
+  // open an unsaved draft with an ice-breaker. Nothing is persisted here — the
+  // chat is created only when the visitor actually sends (see ChatThreadPage).
+  function handleContact() {
+    if (!catalog) return
+    const existing = findChatWith(catalog.userId)
+    if (existing) {
+      navigate(`/chats/${existing._id}`)
+      return
+    }
+    navigate('/chats/new', {
+      state: {
+        toUserId: catalog.userId,
+        toAlias: catalog.alias,
+        prefill: '¡Hola! Vi tu catálogo en Alkachof y me gustaría recibir más información.',
+      },
+    })
+  }
 
   return (
     <>
@@ -68,14 +94,23 @@ export function CatalogJumbotron() {
         </div>
       </div>
 
-      {isAuthenticated && (
-        <button
-          onClick={handleSubscribe}
-          className="flex items-center gap-2 self-start rounded-full bg-primary-foreground px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition-transform active:scale-[0.97]"
-        >
-          <Bell size={14} />
-          Suscribirme
-        </button>
+      {isAuthenticated && !isOwner && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleSubscribe}
+            className="flex items-center gap-2 rounded-full bg-primary-foreground px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition-transform active:scale-[0.97]"
+          >
+            <Bell size={14} />
+            Suscribirme
+          </button>
+          <button
+            onClick={handleContact}
+            className="flex items-center gap-2 rounded-full border border-primary-foreground/40 px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform active:scale-[0.97]"
+          >
+            <MessageCircle size={14} />
+            Contactar
+          </button>
+        </div>
       )}
     </section>
 
