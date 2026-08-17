@@ -4,6 +4,8 @@ import type { TransactionSummary } from '../types'
 type Props = {
   transactions: TransactionSummary[]
   onSelect: (transaction: TransactionSummary) => void
+  /** Resolves each row's title (shop name for buyers, buyer name for sellers). */
+  headerFor: (transaction: TransactionSummary) => string
   /** Id of the transaction to visually pulse (notification deep-link). */
   highlightedId?: string | null
   /** Registers each card's element so a deep-link can scroll it into view. */
@@ -13,6 +15,7 @@ type Props = {
 export function TransactionList({
   transactions,
   onSelect,
+  headerFor,
   highlightedId,
   registerCard,
 }: Props) {
@@ -24,7 +27,11 @@ export function TransactionList({
           ref={(el) => registerCard?.(transaction.id, el)}
           className={highlightedId === transaction.id ? 'transaction-highlight' : undefined}
         >
-          <TransactionCard transaction={transaction} onSelect={onSelect} />
+          <TransactionCard
+            transaction={transaction}
+            header={headerFor(transaction)}
+            onSelect={onSelect}
+          />
         </li>
       ))}
     </ul>

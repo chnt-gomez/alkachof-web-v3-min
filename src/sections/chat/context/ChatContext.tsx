@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '@/sections/auth/useAuth'
+import { onLiveEvent, type LiveChatMessage } from '@/lib/liveEvents'
 import { fetchRecentChats, fetchChatMessages, sendChatMessage, createChat } from '../actions/chatApi'
 import { fetchUserSummaries } from '../actions/fetchUserSummaries'
 import type { Chat, ChatMessage, UserSummary } from '../types'
@@ -10,12 +11,12 @@ import { ChatContext, type ChatState, type ChatStatus } from '../chatContextValu
  * `/{chatId}/messages`); sending is a REST POST rendered optimistically. Mounted
  * once inside `AuthProvider`; loads on login, clears on logout.
  *
- * Live delivery is intentionally deferred for this draft: the contract mandates
- * a single shared `/live` socket (the same one notifications owns), so rather
- * than open a second connection here, the socket seam is left for a follow-up.
- * `upsertMessage` + `markUnread` below are the hooks a `chat:message` handler
- * will call; until then unread stays at 0 and history recovers everything on
- * load (offline users lose nothing — REST is authoritative).
+ * Live delivery rides the shared `/live` socket (the same one notifications
+ * owns) via the live-event bus (`@/lib/liveEvents`): the server emits
+ * `chat:message` to both members and we subscribe here — no second connection.
+ * The socket is best-effort; history recovers everything on load, so offline
+ * members lose nothing. An incoming message from an unknown chat triggers a
+ * `syncChats` so a brand-new conversation shows up in the inbox immediately.
  */
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, profile } = useAuth()
@@ -63,6 +64,50 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     void syncChats()
   }, [syncChats])
 
+  // Insert or replace a message by `_id` so a socket echo of our own send is a
+  // no-op rather than a duplicate bubble (the server echoes to the sender too).
+  const upsertMessage = useCallback((chatId: string, msg: ChatMessage) => {
+    setMessages((prev) => {
+      const existing = prev[chatId] ?? []
+      const next = existing.some((m) => m._id === msg._id)
+        ? existing.map((m) => (m._id === msg._id ? msg : m))
+        : [...existing, msg]
+      return { ...prev, [chatId]: next }
+    })
+  }, [])
+
+  // Keep the live-message handler stable while reading the latest chat list and
+  // identity, so we subscribe to the bus once per session rather than resubscribe
+  // on every chats/profile change.
+  const chatsRef = useRef(chats)
+  chatsRef.current = chats
+  const myUserIdRef = useRef(myUserId)
+  myUserIdRef.current = myUserId
+
+  const receiveLiveMessage = useCallback(
+    (raw: LiveChatMessage) => {
+      const mine = raw.sender === myUserIdRef.current
+      // The socket payload omits `type` — compute it from the sender.
+      const msg: ChatMessage = { ...raw, type: mine ? 'outgoing' : 'incoming' }
+      upsertMessage(msg.chatId, msg)
+      // A message from the other member marks the thread unread; the open thread
+      // clears it again on view (ChatThreadPage). Our own echoes never do.
+      if (!mine) {
+        setUnread((prev) => {
+          const next = new Set(prev)
+          next.add(msg.chatId)
+          return next
+        })
+      }
+      // First message of a conversation we do not know yet — pull it into the
+      // inbox so it appears without a manual reload.
+      if (!chatsRef.current.some((c) => c._id === msg.chatId)) {
+        void syncChats()
+      }
+    },
+    [upsertMessage, syncChats],
+  )
+
   useEffect(() => {
     if (!isAuthenticated) {
       setChats([])
@@ -74,7 +119,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return
     }
     void syncChats()
-  }, [isAuthenticated, syncChats])
+    // Subscribe to the shared /live bus: new messages, and a re-sync on every
+    // (re)connect so a reconnecting tab recovers anything missed while offline.
+    const offMessage = onLiveEvent('chatMessage', receiveLiveMessage)
+    const offConnect = onLiveEvent('connect', () => {
+      void syncChats()
+    })
+    return () => {
+      offMessage()
+      offConnect()
+    }
+  }, [isAuthenticated, syncChats, receiveLiveMessage])
 
   const loadMessages = useCallback(async (chatId: string) => {
     setThreadStatus((prev) => ({ ...prev, [chatId]: 'loading' }))
@@ -85,18 +140,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } catch {
       setThreadStatus((prev) => ({ ...prev, [chatId]: 'error' }))
     }
-  }, [])
-
-  // Insert or replace a message by `_id` so a socket echo of our own send is a
-  // no-op rather than a duplicate bubble (used by the future socket handler).
-  const upsertMessage = useCallback((chatId: string, msg: ChatMessage) => {
-    setMessages((prev) => {
-      const existing = prev[chatId] ?? []
-      const next = existing.some((m) => m._id === msg._id)
-        ? existing.map((m) => (m._id === msg._id ? msg : m))
-        : [...existing, msg]
-      return { ...prev, [chatId]: next }
-    })
   }, [])
 
   const sendMessage = useCallback(
@@ -135,12 +178,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [counterpartyId, resolveSummaries],
   )
 
-  // Keep a stable getter identity while reading the latest maps.
-  const messagesRef = useRef(messages)
-  messagesRef.current = messages
-  const threadStatusRef = useRef(threadStatus)
-  threadStatusRef.current = threadStatus
-
   const value = useMemo<ChatState>(
     () => ({
       chats,
@@ -152,8 +189,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       isUnread: (chatId) => unread.has(chatId),
       findChatWith,
       createChatWith,
-      messagesFor: (chatId) => messagesRef.current[chatId] ?? [],
-      threadStatusFor: (chatId) => threadStatusRef.current[chatId] ?? 'loading',
+      messagesFor: (chatId) => messages[chatId] ?? [],
+      threadStatusFor: (chatId) => threadStatus[chatId] ?? 'loading',
       loadMessages,
       sendMessage,
       markChatRead,
@@ -163,6 +200,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       status,
       summaries,
       unread,
+      messages,
+      threadStatus,
       reload,
       counterpartyId,
       findChatWith,

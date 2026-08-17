@@ -2,6 +2,7 @@ import { io, type Socket } from 'socket.io-client'
 import { API_BASE_URL, refreshAccessToken } from '@/lib/api'
 import { getToken } from '@/lib/auth'
 import { IS_DEV_STAGE } from '@/lib/stage'
+import { emitLiveEvent, type LiveChatMessage } from '@/lib/liveEvents'
 import type { Notification } from './actions/fetchNotifications'
 
 export type LiveSocketHandlers = {
@@ -33,6 +34,14 @@ export function connectLiveSocket({ onConnect, onNotification }: LiveSocketHandl
 
   socket.on('connect', onConnect)
   socket.on('notification:new', onNotification)
+
+  // Fan the shared-socket events other sections consume out onto the live-event
+  // bus. Chat rides this same connection (see `followup.ChatApi.md`): the server
+  // emits `chat:message` to both members, and `ChatProvider` subscribes to the
+  // bus rather than opening a second socket. `connect` is re-published too so
+  // chat can re-sync its history on every (re)connection, same as notifications.
+  socket.on('connect', () => emitLiveEvent('connect', undefined))
+  socket.on('chat:message', (message: LiveChatMessage) => emitLiveEvent('chatMessage', message))
 
   // The token is only checked at handshake time. On an auth rejection,
   // refresh the access token and reconnect with the fresh one; if the

@@ -9,7 +9,7 @@ export type ChatState = {
   status: ChatStatus
   /** Counterparty display info keyed by user id (resolver seam). */
   summaries: Record<string, UserSummary>
-  /** Client-side unread tracking. Empty until the live socket lands (deferred). */
+  /** Client-side unread tracking, driven by live `chat:message` pushes. */
   unreadCount: number
 
   reload: () => void

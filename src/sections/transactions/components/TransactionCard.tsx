@@ -5,18 +5,21 @@ import type { TransactionSummary } from '../types'
 
 type Props = {
   transaction: TransactionSummary
+  /** Row title: the shop name (buyer view) or the buyer name (seller view). */
+  header: string
   onSelect: (transaction: TransactionSummary) => void
 }
 
-export function TransactionCard({ transaction, onSelect }: Props) {
+export function TransactionCard({ transaction, header, onSelect }: Props) {
   const { itemCount } = transaction
   return (
     <button
       onClick={() => onSelect(transaction)}
-      aria-label={`Pedido del ${formatDate(transaction.dateCreated)}`}
+      aria-label={`Pedido de ${header} del ${formatDate(transaction.dateCreated)}`}
       className="flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <p className="truncate text-base font-semibold">{header}</p>
         <div className="flex items-center gap-2">
           <StatusBadge status={transaction.status} />
           <time dateTime={transaction.dateCreated} className="text-xs text-muted-foreground">

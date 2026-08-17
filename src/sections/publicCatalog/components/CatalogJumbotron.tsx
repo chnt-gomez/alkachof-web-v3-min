@@ -1,28 +1,46 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, HelpCircle, MessageCircle } from 'lucide-react'
+import { Bell, BellRing, HelpCircle, MessageCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
 import { useAuth } from '@/sections/auth/useAuth'
 import { useChat } from '@/sections/chat/useChat'
+import { useToast } from '@/components/ui/useToast'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
+import { useCatalogSubscription } from '../hooks/useCatalogSubscription'
 import { CatalogLocationCard } from './CatalogLocationCard'
 import { ShippingInfoDialog } from './ShippingInfoDialog'
-
-function handleSubscribe() {
-  // placeholder
-}
 
 export function CatalogJumbotron() {
   const { catalog } = usePublicCatalog()
   const { isAuthenticated, profile } = useAuth()
   const { findChatWith } = useChat()
+  const toast = useToast()
   const navigate = useNavigate()
   const [showShippingInfo, setShowShippingInfo] = useState(false)
 
+  // Owners can't message or subscribe to themselves; the buttons only show for
+  // other users. Computed before the early return so the hooks below stay
+  // unconditional.
+  const isOwner = profile?.userId === catalog?.userId
+  const { isSubscribed, isLoading: isSubLoading, isPending: isSubPending, toggle } =
+    useCatalogSubscription(catalog?._id, isAuthenticated && !isOwner)
+
   if (!catalog) return null
 
-  // Owners can't message themselves; the button only shows for other users.
-  const isOwner = profile?.userId === catalog.userId
+  async function handleSubscribe() {
+    const wasSubscribed = isSubscribed
+    try {
+      await toggle()
+      toast.success(
+        wasSubscribed
+          ? 'Dejaste de seguir este catálogo.'
+          : '¡Listo! Te suscribiste y recibirás sus novedades.',
+      )
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo completar la acción.')
+    }
+  }
 
   // Reuse an existing conversation with this seller if one exists; otherwise
   // open an unsaved draft with an ice-breaker. Nothing is persisted here — the
@@ -98,10 +116,24 @@ export function CatalogJumbotron() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleSubscribe}
-            className="flex items-center gap-2 rounded-full bg-primary-foreground px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition-transform active:scale-[0.97]"
+            disabled={isSubLoading || isSubPending}
+            aria-pressed={isSubscribed}
+            aria-busy={isSubPending}
+            className={cn(
+              'flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60',
+              isSubscribed
+                ? 'border border-primary-foreground/40 bg-transparent text-primary-foreground'
+                : 'bg-primary-foreground text-primary',
+            )}
           >
-            <Bell size={14} />
-            Suscribirme
+            {isSubscribed ? <BellRing size={14} /> : <Bell size={14} />}
+            {isSubPending
+              ? isSubscribed
+                ? 'Cancelando…'
+                : 'Suscribiendo…'
+              : isSubscribed
+                ? 'Suscrito'
+                : 'Suscribirme'}
           </button>
           <button
             onClick={handleContact}

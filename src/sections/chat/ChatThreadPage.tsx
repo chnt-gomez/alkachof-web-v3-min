@@ -72,9 +72,10 @@ export function ChatThreadPage() {
     if (!isDraft && chatId) void loadMessages(chatId)
   }, [isDraft, chatId, loadMessages])
 
+  // Clear unread on open and again whenever a new message lands while viewing.
   useEffect(() => {
     if (!isDraft && chatId) markChatRead(chatId)
-  }, [isDraft, chatId, markChatRead])
+  }, [isDraft, chatId, markChatRead, messages.length])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
