@@ -7,12 +7,21 @@ import { ApiError } from '@/lib/api'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { NavShell } from '@/components/NavShell'
 import { NotificationsProvider } from '../context/NotificationsContext'
+import { ChatProvider } from '@/sections/chat/context/ChatContext'
 import { useNotifications } from '../useNotifications'
 import type { Notification } from '../actions/fetchNotifications'
 import type { LiveSocketHandlers } from '../liveSocket'
 
 vi.mock('@/sections/auth/actions/fetchProfile')
 vi.mock('../liveSocket')
+// NavShell (rendered below for the bell badge) also reads the chat context, so
+// the tree needs a ChatProvider. Stub its REST layer so it stays inert here.
+vi.mock('@/sections/chat/actions/chatApi', () => ({
+  fetchRecentChats: vi.fn().mockResolvedValue([]),
+  fetchChatMessages: vi.fn().mockResolvedValue([]),
+  sendChatMessage: vi.fn(),
+  createChat: vi.fn(),
+}))
 vi.mock('../actions/fetchNotifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../actions/fetchNotifications')>()),
   fetchNotifications: vi.fn(),
@@ -59,11 +68,13 @@ function renderWithProviders() {
       <ToastProvider>
         <AuthProvider>
           <NotificationsProvider>
-            <Routes>
-              <Route element={<NavShell />}>
-                <Route path="/" element={<Probe />} />
-              </Route>
-            </Routes>
+            <ChatProvider>
+              <Routes>
+                <Route element={<NavShell />}>
+                  <Route path="/" element={<Probe />} />
+                </Route>
+              </Routes>
+            </ChatProvider>
           </NotificationsProvider>
         </AuthProvider>
       </ToastProvider>

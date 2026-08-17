@@ -37,6 +37,12 @@ export type TransactionSummary = {
   totalAmount: number
   /** The other party's user id (seller when I'm the buyer, and vice versa). */
   counterpartyId: string
+  /**
+   * The shop that generated the order. Used on the buyer view to resolve the
+   * shop name via `GET /catalog/summaries`. `null` on legacy transactions
+   * created before this field shipped — render a generic fallback label.
+   */
+  catalogId: string | null
 }
 
 /** A single purchased line within a transaction, enriched with item display data. */

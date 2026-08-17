@@ -23,7 +23,8 @@ export function WordRandomizer({ words, intervalMs = 500, className }: WordRando
 
   useEffect(() => {
     // Reset when the list changes so we never index out of bounds.
-    setIndex(0)
+    // Set the index to a random value between 0 and list.length - 1 to avoid always starting with the same word.
+    setIndex(Math.floor(Math.random() * list.length))
   }, [list])
 
   useEffect(() => {
@@ -35,7 +36,8 @@ export function WordRandomizer({ words, intervalMs = 500, className }: WordRando
     if (prefersReducedMotion) return
 
     const id = window.setInterval(() => {
-      setIndex((current) => (current + 1) % list.length)
+      //Randomize again the index to avoid always cycling through the same order of words.
+      setIndex(Math.floor(Math.random() * list.length))
     }, intervalMs)
 
     return () => window.clearInterval(id)

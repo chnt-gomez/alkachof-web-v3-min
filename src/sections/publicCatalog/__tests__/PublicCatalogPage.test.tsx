@@ -13,7 +13,16 @@ vi.mock('../actions/fetchCatalogLocation')
 vi.mock('../actions/fetchCatalogQuestions')
 vi.mock('../actions/askQuestion')
 vi.mock('../actions/answerQuestion')
+vi.mock('../actions/fetchUserSubscriptions')
+vi.mock('../actions/subscribe')
+vi.mock('../actions/unsubscribe')
 vi.mock('@/sections/cart/actions/checkoutCart')
+
+// The jumbotron reads useChat only to reuse/open a seller conversation from the
+// "Contactar" button; the page tests don't exercise chat, so stub it.
+vi.mock('@/sections/chat/useChat', () => ({
+  useChat: () => ({ findChatWith: () => undefined }),
+}))
 
 // Toggleable auth state so most tests run as a visitor while the checkout
 // flow can flip to an authenticated user.
@@ -34,6 +43,9 @@ import { fetchPublicCatalog } from '../actions/fetchPublicCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { fetchCatalogLocation } from '../actions/fetchCatalogLocation'
 import { fetchCatalogQuestions } from '../actions/fetchCatalogQuestions'
+import { fetchUserSubscriptions } from '../actions/fetchUserSubscriptions'
+import { subscribe } from '../actions/subscribe'
+import { unsubscribe } from '../actions/unsubscribe'
 import { checkoutCart } from '@/sections/cart/actions/checkoutCart'
 import { ToastProvider } from '@/components/ui/toast'
 import { CartProvider } from '@/sections/cart/context/CartContext'
@@ -96,6 +108,7 @@ beforeEach(() => {
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
   vi.mocked(fetchCatalogQuestions).mockResolvedValue([])
+  vi.mocked(fetchUserSubscriptions).mockResolvedValue([])
 })
 
 describe('PublicCatalogPage', () => {
@@ -196,6 +209,58 @@ describe('PublicCatalogPage', () => {
     authState.isAuthenticated = true
     renderPage()
 
+    expect(await screen.findByRole('button', { name: /suscribirme/i })).toBeInTheDocument()
+  })
+
+  it('subscribes via the API when the button is clicked', async () => {
+    authState.isAuthenticated = true
+    vi.mocked(subscribe).mockResolvedValue({ _id: 'sub1', userId: 'user2', catalogId: 'abc123' })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /suscribirme/i }))
+
+    expect(subscribe).toHaveBeenCalledWith('abc123')
+    // Button flips to the subscribed state.
+    expect(await screen.findByRole('button', { name: /suscrito/i })).toBeInTheDocument()
+  })
+
+  it('renders the subscribed state when the user already follows the catalog', async () => {
+    authState.isAuthenticated = true
+    vi.mocked(fetchUserSubscriptions).mockResolvedValue([
+      { _id: 'sub1', userId: 'user2', catalogId: 'abc123' },
+    ])
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /suscrito/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /suscribirme/i })).not.toBeInTheDocument()
+  })
+
+  it('unsubscribes via the API when an already-subscribed user clicks the button', async () => {
+    authState.isAuthenticated = true
+    vi.mocked(fetchUserSubscriptions).mockResolvedValue([
+      { _id: 'sub1', userId: 'user2', catalogId: 'abc123' },
+    ])
+    vi.mocked(unsubscribe).mockResolvedValue()
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /suscrito/i }))
+
+    expect(unsubscribe).toHaveBeenCalledWith('abc123')
+    expect(await screen.findByRole('button', { name: /suscribirme/i })).toBeInTheDocument()
+  })
+
+  it('keeps the unsubscribed state when the subscribe call fails', async () => {
+    authState.isAuthenticated = true
+    vi.mocked(subscribe).mockRejectedValue(new Error('Boom'))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /suscribirme/i }))
+
+    expect(subscribe).toHaveBeenCalledWith('abc123')
+    // Failure leaves the button in its original state, ready to retry.
     expect(await screen.findByRole('button', { name: /suscribirme/i })).toBeInTheDocument()
   })
 

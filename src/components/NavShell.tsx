@@ -1,14 +1,16 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { Store, CircleUserRound, ReceiptText, Bell } from 'lucide-react'
+import { Store, CircleUserRound, ReceiptText, MessageCircle, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/BrandMark'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/sections/auth/useAuth'
 import { useNotifications } from '@/sections/notifications/useNotifications'
+import { useChat } from '@/sections/chat/useChat'
 
 const TABS = [
   { to: '/', label: 'Inicio', icon: Store },
   { to: '/transactions', label: 'Pedidos', icon: ReceiptText },
+  { to: '/chats', label: 'Chats', icon: MessageCircle },
   { to: '/profile', label: 'Perfil', icon: CircleUserRound },
 ]
 
@@ -41,6 +43,7 @@ function NotificationBell() {
 
 export function NavShell() {
   const { isAuthenticated, profile } = useAuth()
+  const { unreadCount } = useChat()
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -100,11 +103,19 @@ export function NavShell() {
                     <>
                       <span
                         className={cn(
-                          'flex h-8 w-14 items-center justify-center rounded-full transition-colors',
+                          'relative flex h-8 w-14 items-center justify-center rounded-full transition-colors',
                           isActive && 'bg-secondary'
                         )}
                       >
                         <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                        {to === '/chats' && unreadCount > 0 && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute right-2 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
+                          >
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        )}
                       </span>
                       {label}
                     </>

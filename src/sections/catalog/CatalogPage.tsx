@@ -2,6 +2,7 @@ import { LoaderCircle } from 'lucide-react'
 import { EditCatalogProvider } from './context/EditCatalogContext'
 import { CatalogHeader } from './components/CatalogHeader'
 import { ProductGrid } from './components/ProductGrid'
+import { OwnerQuestionsPanel } from './components/OwnerQuestionsPanel'
 import { useEditCatalog } from './context/EditCatalogContext'
 
 function CatalogContent() {
@@ -21,6 +22,7 @@ function CatalogContent() {
     <>
       <CatalogHeader />
       <ProductGrid />
+      <OwnerQuestionsPanel />
     </>
   )
 }

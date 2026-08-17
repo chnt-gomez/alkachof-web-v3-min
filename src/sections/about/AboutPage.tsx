@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Leaf, ShoppingBag, Sparkles } from 'lucide-react'
+import { Home, Megaphone, ShoppingBag, Wifi } from 'lucide-react'
 import { BrandMark } from '@/components/BrandMark'
 import { Button } from '@/components/ui/button'
 import { AboutHighlight } from './components/AboutHighlight'
@@ -7,34 +7,112 @@ import { WordRandomizer } from './components/WordRandomizer'
 
 // TODO(content): final product/service list will be provided by the user.
 const SANDBOX_WORDS = [
-  'ropa',
-  'postres',
+  'afilado',
+  'albañilería',
+  'banquetes',
+  'cerrajería',
+  'costura',
+  'cuidados',
+  'desazolve',
+  'ebanistería',
+  'electricista',
+  'encuadernado',
+  'enmarcado',
+  'fletes',
+  'herbolaria',
+  'herrería',
+  'hojalatería',
+  'jardinería',
+  'joyería',
+  'luthería',
+  'mecánicos',
+  'modistería',
+  'mudanzas',
+  'mueblería',
+  'peluquería',
+  'piñatería',
+  'planchado',
+  'plomería',
+  'quiropedia',
+  'reciclaje',
+  'relojero',
+  'sobadores',
+  'sonideros',
+  'talabartería',
+  'tapicería',
+  'tejedoras',
+  'vidriería',
+  'zapateros',
+  'Alebrijes',
+  'alfarería',
+  'amigurumis',
+  'antojitos',
+  'botanas',
+  'calzado',
+  'cartonería',
+  'cestería',
+  'chocolatería',
+  'cocadas',
+  'conservas',
+  'cosméticos',
+  'dulces',
+  'embutidos',
+  'encurtidos',
+  'figuras',
+  'filigrana',
+  'grabados',
+  'guisados',
+  'herbolaria',
+  'hojalatería',
+  'huipiles',
+  'inciensos',
+  'jabones',
+  'joyería',
+  'juguetes',
+  'lácteos',
+  'libretas',
+  'libros',
+  'licores',
+  'macramé',
+  'madera',
+  'marroquinería',
+  'mermeladas',
+  'miel',
+  'monedas',
+  'nieves',
+  'panadería',
+  'piñatas',
   'plantas',
-  'artesanías',
-  'servicios',
-  'muebles',
-  'tecnología',
-  'de todo',
-]
-
-// TODO(UX): Replace placeholder copy, ordering and highlights with final content
-// provided by the UX/marketing team. Structure is intentionally slot-based so
-// text can be swapped without touching layout.
+  'pomadas',
+  'ponchos',
+  'recuerdos',
+  'relojería',
+  'repostaría',
+  'rebozos',
+  'salsas',
+  'tamales',
+  'textiles',
+  'tortillas']
 const highlights = [
   {
-    icon: Sparkles,
-    title: 'Descubre catálogos únicos',
-    description: 'Explora productos de vendedores locales, con fotos reales y a tu ritmo.',
+    icon: Wifi,
+    title: 'Pon tu negocio en internet',
+    description: 'Tus clientes están buscándote en línea. Crea tu perfil y empieza a vender hoy mismo.',
   },
   {
     icon: ShoppingBag,
-    title: 'Compra sin complicaciones',
-    description: 'Arma tu pedido y finalízalo en segundos, directo desde tu teléfono.',
+    title: 'Anuncia lo que tu quieras',
+    description: 'Eso que tú haces, lo que tú vendes, lo que tú ofreces. Todo tiene un lugar en Alkachof.',
   },
   {
-    icon: Leaf,
+    icon: Megaphone,
+    title: 'Conecta con tus clientes',
+    description: 'Avisa a tus clientes de ofertas, promociones, nuevo menú o simplemente anuncia un nuevo producto.',
+  },
+  {
+    icon: Home,
     title: 'Apoya lo hecho en casa',
-    description: 'Cada compra impulsa a emprendedores que ponen amor en lo que ofrecen.',
+    description: 'Cada compra impulsa a emprendedores locales que ponen amor en lo que ofrecen.',
   },
 ]
 
@@ -57,8 +135,7 @@ export function AboutPage() {
           </h1>
           {/* TODO(UX): final hero subheadline */}
           <p className="text-base text-muted-foreground">
-            Encuentra, conoce y compra a los mejores vendedores cerca de ti. Todo desde un
-            solo lugar, pensado para tu teléfono.
+            Alkachof es el mercado para micro y pequeños negocios. Conecta con vendedores locales, descubre productos y servicios y apoya a emprendedores de tu comunidad.
           </p>
         </section>
 

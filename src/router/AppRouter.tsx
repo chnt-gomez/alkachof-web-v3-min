@@ -8,6 +8,8 @@ import { ProductPage } from '@/sections/product/ProductPage'
 import { PublicCatalogPage } from '@/sections/publicCatalog/PublicCatalogPage'
 import { ProfilePage } from '@/sections/profile/ProfilePage'
 import { TransactionsPage } from '@/sections/transactions/TransactionsPage'
+import { ChatListPage } from '@/sections/chat/ChatListPage'
+import { ChatThreadPage } from '@/sections/chat/ChatThreadPage'
 import { LoginPage } from '@/sections/auth/LoginPage'
 import { SignupPage } from '@/sections/auth/SignupPage'
 import { RecoverPage } from '@/sections/auth/RecoverPage'
@@ -16,6 +18,7 @@ import { VerifyEmailPage } from '@/sections/auth/VerifyEmailPage'
 import { AboutPage } from '@/sections/about/AboutPage'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { NotificationsProvider } from '@/sections/notifications/context/NotificationsContext'
+import { ChatProvider } from '@/sections/chat/context/ChatContext'
 import { CartProvider } from '@/sections/cart/context/CartContext'
 import { NavShell } from '@/components/NavShell'
 import { ProtectedRoute } from './ProtectedRoute'
@@ -27,8 +30,9 @@ export function AppRouter() {
         <ToastProvider>
           <AuthProvider>
             <NotificationsProvider>
-              <CartProvider>
-                <Routes>
+              <ChatProvider>
+                <CartProvider>
+                  <Routes>
                   <Route path="/about" element={<AboutPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
@@ -43,11 +47,20 @@ export function AppRouter() {
                       <Route path="/catalog" element={<CatalogPage />} />
                       <Route path="/profile" element={<ProfilePage />} />
                       <Route path="/transactions" element={<TransactionsPage />} />
+                      <Route path="/chats" element={<ChatListPage />} />
                     </Route>
                   </Route>
+                  {/* Full-screen conversation view — outside NavShell (no bottom tabs).
+                      `/chats/new` is the unsaved draft; the static segment wins over
+                      the `:chatId` param so a real chat id never collides with it. */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/chats/new" element={<ChatThreadPage />} />
+                    <Route path="/chats/:chatId" element={<ChatThreadPage />} />
+                  </Route>
                   <Route path="*" element={<NotFoundPage />} />
-                </Routes>
-              </CartProvider>
+                  </Routes>
+                </CartProvider>
+              </ChatProvider>
             </NotificationsProvider>
           </AuthProvider>
         </ToastProvider>

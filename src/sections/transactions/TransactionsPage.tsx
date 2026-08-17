@@ -26,6 +26,7 @@ export function TransactionsPage() {
     loadMore,
     reload,
     patchTransaction,
+    headerFor,
   } = useTransactions()
   const [selected, setSelected] = useState<TransactionSummary | null>(null)
   const { highlightedId, registerCard } = useTransactionDeepLink({ role, setRole, status })
@@ -65,6 +66,7 @@ export function TransactionsPage() {
             <TransactionList
               transactions={transactions}
               onSelect={setSelected}
+              headerFor={headerFor}
               highlightedId={highlightedId}
               registerCard={registerCard}
             />
@@ -85,6 +87,7 @@ export function TransactionsPage() {
         <TransactionDetailDialog
           transaction={selected}
           role={role}
+          header={headerFor(selected)}
           onUpdated={patchTransaction}
           onClose={() => setSelected(null)}
         />

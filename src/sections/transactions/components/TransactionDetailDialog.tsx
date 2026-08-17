@@ -1,8 +1,11 @@
 import { useCallback, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { MessageCircle } from 'lucide-react'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api'
 import { useAsyncSection } from '@/sections/home/hooks/useAsyncSection'
+import { useChat } from '@/sections/chat/useChat'
 import { formatDate, formatPrice } from '@/lib/format'
 import { fetchTransactionPurchases } from '../actions/fetchTransactionPurchases'
 import { updateTransactionStatus } from '../actions/updateTransactionStatus'
@@ -13,17 +16,44 @@ import type { TransactionRole, TransactionStatus, TransactionSummary } from '../
 type Props = {
   transaction: TransactionSummary
   role: TransactionRole
+  /** The shop name (buyer view) or buyer name (seller view) for this order. */
+  header: string
   /** Called after a successful status change so the list can reflect it. */
   onUpdated: (id: string, status: TransactionStatus) => void
   onClose: () => void
 }
 
-export function TransactionDetailDialog({ transaction, role, onUpdated, onClose }: Props) {
+export function TransactionDetailDialog({ transaction, role, header, onUpdated, onClose }: Props) {
+  const navigate = useNavigate()
+  const { findChatWith } = useChat()
   const load = useCallback(
     () => fetchTransactionPurchases(transaction.id),
     [transaction.id],
   )
   const { status, data, reload } = useAsyncSection(load)
+
+  // Open (or resume) a private chat with the transaction's counterparty. The
+  // counterparty id is the seller (catalog owner) on a purchase and the buyer
+  // on a sale, so this one flow serves both roles. Reuses an existing thread if
+  // there is one; otherwise opens an unsaved draft that only persists on the
+  // first send (see ChatThreadPage). Mirrors "Contactar" in CatalogJumbotron.
+  const openChat = useCallback(() => {
+    const existing = findChatWith(transaction.counterpartyId)
+    if (existing) {
+      navigate(`/chats/${existing._id}`)
+      return
+    }
+    navigate('/chats/new', {
+      state: {
+        toUserId: transaction.counterpartyId,
+        toAlias: header,
+        prefill:
+          role === 'buyer'
+            ? '¡Hola! Tengo una pregunta sobre mi pedido.'
+            : '¡Hola! Te contacto sobre tu pedido.',
+      },
+    })
+  }, [findChatWith, navigate, transaction.counterpartyId, header, role])
 
   // Track status locally so the badge and action buttons update in place after
   // a change, without closing the dialog or refetching the line items.
@@ -60,6 +90,17 @@ export function TransactionDetailDialog({ transaction, role, onUpdated, onClose 
   return (
     <Dialog onClose={onClose} ariaLabel="Detalle del pedido" title="Detalle del pedido">
       <div className="flex flex-col gap-4 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 flex-1 truncate text-lg font-semibold">{header}</p>
+          <button
+            type="button"
+            onClick={openChat}
+            aria-label={role === 'buyer' ? `Enviar mensaje a ${header}` : `Enviar mensaje al comprador ${header}`}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <MessageCircle size={20} />
+          </button>
+        </div>
         <div className="flex items-center justify-between">
           <StatusBadge status={currentStatus} />
           <time dateTime={transaction.dateCreated} className="text-xs text-muted-foreground">
