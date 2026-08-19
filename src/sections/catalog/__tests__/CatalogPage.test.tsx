@@ -13,7 +13,6 @@ vi.mock('../actions/updateCatalog')
 vi.mock('../actions/updateItem')
 vi.mock('../actions/createItem')
 vi.mock('../actions/deleteItem')
-vi.mock('../actions/uploadItemImage')
 vi.mock('../actions/broadcastCatalog')
 vi.mock('@/sections/publicCatalog/actions/fetchCatalogLocation')
 
@@ -24,7 +23,6 @@ import { updateCatalog } from '../actions/updateCatalog'
 import { updateItem } from '../actions/updateItem'
 import { createItem } from '../actions/createItem'
 import { deleteItem } from '../actions/deleteItem'
-import { uploadItemImage } from '../actions/uploadItemImage'
 import { broadcastCatalog } from '../actions/broadcastCatalog'
 
 const mockCatalog: Catalog = {
@@ -88,7 +86,6 @@ beforeEach(() => {
     ...patch,
   }))
   vi.mocked(deleteItem).mockResolvedValue(undefined)
-  vi.mocked(uploadItemImage).mockResolvedValue('https://example.com/uploaded.png')
   vi.mocked(createItem).mockResolvedValue({
     _id: 'item_new',
     catalogId: 'cat1',
@@ -242,15 +239,17 @@ describe('CatalogPage', () => {
     const galleryInput = document.querySelector('input[type="file"]:not([capture])') as HTMLInputElement
     const file = new File(['x'], 'foto.png', { type: 'image/png' })
     await user.upload(galleryInput, file)
-    await waitFor(() => expect(uploadItemImage).toHaveBeenCalledWith(file))
+    await waitFor(() => expect(screen.getByRole('img', { name: 'Collar nuevo' })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: /^agregar$/i }))
 
+    // The file itself travels with the create call — there is no separate upload.
     expect(createItem).toHaveBeenCalledWith(
       expect.objectContaining({
         catalogId: 'cat1',
         name: 'Collar nuevo',
         price: 19950,
+        image: file,
       }),
     )
     expect(screen.queryByRole('dialog', { name: 'Nuevo producto' })).not.toBeInTheDocument()
@@ -280,7 +279,12 @@ describe('CatalogPage', () => {
     await user.type(nameInput, 'Bolsa renovada')
     await user.click(screen.getByRole('button', { name: /guardar/i }))
 
-    expect(updateItem).toHaveBeenCalledWith('item1', expect.objectContaining({ name: 'Bolsa renovada' }))
+    // No new file picked, so the image argument stays null and the item keeps its picture.
+    expect(updateItem).toHaveBeenCalledWith(
+      'item1',
+      expect.objectContaining({ name: 'Bolsa renovada' }),
+      null,
+    )
   })
 
   it('toggles outOfStock through the edit dialog checkbox', async () => {
@@ -295,7 +299,11 @@ describe('CatalogPage', () => {
     await user.click(checkbox)
     await user.click(screen.getByRole('button', { name: /guardar/i }))
 
-    expect(updateItem).toHaveBeenCalledWith('item1', expect.objectContaining({ outOfStock: true }))
+    expect(updateItem).toHaveBeenCalledWith(
+      'item1',
+      expect.objectContaining({ outOfStock: true }),
+      null,
+    )
   })
 
   it('deletes a product after confirming', async () => {

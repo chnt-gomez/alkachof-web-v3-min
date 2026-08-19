@@ -13,6 +13,5 @@ export type Profile = {
   alias?: string
   phoneCountry?: string
   phoneContact?: string
-  phoneValidation?: boolean
   profile_picture_url?: string
 }

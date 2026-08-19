@@ -15,7 +15,7 @@ type EditCatalogState = {
   isLoading: boolean
   error: string | null
   updateCatalog: (patch: Partial<Catalog>) => Promise<void>
-  updateItem: (itemId: string, patch: Partial<Item>) => Promise<void>
+  updateItem: (itemId: string, patch: Partial<Item>, image?: File | null) => Promise<void>
   createItem: (data: NewItemData) => Promise<void>
   deleteItem: (itemId: string) => Promise<void>
 }
@@ -56,8 +56,8 @@ export function EditCatalogProvider({ children }: { children: React.ReactNode })
     }
   }
 
-  async function updateItem(itemId: string, patch: Partial<Item>) {
-    const updated = await updateItemAction(itemId, patch)
+  async function updateItem(itemId: string, patch: Partial<Item>, image?: File | null) {
+    const updated = await updateItemAction(itemId, patch, image)
     setItems((prev) => prev.map((it) => (it._id === itemId ? updated : it)))
   }
 

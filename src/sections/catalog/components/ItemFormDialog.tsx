@@ -2,15 +2,15 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { ImageUploadField } from '@/components/ImageUploadField'
-import { uploadItemImage } from '../actions/uploadItemImage'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
 export type ItemFormPayload = {
   name: string
   description: string
   price: number
-  imgPath: string
   outOfStock: boolean
+  /** Null when the user kept the item's existing image (edit mode). */
+  image: File | null
 }
 
 type Props = {
@@ -25,6 +25,7 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
   const [description, setDescription] = useState(initial?.description ?? '')
   const [price, setPrice] = useState(initial ? String(initial.price / 100) : '')
   const [imgPath, setImgPath] = useState(initial?.imgPath ?? '')
+  const [image, setImage] = useState<File | null>(null)
   const [outOfStock, setOutOfStock] = useState(initial?.outOfStock ?? false)
 
   const [saving, setSaving] = useState(false)
@@ -32,7 +33,7 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
 
   function validate(): ItemFormPayload | null {
     setError(null)
-    if (mode === 'create' && !imgPath) {
+    if (mode === 'create' && !image) {
       setError('Agrega al menos una imagen para el producto.')
       return null
     }
@@ -49,8 +50,8 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
       name: name.trim(),
       description: description.trim(),
       price: priceCents,
-      imgPath,
       outOfStock,
+      image,
     }
   }
 
@@ -77,7 +78,7 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
             <ImageUploadField
               value={imgPath}
               onChange={setImgPath}
-              upload={uploadItemImage}
+              onFileSelect={setImage}
               alt={name || 'Producto'}
             />
 

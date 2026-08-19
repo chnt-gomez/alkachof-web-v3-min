@@ -90,7 +90,7 @@ export function ProductGrid() {
         <ItemFormDialog
           mode="edit"
           initial={editingItem}
-          onSubmit={(payload) => updateItem(editingItem._id, payload)}
+          onSubmit={({ image, ...patch }) => updateItem(editingItem._id, patch, image)}
           onClose={() => setEditingItem(null)}
         />
       )}
@@ -98,7 +98,9 @@ export function ProductGrid() {
       {addingProduct && catalog && (
         <ItemFormDialog
           mode="create"
-          onSubmit={(payload) => createItem({ catalogId: catalog._id, ...payload })}
+          onSubmit={({ name, description, price, image }) =>
+            createItem({ catalogId: catalog._id, name, description, price, image })
+          }
           onClose={() => setAddingProduct(false)}
         />
       )}
