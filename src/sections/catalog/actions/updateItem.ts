@@ -5,11 +5,27 @@ import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
 export type { Item }
 
-export async function updateItem(itemId: string, patch: Partial<Item>): Promise<Item> {
-  if (IS_DEV_STAGE) return mockUpdateItem(itemId, patch)
-  const result = await api<{ item: Item }>(`/item/${itemId}/update`, {
-    method: 'POST',
-    body: patch,
-  })
+/**
+ * Updates an item. When `image` is given the request goes out as multipart so
+ * the file travels under the `image` field; otherwise it stays JSON and the
+ * backend keeps the item's current image.
+ */
+export async function updateItem(
+  itemId: string,
+  patch: Partial<Item>,
+  image?: File | null,
+): Promise<Item> {
+  if (IS_DEV_STAGE) return mockUpdateItem(itemId, patch, image)
+  const path = `/item/${itemId}/update`
+  if (image) {
+    const form = new FormData()
+    form.append('image', image)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value !== undefined) form.append(key, String(value))
+    }
+    const result = await api<{ item: Item }>(path, { method: 'POST', body: form })
+    return result.item
+  }
+  const result = await api<{ item: Item }>(path, { method: 'POST', body: patch })
   return result.item
 }

@@ -23,6 +23,21 @@ describe('ImageUploadField', () => {
     expect(onChange).toHaveBeenCalledWith('https://example.com/uploaded.png')
   })
 
+  it('hands the file to the parent and previews it when no upload is given', async () => {
+    const user = userEvent.setup()
+    const onFileSelect = vi.fn()
+    const onChange = vi.fn()
+
+    render(<ImageUploadField value="" onChange={onChange} onFileSelect={onFileSelect} />)
+
+    await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
+    const file = new File(['hello'], 'foto.png', { type: 'image/png' })
+    await user.upload(getGalleryInput(), file)
+
+    await waitFor(() => expect(onFileSelect).toHaveBeenCalledWith(file))
+    expect(onChange).toHaveBeenCalledWith(expect.stringContaining('blob:'))
+  })
+
   it('rejects unsupported file types with a Spanish error', async () => {
     const user = userEvent.setup()
     const upload = vi.fn()

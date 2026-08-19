@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Camera, ImageIcon, Loader2, X } from 'lucide-react'
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -7,7 +7,17 @@ const MAX_BYTES = 5 * 1024 * 1024
 type Props = {
   value: string
   onChange: (url: string) => void
-  upload: (file: File) => Promise<string>
+  /**
+   * Upload-now mode: persists the file right away and resolves to its url.
+   * Mutually exclusive with `onFileSelect` — pass exactly one.
+   */
+  upload?: (file: File) => Promise<string>
+  /**
+   * Deferred mode: the picked file is handed to the parent form, which sends it
+   * as part of its own multipart submit. `onChange` still receives a local
+   * preview url so the field renders the choice immediately.
+   */
+  onFileSelect?: (file: File) => void
   alt?: string
   placeholder?: string
   ariaLabel?: string
@@ -17,6 +27,7 @@ export function ImageUploadField({
   value,
   onChange,
   upload,
+  onFileSelect,
   alt,
   placeholder = 'Toca para agregar imagen',
   ariaLabel,
@@ -24,6 +35,18 @@ export function ImageUploadField({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Preview urls we minted ourselves, released when replaced or unmounted.
+  const previewUrl = useRef<string | null>(null)
+
+  useEffect(() => () => {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
+  }, [])
+
+  function showPreview(file: File) {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
+    previewUrl.current = URL.createObjectURL(file)
+    onChange(previewUrl.current)
+  }
 
   async function handleFile(file: File) {
     setError(null)
@@ -33,6 +56,11 @@ export function ImageUploadField({
     }
     if (file.size > MAX_BYTES) {
       setError('La imagen excede el tamaño máximo de 5 MB.')
+      return
+    }
+    if (!upload) {
+      showPreview(file)
+      onFileSelect?.(file)
       return
     }
     setUploading(true)
