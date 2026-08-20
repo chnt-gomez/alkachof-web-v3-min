@@ -157,15 +157,23 @@ export function getCatalogSummaries(catalogIds: string[]): Record<string, Catalo
 }
 
 /**
- * Resolve seeded buyer names for the seller view. Mirrors the real
- * `GET /profile/summaries`: unknown ids are omitted (never fabricated).
+ * Sellers the mock user buys from. Only the requests feed resolves these — its
+ * Compras rows are labelled with the seller, where a product order is labelled
+ * with the shop (`SHOPS`) instead.
+ */
+const SELLERS: ProfileSummary[] = [{ userId: 'mock-seller-id', alias: 'Taller Don Chuy' }]
+
+/**
+ * Resolve seeded display names for the people on the other side of a row.
+ * Mirrors the real `GET /profile/summaries`: unknown ids are omitted (never
+ * fabricated).
  */
 export function getProfileSummaries(userIds: string[]): Record<string, ProfileSummary> {
-  const known = new Map(BUYERS.map((b) => [b.userId, b]))
+  const known = new Map([...BUYERS, ...SELLERS].map((p) => [p.userId, p]))
   const out: Record<string, ProfileSummary> = {}
   for (const id of userIds) {
-    const buyer = known.get(id)
-    if (buyer) out[id] = buyer
+    const summary = known.get(id)
+    if (summary) out[id] = summary
   }
   return out
 }

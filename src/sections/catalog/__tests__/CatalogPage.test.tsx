@@ -156,11 +156,11 @@ describe('CatalogPage', () => {
     expect(screen.queryByText('Editar producto')).not.toBeInTheDocument()
   })
 
-  it('opens add product modal when agregar producto is clicked', async () => {
+  it('opens add item modal when agregar artículo is clicked', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /agregar producto/i }))
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
 
     expect(screen.getByText('Nuevo producto')).toBeInTheDocument()
   })
@@ -227,7 +227,7 @@ describe('CatalogPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /agregar producto/i }))
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
 
     await screen.findByRole('dialog', { name: 'Nuevo producto' })
     const nameInput = await screen.findByPlaceholderText(/nombre del producto/i)
@@ -250,9 +250,101 @@ describe('CatalogPage', () => {
         name: 'Collar nuevo',
         price: 19950,
         image: file,
+        // Product is the default when the seller doesn't touch the type picker.
+        type: 'product',
       }),
     )
     expect(screen.queryByRole('dialog', { name: 'Nuevo producto' })).not.toBeInTheDocument()
+  })
+
+  it('creates a service, defaulting its price to zero when left blank', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
+    await user.click(screen.getByRole('radio', { name: 'Servicio' }))
+
+    // The dialog re-frames itself around the chosen type.
+    const dialog = await screen.findByRole('dialog', { name: 'Nuevo servicio' })
+    expect(within(dialog).getByText(/acordar el precio con cada cliente/i)).toBeInTheDocument()
+
+    await user.type(screen.getByPlaceholderText(/nombre del servicio/i), 'Corte de cabello')
+
+    await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
+    const galleryInput = document.querySelector(
+      'input[type="file"]:not([capture])',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'corte.png', { type: 'image/png' })
+    await user.upload(galleryInput, file)
+    await waitFor(() =>
+      expect(screen.getByRole('img', { name: 'Corte de cabello' })).toBeInTheDocument(),
+    )
+
+    await user.click(screen.getByRole('button', { name: /^agregar$/i }))
+
+    expect(createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Corte de cabello',
+        type: 'service',
+        price: 0,
+      }),
+    )
+  })
+
+  it('recolours the save button to follow the chosen type', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
+    const save = screen.getByRole('button', { name: /^agregar$/i })
+
+    // Product is the default, so the button starts on the signature green.
+    expect(save).toHaveClass('bg-primary')
+    expect(save).not.toHaveClass('bg-service')
+
+    await user.click(screen.getByRole('radio', { name: 'Servicio' }))
+    expect(save).toHaveClass('bg-service')
+    expect(save).not.toHaveClass('bg-primary')
+
+    await user.click(screen.getByRole('radio', { name: 'Producto' }))
+    expect(save).toHaveClass('bg-primary')
+  })
+
+  it('shows the type as read-only when editing, since it cannot be changed', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Bolsa tejida' }))
+
+    expect(screen.queryByRole('radio', { name: 'Servicio' })).not.toBeInTheDocument()
+    expect(
+      screen.getByText('El tipo no se puede cambiar después de crear el artículo.'),
+    ).toBeInTheDocument()
+  })
+
+  it('does not offer the stock flag when editing a service', async () => {
+    vi.mocked(fetchCatalogItems).mockResolvedValue([
+      {
+        _id: 'item3',
+        name: 'Corte de cabello',
+        description: 'Incluye lavado',
+        price: 0,
+        imgPath: '',
+        outOfStock: false,
+        updatedOn: '2024-01-01T00:00:00Z',
+        catalogId: 'cat1',
+        type: 'service',
+      },
+    ])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Corte de cabello' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Editar servicio' })
+    // Services have no stock, so the flag products get is absent here.
+    expect(within(dialog).queryByText('Sin existencias')).not.toBeInTheDocument()
+    expect(within(dialog).getByText('Servicio')).toBeInTheDocument()
   })
 
   it('rejects negative price with a Spanish validation error', async () => {
@@ -352,8 +444,8 @@ describe('CatalogPage', () => {
     vi.mocked(fetchCatalogItems).mockResolvedValue([])
     renderPage()
 
-    expect(await screen.findByText(/aún no tienes productos/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /agregar primer producto/i })).toBeInTheDocument()
+    expect(await screen.findByText(/aún no tienes artículos/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /agregar primer artículo/i })).toBeInTheDocument()
   })
 
   it('opens the announce composer when Anunciar is clicked', async () => {

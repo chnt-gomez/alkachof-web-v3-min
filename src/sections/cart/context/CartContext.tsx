@@ -7,7 +7,11 @@ import {
   ReactNode,
 } from 'react'
 import { useToast } from '@/components/ui/useToast'
-import { checkoutCart as checkoutCartAction } from '../actions/checkoutCart'
+import { isService } from '@/lib/item'
+import {
+  checkoutCart as checkoutCartAction,
+  ServiceInCartError,
+} from '../actions/checkoutCart'
 import type { Cart, CartLine, CheckoutResult } from '../types'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
@@ -70,7 +74,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const linesFor = useCallback(
     (catalogId: string): CartLine[] => {
       const cart = carts.find((c) => c.catalogId === catalogId)
-      return cart?.items ?? []
+      // Services are booked through a request, never bought through checkout.
+      // Filtering on read (rather than purging on load) covers carts that were
+      // already sitting in localStorage before services existed, and fixes the
+      // drawer, the badge, the count and the checkout total in one place.
+      return (cart?.items ?? []).filter((line) => !isService(line))
     },
     [carts]
   )
@@ -85,6 +93,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback(
     async (item: Item, quantity: number) => {
+      // The UI never offers "add to cart" for a service, so reaching here means
+      // a stale caller — refuse rather than writing a line checkout would reject.
+      if (isService(item)) return
       const stored = readStoredCart()
       const catalogLines = stored[item.catalogId] ?? []
       const existingIndex = catalogLines.findIndex(
@@ -99,6 +110,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           name: item.name,
           price: item.price,
           imgPath: item.imgPath,
+          type: item.type,
         })
       }
       stored[item.catalogId] = catalogLines
@@ -152,12 +164,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     async (catalogId: string): Promise<CheckoutResult> => {
       setIsMutating(true)
       try {
-        const cart = carts.find((c) => c.catalogId === catalogId)
-        if (!cart || cart.items.length === 0) {
+        // Go through linesFor, not the raw cart, so a stale service line can
+        // never reach checkout.
+        const lines = linesFor(catalogId)
+        if (lines.length === 0) {
           throw new Error('El carrito está vacío')
         }
 
-        const result = await checkoutCartAction(catalogId, cart.items)
+        const result = await checkoutCartAction(catalogId, lines)
 
         const stored = readStoredCart()
         delete stored[catalogId]
@@ -165,6 +179,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         return result
       } catch (err) {
+        // The server rejects a cart holding a service, atomically — nothing was
+        // charged. It names the item, which is the only way to spot a service
+        // line added before the client tracked item types (those carry no
+        // `type`, so the read-time filter can't see them). Drop it so the
+        // retry succeeds instead of failing the same way forever.
+        if (err instanceof ServiceInCartError && err.itemId) {
+          const stored = readStoredCart()
+          const catalogLines = stored[catalogId] ?? []
+          const index = catalogLines.findIndex((line) => line.itemId === err.itemId)
+          if (index >= 0) {
+            catalogLines.splice(index, 1)
+            stored[catalogId] = catalogLines
+            persist(stored)
+          }
+          throw err
+        }
         const msg =
           err instanceof Error ? err.message : 'Error al procesar el pedido'
         toast.error(msg)
@@ -173,7 +203,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setIsMutating(false)
       }
     },
-    [carts, persist, toast]
+    [linesFor, persist, toast]
   )
 
   const value = useMemo<CartState>(

@@ -1,14 +1,19 @@
 import { useState } from 'react'
 import { X, Minus, Plus, Share2 } from 'lucide-react'
 import { useCart } from '@/sections/cart/context/CartContext'
+import { GuestCheckoutPrompt } from '@/sections/cart/components/GuestCheckoutPrompt'
+import { useAuth } from '@/sections/auth/useAuth'
 import { useToast } from '@/components/ui/useToast'
 import { Button } from '@/components/ui/button'
 import { productShareUrl } from '@/lib/shareUrl'
+import { formatItemPrice } from '@/lib/format'
+import { isService } from '@/lib/item'
+import { ItemTypeChip } from '@/components/ItemTypeChip'
+import { cn } from '@/lib/utils'
+import { useServiceRequest } from '../hooks/useServiceRequest'
+import { useOwnerGuard } from '../hooks/useOwnerGuard'
+import { ServiceRequestDialog } from './ServiceRequestDialog'
 import type { Item } from '../actions/fetchCatalogItems'
-
-function formatPrice(cents: number) {
-  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
-}
 
 type Props = {
   item: Item
@@ -18,10 +23,55 @@ type Props = {
 export function ProductDetailDialog({ item, onClose }: Props) {
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false)
+  const [showRequestForm, setShowRequestForm] = useState(false)
   const { addItem } = useCart()
+  const { isAuthenticated } = useAuth()
+  const { request } = useServiceRequest()
+  const { guard, ariaDisabled, blockedClass } = useOwnerGuard()
   const toast = useToast()
 
-  const handleAddToCart = async () => {
+  const service = isService(item)
+
+  // Services are booked, not bought: no quantity, and no cart. The request
+  // collects a note first — the seller needs to know what the job is before
+  // they can price it — so auth is checked up front, not after the buyer has
+  // written one.
+  const handleRequest = guard(
+    'Este es tu catálogo: no puedes solicitar tus propios servicios.',
+    () => {
+      if (!isAuthenticated) {
+        setShowGuestPrompt(true)
+        return
+      }
+      setShowRequestForm(true)
+    },
+  )
+
+  const submitRequest = async (note: string) => {
+    const outcome = await request(item, note)
+    if (outcome.kind === 'needs-auth') {
+      setShowRequestForm(false)
+      setShowGuestPrompt(true)
+      return
+    }
+    if (outcome.kind === 'error') {
+      toast.error(outcome.message)
+      setShowRequestForm(false)
+      return
+    }
+    toast.success('Solicitud enviada. El vendedor te enviará un precio.')
+    onClose()
+  }
+
+  const handleAddToCart = guard(
+    'Este es tu catálogo: no puedes comprar tus propios productos.',
+    () => {
+      void addToCart()
+    },
+  )
+
+  const addToCart = async () => {
     setIsAdding(true)
     try {
       await addItem(item, quantity)
@@ -53,6 +103,7 @@ export function ProductDetailDialog({ item, onClose }: Props) {
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
       onClick={onClose}
@@ -88,19 +139,37 @@ export function ProductDetailDialog({ item, onClose }: Props) {
         <div className="flex flex-col gap-3 p-5">
           <h2 className="text-xl font-bold leading-tight">{item.name}</h2>
 
-          <p className="text-2xl font-semibold text-primary">{formatPrice(item.price)}</p>
+          <p className="text-2xl font-semibold text-primary">{formatItemPrice(item)}</p>
 
-          {item.outOfStock && (
-            <span className="self-start rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-              Sin existencias
-            </span>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <ItemTypeChip item={item} className="px-2.5 py-1 text-xs" />
+            {!service && item.outOfStock && (
+              <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                Sin existencias
+              </span>
+            )}
+          </div>
 
           {item.description && (
             <p className="text-sm text-muted-foreground">{item.description}</p>
           )}
 
-          {item.outOfStock ? (
+          {service ? (
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                onClick={handleRequest}
+                aria-disabled={ariaDisabled}
+                className={cn('w-full', blockedClass)}
+              >
+                Solicitar
+              </Button>
+              {item.price === 0 && (
+                <p className="text-center text-xs text-muted-foreground">
+                  El precio se acuerda directamente con el vendedor.
+                </p>
+              )}
+            </div>
+          ) : item.outOfStock ? (
             <Button disabled className="w-full" variant="secondary">
               Sin existencias
             </Button>
@@ -127,7 +196,8 @@ export function ProductDetailDialog({ item, onClose }: Props) {
               <Button
                 onClick={handleAddToCart}
                 disabled={isAdding}
-                className="w-full"
+                aria-disabled={ariaDisabled}
+                className={cn('w-full', blockedClass)}
               >
                 {isAdding ? 'Agregando...' : 'Agregar al carrito'}
               </Button>
@@ -136,5 +206,24 @@ export function ProductDetailDialog({ item, onClose }: Props) {
         </div>
       </div>
     </div>
+
+    {/* Siblings of the overlay, not children: nested, a click inside either
+        would bubble up and close the product dialog underneath it. */}
+    {showRequestForm && (
+      <ServiceRequestDialog
+        item={item}
+        onSubmit={submitRequest}
+        onClose={() => setShowRequestForm(false)}
+      />
+    )}
+
+    {showGuestPrompt && (
+      <GuestCheckoutPrompt
+        onClose={() => setShowGuestPrompt(false)}
+        title="Crea una cuenta para solicitar"
+        body="Necesitas una cuenta para solicitar un servicio y acordar el precio con el vendedor. Regístrate para continuar."
+      />
+    )}
+    </>
   )
 }

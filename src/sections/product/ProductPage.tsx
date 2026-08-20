@@ -3,16 +3,15 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { formatItemPrice } from '@/lib/format'
+import { isService } from '@/lib/item'
+import { ItemTypeChip } from '@/components/ItemTypeChip'
 import { fetchItem } from '@/sections/catalog/actions/fetchItem'
 import { updateItem } from '@/sections/catalog/actions/updateItem'
 import { deleteItem } from '@/sections/catalog/actions/deleteItem'
 import { ItemFormDialog } from '@/sections/catalog/components/ItemFormDialog'
 import { DeleteItemConfirm } from '@/sections/catalog/components/DeleteItemConfirm'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
-
-function formatPrice(cents: number) {
-  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
-}
 
 export function ProductPage() {
   const { id } = useParams<{ id: string }>()
@@ -53,7 +52,9 @@ export function ProductPage() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>{item.name || 'Producto sin nombre'}</CardTitle>
+              <CardTitle>
+                {item.name || (isService(item) ? 'Servicio sin nombre' : 'Producto sin nombre')}
+              </CardTitle>
               {item.description && <CardDescription>{item.description}</CardDescription>}
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -66,8 +67,17 @@ export function ProductPage() {
                   Sin imagen
                 </div>
               )}
-              {item.price > 0 && <p className="text-xl font-bold">{formatPrice(item.price)}</p>}
-              {item.outOfStock && <p className="text-sm text-destructive">Sin existencias</p>}
+              {/* A service with no price still shows a line ("Precio a convenir"), so the
+                  owner can see the item reads as quote-on-request to visitors. */}
+              {(item.price > 0 || isService(item)) && (
+                <p className="text-xl font-bold">{formatItemPrice(item)}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <ItemTypeChip item={item} className="px-2.5 py-1 text-xs" />
+                {!isService(item) && item.outOfStock && (
+                  <p className="text-sm text-destructive">Sin existencias</p>
+                )}
+              </div>
             </CardContent>
           </Card>
 

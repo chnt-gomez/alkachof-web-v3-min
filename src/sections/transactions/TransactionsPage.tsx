@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useTransactions } from './hooks/useTransactions'
+import { RequestDetailDialog } from '@/sections/requests/components/RequestDetailDialog'
+import type { ServiceRequestRow } from '@/sections/requests/types'
+import { useOrdersFeed } from './hooks/useOrdersFeed'
 import { useTransactionDeepLink } from './hooks/useTransactionDeepLink'
-import { TransactionList } from './components/TransactionList'
-import { StatusFilterChips } from './components/StatusFilterChips'
+import { OrdersList } from './components/OrdersList'
 import { TransactionDetailDialog } from './components/TransactionDetailDialog'
 import type { TransactionRole, TransactionSummary } from './types'
 
@@ -13,22 +14,36 @@ const ROLE_TABS: { value: TransactionRole; label: string }[] = [
   { value: 'seller', label: 'Ventas' },
 ]
 
+/**
+ * "Pedidos" — everything the user is on one side of, split only by role.
+ * Product orders and service requests share the list: a request the user made
+ * to another seller is a purchase, and one made to them is a sale.
+ *
+ * **No status filter in this MVP.** A user holds one or two rows at a time, so a
+ * chip row filters nothing and costs a third of the screen on a phone. The
+ * machinery behind it is intact and untouched — `StatusFilterChips`,
+ * `orderStatusFilter.ts`, and `statusLabel`/`setStatusLabel` on `useOrdersFeed`
+ * — so bringing it back is re-rendering one component here. Revisit when real
+ * accounts carry enough history to need it.
+ */
 export function TransactionsPage() {
   const {
     role,
     setRole,
-    statusFilter,
-    setStatusFilter,
+    statusLabel,
     status,
-    transactions,
+    partialError,
+    rows,
     hasMore,
     loadingMore,
     loadMore,
     reload,
     patchTransaction,
+    patchRequest,
     headerFor,
-  } = useTransactions()
-  const [selected, setSelected] = useState<TransactionSummary | null>(null)
+  } = useOrdersFeed()
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionSummary | null>(null)
+  const [selectedRequest, setSelectedRequest] = useState<ServiceRequestRow | null>(null)
   const { highlightedId, registerCard } = useTransactionDeepLink({ role, setRole, status })
 
   return (
@@ -54,18 +69,19 @@ export function TransactionsPage() {
         ))}
       </div>
 
-      <StatusFilterChips value={statusFilter} onChange={setStatusFilter} />
-
       {status === 'loading' && <ListSkeleton />}
       {status === 'error' && <ListError onRetry={reload} />}
+      {partialError && <PartialError onRetry={reload} />}
       {status === 'ready' &&
-        (transactions.length === 0 ? (
-          <EmptyState role={role} />
+        (rows.length === 0 ? (
+          <EmptyState role={role} filtered={statusLabel !== null} />
         ) : (
           <>
-            <TransactionList
-              transactions={transactions}
-              onSelect={setSelected}
+            <OrdersList
+              rows={rows}
+              role={role}
+              onSelectTransaction={setSelectedTransaction}
+              onSelectRequest={setSelectedRequest}
               headerFor={headerFor}
               highlightedId={highlightedId}
               registerCard={registerCard}
@@ -83,13 +99,25 @@ export function TransactionsPage() {
           </>
         ))}
 
-      {selected && (
+      {selectedTransaction && (
         <TransactionDetailDialog
-          transaction={selected}
+          transaction={selectedTransaction}
           role={role}
-          header={headerFor(selected)}
+          header={headerFor(selectedTransaction)}
           onUpdated={patchTransaction}
-          onClose={() => setSelected(null)}
+          onClose={() => setSelectedTransaction(null)}
+        />
+      )}
+
+      {selectedRequest && (
+        <RequestDetailDialog
+          row={selectedRequest}
+          role={role}
+          onUpdated={(updated) => {
+            patchRequest(updated)
+            setSelectedRequest((prev) => (prev ? { ...prev, ...updated } : prev))
+          }}
+          onClose={() => setSelectedRequest(null)}
         />
       )}
     </div>
@@ -120,12 +148,34 @@ function ListError({ onRetry }: { onRetry: () => void }) {
   )
 }
 
-function EmptyState({ role }: { role: TransactionRole }) {
+function PartialError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="flex items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-3"
+    >
+      <p className="text-sm text-amber-900">
+        No pudimos cargar parte de tus pedidos. Puede que falten algunos.
+      </p>
+      <Button size="sm" variant="outline" onClick={onRetry}>
+        Reintentar
+      </Button>
+    </div>
+  )
+}
+
+function EmptyState({ role, filtered }: { role: TransactionRole; filtered: boolean }) {
+  // A filtered-empty list is a different message from a genuinely empty one —
+  // otherwise a chip that matches nothing reads as "you have no orders at all".
+  const message = filtered
+    ? 'No hay pedidos con este estado.'
+    : role === 'buyer'
+      ? 'Aún no has realizado compras ni solicitudes.'
+      : 'Aún no has recibido ventas ni solicitudes.'
+
   return (
     <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-      {role === 'buyer'
-        ? 'Aún no has realizado compras.'
-        : 'Aún no has recibido ventas.'}
+      {message}
     </p>
   )
 }

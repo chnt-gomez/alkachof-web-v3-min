@@ -11,7 +11,7 @@ import { CartDrawer } from '@/sections/cart/components/CartDrawer'
 
 function PublicCatalogContent({ catalogId }: { catalogId: string }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const { isLoading, error, notFound } = usePublicCatalog()
+  const { isLoading, error, notFound, isOwner } = usePublicCatalog()
 
   if (isLoading) {
     return (
@@ -48,6 +48,7 @@ function PublicCatalogContent({ catalogId }: { catalogId: string }) {
         catalogId={catalogId}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
+        isOwner={isOwner}
       />
     </>
   )

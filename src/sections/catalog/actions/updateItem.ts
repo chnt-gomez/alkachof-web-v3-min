@@ -17,15 +17,21 @@ export async function updateItem(
 ): Promise<Item> {
   if (IS_DEV_STAGE) return mockUpdateItem(itemId, patch, image)
   const path = `/item/${itemId}/update`
+  // An item's type is immutable — the backend answers 400 to any update that
+  // changes it. Callers hand over the whole form payload, so drop the field
+  // here rather than trusting every call site to remember; nothing legitimate
+  // ever needs to update it.
+  const safePatch = { ...patch }
+  delete safePatch.type
   if (image) {
     const form = new FormData()
     form.append('image', image)
-    for (const [key, value] of Object.entries(patch)) {
+    for (const [key, value] of Object.entries(safePatch)) {
       if (value !== undefined) form.append(key, String(value))
     }
     const result = await api<{ item: Item }>(path, { method: 'POST', body: form })
     return result.item
   }
-  const result = await api<{ item: Item }>(path, { method: 'POST', body: patch })
+  const result = await api<{ item: Item }>(path, { method: 'POST', body: safePatch })
   return result.item
 }

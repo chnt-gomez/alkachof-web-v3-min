@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { HelpCircle, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/sections/auth/useAuth'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
+import { useOwnerGuard } from '../hooks/useOwnerGuard'
 import { fetchCatalogQuestions, type Question } from '../actions/fetchCatalogQuestions'
 import { askQuestion } from '../actions/askQuestion'
 
@@ -22,9 +24,19 @@ function AskQuestionForm({
   const [text, setText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { isOwner, guard, ariaDisabled, blockedClass } = useOwnerGuard()
+
+  const explainOwner = guard(
+    'Este es tu catálogo: no puedes hacerte preguntas a ti mismo.',
+    () => {},
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (isOwner) {
+      explainOwner()
+      return
+    }
     if (!text.trim()) {
       setError('Escribe tu pregunta antes de enviarla.')
       return
@@ -50,13 +62,26 @@ function AskQuestionForm({
         id="new-question"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="¿Qué te gustaría saber sobre este catálogo?"
+        placeholder={
+          isOwner
+            ? 'Las preguntas las escriben tus visitantes.'
+            : '¿Qué te gustaría saber sobre este catálogo?'
+        }
         rows={3}
-        className="w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        disabled={isSubmitting}
+        className={cn(
+          'w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary',
+          blockedClass,
+        )}
+        disabled={isSubmitting || isOwner}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
-      <Button type="submit" size="sm" className="self-end" disabled={isSubmitting}>
+      <Button
+        type="submit"
+        size="sm"
+        className={cn('self-end', blockedClass)}
+        disabled={isSubmitting}
+        aria-disabled={ariaDisabled}
+      >
         <Send size={14} />
         {isSubmitting ? 'Enviando…' : 'Enviar pregunta'}
       </Button>
@@ -84,14 +109,13 @@ function QuestionCard({ question }: { question: Question }) {
 }
 
 export function CatalogFaq() {
-  const { catalog } = usePublicCatalog()
-  const { isAuthenticated, profile } = useAuth()
+  const { catalog, isOwner } = usePublicCatalog()
+  const { isAuthenticated } = useAuth()
   const [questions, setQuestions] = useState<Question[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const catalogId = catalog?._id
-  const isOwner = Boolean(catalog && profile && catalog.userId === profile.userId)
 
   useEffect(() => {
     if (!catalogId) return

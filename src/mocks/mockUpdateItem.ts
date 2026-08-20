@@ -14,6 +14,7 @@ export function mockUpdateItem(
     imgPath: '',
     outOfStock: false,
     updatedOn: new Date().toISOString(),
+    type: 'product',
     ...patch,
   }
   if (image) updated.imgPath = URL.createObjectURL(image)

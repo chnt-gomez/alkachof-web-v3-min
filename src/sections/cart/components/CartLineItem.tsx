@@ -1,10 +1,7 @@
 import { Minus, Plus, Trash2 } from 'lucide-react'
+import { formatPrice } from '@/lib/format'
 import { useCart } from '../context/CartContext'
 import type { CartLine } from '../types'
-
-function formatPrice(cents: number) {
-  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
-}
 
 type Props = {
   line: CartLine

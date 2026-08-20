@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
@@ -6,6 +6,7 @@ import { PublicCatalogPage } from '../PublicCatalogPage'
 import type { Catalog } from '../actions/fetchPublicCatalog'
 import type { Item } from '../actions/fetchCatalogItems'
 import { ApiError } from '@/lib/api'
+import { MIN_PENDING_MS } from '@/lib/pendingAction'
 
 vi.mock('../actions/fetchPublicCatalog')
 vi.mock('../actions/fetchCatalogItems')
@@ -16,7 +17,12 @@ vi.mock('../actions/answerQuestion')
 vi.mock('../actions/fetchUserSubscriptions')
 vi.mock('../actions/subscribe')
 vi.mock('../actions/unsubscribe')
-vi.mock('@/sections/cart/actions/checkoutCart')
+// Stub only the network call; ServiceInCartError must stay the real class
+// because CartDrawer branches on `instanceof`.
+vi.mock('@/sections/cart/actions/checkoutCart', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/sections/cart/actions/checkoutCart')>()),
+  checkoutCart: vi.fn(),
+}))
 
 // The jumbotron reads useChat only to reuse/open a seller conversation from the
 // "Contactar" button; the page tests don't exercise chat, so stub it.
@@ -24,12 +30,16 @@ vi.mock('@/sections/chat/useChat', () => ({
   useChat: () => ({ findChatWith: () => undefined }),
 }))
 
+// Booking a service posts to /request/create.
+vi.mock('@/sections/requests/actions/createRequest')
+
 // Toggleable auth state so most tests run as a visitor while the checkout
-// flow can flip to an authenticated user.
-const authState = vi.hoisted(() => ({ isAuthenticated: false }))
+// flow can flip to an authenticated user. `userId` decides ownership: the
+// fixture catalog belongs to 'user1', so the default 'user2' is a buyer.
+const authState = vi.hoisted(() => ({ isAuthenticated: false, userId: 'user2' }))
 vi.mock('@/sections/auth/useAuth', () => ({
   useAuth: () => ({
-    profile: authState.isAuthenticated ? { alias: 'Ana' } : null,
+    profile: authState.isAuthenticated ? { alias: 'Ana', userId: authState.userId } : null,
     isAuthenticated: authState.isAuthenticated,
     isBooting: false,
     login: vi.fn(),
@@ -43,12 +53,19 @@ import { fetchPublicCatalog } from '../actions/fetchPublicCatalog'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { fetchCatalogLocation } from '../actions/fetchCatalogLocation'
 import { fetchCatalogQuestions } from '../actions/fetchCatalogQuestions'
+import { askQuestion } from '../actions/askQuestion'
 import { fetchUserSubscriptions } from '../actions/fetchUserSubscriptions'
 import { subscribe } from '../actions/subscribe'
 import { unsubscribe } from '../actions/unsubscribe'
-import { checkoutCart } from '@/sections/cart/actions/checkoutCart'
+import { checkoutCart, ServiceInCartError } from '@/sections/cart/actions/checkoutCart'
+import { createRequest } from '@/sections/requests/actions/createRequest'
 import { ToastProvider } from '@/components/ui/toast'
 import { CartProvider } from '@/sections/cart/context/CartContext'
+
+// Non-idempotent actions are held for MIN_PENDING_MS while the button fills, so
+// assertions on the result have to outwait it (the default findBy timeout is
+// 1000ms — exactly the floor, too close to be reliable).
+const HELD_MS = MIN_PENDING_MS + 1500
 
 const mockCatalog: Catalog = {
   _id: 'abc123',
@@ -87,6 +104,19 @@ const mockItems: Item[] = [
   },
 ]
 
+// A service: no stock, and no price until the seller quotes it.
+const mockService: Item = {
+  _id: 'item3',
+  name: 'Corte de cabello',
+  description: 'Incluye lavado',
+  price: 0,
+  imgPath: '',
+  outOfStock: false,
+  updatedOn: '2024-01-01T00:00:00Z',
+  catalogId: 'abc123',
+  type: 'service',
+}
+
 function renderPage(catalogId = 'abc123') {
   return render(
     <MemoryRouter initialEntries={[`/public/catalog/${catalogId}`]}>
@@ -94,6 +124,8 @@ function renderPage(catalogId = 'abc123') {
         <CartProvider>
           <Routes>
             <Route path="/public/catalog/:catalogId" element={<PublicCatalogPage />} />
+            <Route path="/chats/new" element={<div>Nueva conversación</div>} />
+            <Route path="/transactions" element={<div>Mis solicitudes</div>} />
           </Routes>
         </CartProvider>
       </ToastProvider>
@@ -104,11 +136,24 @@ function renderPage(catalogId = 'abc123') {
 beforeEach(() => {
   localStorage.clear()
   authState.isAuthenticated = false
+  authState.userId = 'user2'
   vi.mocked(fetchPublicCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
   vi.mocked(fetchCatalogQuestions).mockResolvedValue([])
   vi.mocked(fetchUserSubscriptions).mockResolvedValue([])
+  vi.mocked(createRequest).mockResolvedValue({
+    id: 'req1',
+    serviceId: 'item3',
+    buyerId: 'user2',
+    sellerId: 'user1',
+    catalogId: 'abc123',
+    status: 'REQUESTED',
+    finalPrice: null,
+    customerNote: '',
+    dateCreated: '2026-08-19T10:00:00Z',
+    dateUpdated: null,
+  })
 })
 
 describe('PublicCatalogPage', () => {
@@ -179,7 +224,7 @@ describe('PublicCatalogPage', () => {
     vi.mocked(fetchCatalogItems).mockResolvedValue([])
     renderPage()
 
-    expect(await screen.findByText('Sin productos aún.')).toBeInTheDocument()
+    expect(await screen.findByText('Sin artículos aún.')).toBeInTheDocument()
   })
 
   it('renders error message when the request fails', async () => {
@@ -511,5 +556,282 @@ describe('PublicCatalogPage', () => {
     // summary line + Total both read the snapshotted price
     expect(screen.getAllByText('$350.00').length).toBeGreaterThanOrEqual(2)
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument()
+  })
+
+  it('explains and repairs the cart when checkout refuses a service line', async () => {
+    const user = userEvent.setup()
+    authState.isAuthenticated = true
+    // A service that reached the cart before the client tracked item types:
+    // no `type`, so only the server can identify it.
+    localStorage.setItem(
+      'alkachof.cart',
+      JSON.stringify({
+        abc123: [
+          { itemId: 'item1', quantity: 1, name: 'Bolsa tejida', price: 35000, imgPath: '' },
+          { itemId: 'legacy-svc', quantity: 1, name: 'Corte de cabello', price: 0, imgPath: '' },
+        ],
+      }),
+    )
+    vi.mocked(checkoutCart).mockRejectedValue(
+      new ServiceInCartError(
+        'Service items cannot be purchased through checkout',
+        'legacy-svc',
+      ),
+    )
+
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /ver carrito \(2 artículos\)/i }))
+    fireEvent.click(screen.getByRole('button', { name: /finalizar pedido/i }))
+
+    // The offending line is named, and the user is told nothing was charged.
+    const alert = await screen.findByRole('alert', {}, { timeout: 2500 })
+    expect(alert).toHaveTextContent('Quitamos «Corte de cabello» de tu carrito')
+    expect(alert).toHaveTextContent(/no se hizo ningún cargo/i)
+
+    // The service is gone from the cart, the product survived, and checkout can
+    // be retried. (The product also appears on the catalog card behind the
+    // drawer, hence the count rather than a single match.)
+    expect(screen.queryByText('Corte de cabello')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Bolsa tejida').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /ver carrito \(1 artículo\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /finalizar pedido/i })).toBeInTheDocument()
+  })
+
+  describe('service items', () => {
+    beforeEach(() => {
+      vi.mocked(fetchCatalogItems).mockResolvedValue([...mockItems, mockService])
+    })
+
+    it('marks a service card and shows that its price is not set', async () => {
+      renderPage()
+
+      expect(await screen.findByText('Corte de cabello')).toBeInTheDocument()
+      expect(screen.getByText('Servicio')).toBeInTheDocument()
+      expect(screen.getByText('Precio a convenir')).toBeInTheDocument()
+      expect(screen.queryByText('$0.00')).not.toBeInTheDocument()
+    })
+
+    it('tags every card with its type, so neither kind is the unlabelled default', async () => {
+      renderPage()
+
+      await screen.findByText('Corte de cabello')
+      // One service among the mock products, each carrying its own tag.
+      expect(screen.getAllByText('Producto')).toHaveLength(mockItems.length)
+      expect(screen.getAllByText('Servicio')).toHaveLength(1)
+    })
+
+    it('shows a real amount when the seller priced the service', async () => {
+      vi.mocked(fetchCatalogItems).mockResolvedValue([{ ...mockService, price: 1999 }])
+      renderPage()
+
+      expect(await screen.findByText('$19.99')).toBeInTheDocument()
+      expect(screen.queryByText('Precio a convenir')).not.toBeInTheDocument()
+    })
+
+    it('offers Solicitar instead of the cart, with no quantity picker', async () => {
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /corte de cabello/i }))
+
+      expect(screen.getByRole('button', { name: 'Solicitar' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /agregar al carrito/i })).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Aumentar cantidad')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Disminuir cantidad')).not.toBeInTheDocument()
+      expect(
+        screen.getByText('El precio se acuerda directamente con el vendedor.'),
+      ).toBeInTheDocument()
+    })
+
+    it('still offers the cart and a quantity picker for a product', async () => {
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+
+      expect(screen.getByRole('button', { name: /agregar al carrito/i })).toBeInTheDocument()
+      expect(screen.getByLabelText('Aumentar cantidad')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Solicitar' })).not.toBeInTheDocument()
+    })
+
+    it('asks a guest to sign up before requesting a service', async () => {
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /corte de cabello/i }))
+      await user.click(screen.getByRole('button', { name: 'Solicitar' }))
+
+      expect(await screen.findByText('Crea una cuenta para solicitar')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /crear cuenta/i })).toBeInTheDocument()
+      // Auth is checked before the note form, so nobody writes one for nothing.
+      expect(screen.queryByRole('dialog', { name: 'Solicitar servicio' })).not.toBeInTheDocument()
+    })
+
+    it('collects a note, then books the service with it', async () => {
+      authState.isAuthenticated = true
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /corte de cabello/i }))
+      await user.click(screen.getByRole('button', { name: 'Solicitar' }))
+
+      // The note form appears rather than firing the request straight off.
+      const form = await screen.findByRole('dialog', { name: 'Solicitar servicio' })
+      expect(within(form).getByLabelText(/detalles para el vendedor/i)).toBeInTheDocument()
+      // A price-less service says outright that the note drives the quote.
+      expect(
+        within(form).getByText('El vendedor usará estos datos para darte un precio.'),
+      ).toBeInTheDocument()
+
+      await user.type(
+        screen.getByLabelText(/detalles para el vendedor/i),
+        'Para el sábado, cabello largo.',
+      )
+      await user.click(screen.getByRole('button', { name: /enviar solicitud/i }))
+
+      expect(createRequest).toHaveBeenCalledWith('item3', 'Para el sábado, cabello largo.')
+      // The buyer lands where the seller's quote will show up — after the
+      // standard hold, so the assertion has to outwait it.
+      expect(await screen.findByText('Mis solicitudes', {}, { timeout: HELD_MS })).toBeInTheDocument()
+    })
+
+    it('holds the send button as a progress bar while the booking is in flight', async () => {
+      authState.isAuthenticated = true
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /corte de cabello/i }))
+      await user.click(screen.getByRole('button', { name: 'Solicitar' }))
+
+      // fireEvent, not userEvent: the latter awaits pending timers, which would
+      // sit through the whole hold and miss the state being asserted.
+      fireEvent.click(await screen.findByRole('button', { name: /enviar solicitud/i }))
+
+      expect(screen.getByRole('progressbar', { name: /enviando la solicitud/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Enviando…' })).toBeDisabled()
+    })
+
+    it('books without a note when the buyer writes none', async () => {
+      authState.isAuthenticated = true
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /corte de cabello/i }))
+      await user.click(screen.getByRole('button', { name: 'Solicitar' }))
+      await user.click(await screen.findByRole('button', { name: /enviar solicitud/i }))
+
+      expect(createRequest).toHaveBeenCalledWith('item3', '')
+    })
+
+    it('surfaces a booking failure without closing the buyer out', async () => {
+      authState.isAuthenticated = true
+      vi.mocked(createRequest).mockRejectedValueOnce(
+        new ApiError('You cannot request your own service', 400),
+      )
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /corte de cabello/i }))
+      await user.click(screen.getByRole('button', { name: 'Solicitar' }))
+      await user.click(await screen.findByRole('button', { name: /enviar solicitud/i }))
+
+      expect(
+        await screen.findByText('Este servicio es tuyo, no puedes solicitarlo.'),
+      ).toBeInTheDocument()
+      expect(screen.queryByText('Mis solicitudes')).not.toBeInTheDocument()
+    })
+
+    it('backs out of the note form without sending', async () => {
+      authState.isAuthenticated = true
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /corte de cabello/i }))
+      await user.click(screen.getByRole('button', { name: 'Solicitar' }))
+      await user.click(await screen.findByRole('button', { name: /cancelar/i }))
+
+      expect(screen.queryByRole('dialog', { name: 'Solicitar servicio' })).not.toBeInTheDocument()
+      expect(screen.queryByText('Nueva conversación')).not.toBeInTheDocument()
+      // Still on the product dialog, so they can try again.
+      expect(screen.getByRole('button', { name: 'Solicitar' })).toBeInTheDocument()
+    })
+
+  })
+
+  // The owner may browse their own shop, but every buyer-side action is
+  // meaningless against themselves. The controls stay visible and explain
+  // why they don't work, rather than silently doing nothing.
+  describe('when the owner views their own catalog', () => {
+    beforeEach(() => {
+      authState.isAuthenticated = true
+      authState.userId = 'user1' // mockCatalog.userId
+      vi.mocked(fetchCatalogItems).mockResolvedValue([...mockItems, mockService])
+    })
+
+    it('blocks adding a product to the cart and says why', async () => {
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+      const addButton = screen.getByRole('button', { name: /agregar al carrito/i })
+      expect(addButton).toHaveAttribute('aria-disabled', 'true')
+
+      await user.click(addButton)
+
+      expect(
+        await screen.findByText('Este es tu catálogo: no puedes comprar tus propios productos.'),
+      ).toBeInTheDocument()
+      // The dialog stays open and nothing lands in the cart.
+      expect(screen.getByRole('button', { name: /ver carrito \(0 artículos\)/i })).toBeInTheDocument()
+    })
+
+    it('blocks requesting their own service and says why', async () => {
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /corte de cabello/i }))
+      const requestButton = screen.getByRole('button', { name: 'Solicitar' })
+      expect(requestButton).toHaveAttribute('aria-disabled', 'true')
+
+      await user.click(requestButton)
+
+      expect(
+        await screen.findByText('Este es tu catálogo: no puedes solicitar tus propios servicios.'),
+      ).toBeInTheDocument()
+      // No conversation was opened.
+      expect(screen.queryByText('Nueva conversación')).not.toBeInTheDocument()
+    })
+
+    it('blocks asking a question on their own catalog and says why', async () => {
+      const user = userEvent.setup()
+      renderPage()
+
+      const askButton = await screen.findByRole('button', { name: /enviar pregunta/i })
+      expect(askButton).toHaveAttribute('aria-disabled', 'true')
+
+      await user.click(askButton)
+
+      expect(
+        await screen.findByText('Este es tu catálogo: no puedes hacerte preguntas a ti mismo.'),
+      ).toBeInTheDocument()
+      expect(askQuestion).not.toHaveBeenCalled()
+    })
+
+    it('still lets a non-owner buy, request and ask', async () => {
+      authState.userId = 'user2'
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole('button', { name: /bolsa tejida/i }))
+      const addButton = screen.getByRole('button', { name: /agregar al carrito/i })
+      expect(addButton).not.toHaveAttribute('aria-disabled')
+
+      await user.click(addButton)
+
+      expect(
+        await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }),
+      ).toBeInTheDocument()
+    })
   })
 })

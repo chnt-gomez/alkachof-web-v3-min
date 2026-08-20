@@ -143,7 +143,11 @@ export function ChatThreadPage() {
         <div ref={bottomRef} />
       </main>
 
-      <MessageComposer onSend={handleSend} initialText={isDraft ? (draft.prefill ?? '') : ''} />
+      {/* A prefill is honoured on an existing thread too, not just a draft: a
+          service request carries the buyer's note, and they may already have a
+          conversation with this seller. Threads opened normally pass no state,
+          so this stays empty for them. */}
+      <MessageComposer onSend={handleSend} initialText={draft.prefill ?? ''} />
     </div>
   )
 }

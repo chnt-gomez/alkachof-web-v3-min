@@ -16,7 +16,7 @@ vi.mock('react-leaflet', () => ({
 const getCurrentPosition = vi.fn()
 
 function setGeolocation(value: unknown) {
-  Object.defineProperty(global.navigator, 'geolocation', { value, configurable: true })
+  Object.defineProperty(globalThis.navigator, 'geolocation', { value, configurable: true })
 }
 
 beforeEach(() => {

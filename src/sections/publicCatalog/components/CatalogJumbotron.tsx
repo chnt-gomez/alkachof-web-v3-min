@@ -12,17 +12,16 @@ import { CatalogLocationCard } from './CatalogLocationCard'
 import { ShippingInfoDialog } from './ShippingInfoDialog'
 
 export function CatalogJumbotron() {
-  const { catalog } = usePublicCatalog()
-  const { isAuthenticated, profile } = useAuth()
+  // Owners can't message or subscribe to themselves; those buttons stay hidden
+  // for them entirely (unlike the buy/ask/request actions, which stay visible
+  // but blocked — see useOwnerGuard).
+  const { catalog, isOwner } = usePublicCatalog()
+  const { isAuthenticated } = useAuth()
   const { findChatWith } = useChat()
   const toast = useToast()
   const navigate = useNavigate()
   const [showShippingInfo, setShowShippingInfo] = useState(false)
 
-  // Owners can't message or subscribe to themselves; the buttons only show for
-  // other users. Computed before the early return so the hooks below stay
-  // unconditional.
-  const isOwner = profile?.userId === catalog?.userId
   const { isSubscribed, isLoading: isSubLoading, isPending: isSubPending, toggle } =
     useCatalogSubscription(catalog?._id, isAuthenticated && !isOwner)
 
