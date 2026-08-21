@@ -6,6 +6,11 @@ const WELCOME_TEXTS = ['Bienvenido a nuestra tienda', '¡Hola! Echa un vistazo',
 const DESCRIPTIONS = ['Productos hechos a mano en Oaxaca', 'Artesanías mexicanas de calidad', 'Lo mejor del mercado local']
 const LOCATIONS = ['Oaxaca, México', 'Ciudad de México', 'Guadalajara, Jalisco']
 const LOCATION_ZIPS = ['68000', '06500', '44100']
+const IMAGES = [
+  'https://picsum.photos/seed/catalog_artesanal/800/450',
+  'https://picsum.photos/seed/catalog_mercadito/800/600',
+  'https://picsum.photos/seed/catalog_local/800/450',
+]
 
 let cache: Catalog[] | null = null
 
@@ -22,6 +27,7 @@ function buildCatalog(): Catalog {
     locationZip: pick(LOCATION_ZIPS),
     deliveryDates: [],
     deliveryLocations: [],
+    image: pick(IMAGES),
   }
 }
 

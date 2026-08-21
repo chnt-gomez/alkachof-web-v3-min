@@ -32,10 +32,25 @@ describe('AboutPage', () => {
 describe('WordRandomizer', () => {
   afterEach(() => {
     vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
-  it('advances to the next word after the interval elapses', () => {
+  /**
+   * The component picks each word at random — on mount and again on every tick —
+   * so `Math.random` has to be driven for the sequence to be deterministic.
+   * Values map to an index via `Math.floor(r * words.length)`.
+   */
+  function stubWordPicks(...values: number[]) {
+    const random = vi.spyOn(Math, 'random')
+    for (const v of values) random.mockReturnValueOnce(v)
+    // Anything past the scripted picks stays on the first word.
+    random.mockReturnValue(0)
+  }
+
+  it('shows a different word after the interval elapses', () => {
     vi.useFakeTimers()
+    // mount → 'uno', first tick → 'dos', second tick → 'uno'
+    stubWordPicks(0, 0.9, 0)
     render(<WordRandomizer words={['uno', 'dos']} intervalMs={500} />)
 
     expect(screen.getByText('uno')).toBeInTheDocument()
@@ -49,6 +64,19 @@ describe('WordRandomizer', () => {
       vi.advanceTimersByTime(500)
     })
     expect(screen.getByText('uno')).toBeInTheDocument()
+  })
+
+  it('only ever renders words from the given list', () => {
+    vi.useFakeTimers()
+    const { container } = render(<WordRandomizer words={['uno', 'dos', 'tres']} intervalMs={500} />)
+
+    // Unstubbed on purpose: whatever the real RNG picks must stay in range.
+    for (let i = 0; i < 20; i++) {
+      act(() => {
+        vi.advanceTimersByTime(500)
+      })
+      expect(['uno', 'dos', 'tres']).toContain(container.textContent)
+    }
   })
 
   it('does not start a timer for a single word', () => {

@@ -4,14 +4,22 @@ import { Button } from '@/components/ui/button'
 
 type Props = {
   onClose: () => void
+  /** Overrides for the service-request gate, which shares this dialog. */
+  title?: string
+  body?: string
 }
 
 /**
- * Shown when a guest tries to check out. Rather than sending the order, we
- * encourage them to create an account (or sign in) — the return path is
- * preserved so they land back on the catalog after authenticating.
+ * Shown when a guest tries to check out — or to request a service. Rather than
+ * performing the action, we encourage them to create an account (or sign in) —
+ * the return path is preserved so they land back on the catalog after
+ * authenticating.
  */
-export function GuestCheckoutPrompt({ onClose }: Props) {
+export function GuestCheckoutPrompt({
+  onClose,
+  title = 'Crea una cuenta para comprar',
+  body = 'Necesitas una cuenta para completar tu pedido y dar seguimiento a tus compras. Regístrate para continuar; guardaremos tu carrito.',
+}: Props) {
   const navigate = useNavigate()
   const location = useLocation()
   const from = location.pathname
@@ -38,11 +46,8 @@ export function GuestCheckoutPrompt({ onClose }: Props) {
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <UserPlus size={22} />
             </span>
-            <h2 className="text-xl font-bold">Crea una cuenta para comprar</h2>
-            <p className="text-sm text-muted-foreground">
-              Necesitas una cuenta para completar tu pedido y dar seguimiento a tus compras.
-              Regístrate para continuar; guardaremos tu carrito.
-            </p>
+            <h2 className="text-xl font-bold">{title}</h2>
+            <p className="text-sm text-muted-foreground">{body}</p>
           </div>
 
           <div className="flex flex-col gap-2">

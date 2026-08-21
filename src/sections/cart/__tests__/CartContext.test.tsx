@@ -5,7 +5,10 @@ import { ToastProvider } from '@/components/ui/toast'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import { vi } from 'vitest'
 
-vi.mock('../actions/checkoutCart', () => ({
+// Only the network call is stubbed — ServiceInCartError stays real, since the
+// context branches on `instanceof` and a stand-in class would never match.
+vi.mock('../actions/checkoutCart', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../actions/checkoutCart')>()),
   checkoutCart: vi.fn(() =>
     Promise.resolve({
       id: 'txn-123',
@@ -15,6 +18,8 @@ vi.mock('../actions/checkoutCart', () => ({
   ),
 }))
 
+import { checkoutCart, ServiceInCartError } from '../actions/checkoutCart'
+
 const mockItem: Item = {
   _id: 'item-1',
   name: 'Test Product',
@@ -23,7 +28,7 @@ const mockItem: Item = {
   outOfStock: false,
   catalogId: 'catalog-1',
   description: 'A test product',
-  createdAt: new Date().toISOString(),
+  updatedOn: new Date().toISOString(),
 }
 
 const mockItem2: Item = {
@@ -34,7 +39,19 @@ const mockItem2: Item = {
   outOfStock: false,
   catalogId: 'catalog-1',
   description: 'Another product',
-  createdAt: new Date().toISOString(),
+  updatedOn: new Date().toISOString(),
+}
+
+const mockService: Item = {
+  _id: 'item-3',
+  name: 'Test Service',
+  price: 0,
+  imgPath: '/img3.jpg',
+  outOfStock: false,
+  catalogId: 'catalog-1',
+  description: 'A test service',
+  updatedOn: new Date().toISOString(),
+  type: 'service',
 }
 
 function TestComponent() {
@@ -57,6 +74,9 @@ function TestComponent() {
       <button onClick={() => addItem(mockItem2, 2)} data-testid="add-item-2">
         Add Item 2
       </button>
+      <button onClick={() => addItem(mockService, 1)} data-testid="add-service">
+        Add Service
+      </button>
       <button onClick={() => setQuantity('catalog-1', 'item-1', 5)} data-testid="set-qty">
         Set Qty to 5
       </button>
@@ -69,7 +89,14 @@ function TestComponent() {
       <button onClick={() => clearCart('catalog-1')} data-testid="clear-cart">
         Clear Cart
       </button>
-      <button onClick={() => checkout('catalog-1')} data-testid="checkout">
+      {/* Swallow the rejection like CartDrawer does — checkout rethrows so the
+          caller can react, and an uncaught one just noises up the test output. */}
+      <button
+        onClick={() => {
+          void checkout('catalog-1').catch(() => {})
+        }}
+        data-testid="checkout"
+      >
         Checkout
       </button>
       <div data-testid="total-carts">{carts.length}</div>
@@ -110,6 +137,135 @@ describe('CartContext', () => {
       expect(screen.getByTestId('cart-count')).toHaveTextContent('1')
       expect(screen.getByTestId('item-item-1')).toHaveTextContent('Test Product x 1')
     })
+  })
+
+  it('refuses to add a service — services are requested, not bought', async () => {
+    renderWithProviders(<TestComponent />)
+
+    await act(async () => {
+      screen.getByTestId('add-service').click()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cart-count')).toHaveTextContent('0')
+    })
+    expect(screen.queryByTestId('item-item-3')).not.toBeInTheDocument()
+  })
+
+  it('hides a service line left in storage from before services existed', async () => {
+    localStorage.setItem(
+      'alkachof.cart',
+      JSON.stringify({
+        'catalog-1': [
+          { itemId: 'item-1', quantity: 1, name: 'Test Product', price: 1500, imgPath: '' },
+          {
+            itemId: 'item-3',
+            quantity: 2,
+            name: 'Test Service',
+            price: 0,
+            imgPath: '',
+            type: 'service',
+          },
+        ],
+      }),
+    )
+
+    renderWithProviders(<TestComponent />)
+
+    // Only the product counts, and only the product is listed.
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1')
+    expect(screen.getByTestId('item-item-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('item-item-3')).not.toBeInTheDocument()
+  })
+
+  // A service added to the cart before the client tracked item types carries no
+  // `type`, so the read-time filter can't spot it. The server's rejection names
+  // it, which is the only way to repair such a cart.
+  it('drops an untyped service line the server rejects, keeping the rest', async () => {
+    localStorage.setItem(
+      'alkachof.cart',
+      JSON.stringify({
+        'catalog-1': [
+          { itemId: 'item-1', quantity: 1, name: 'Test Product', price: 1500, imgPath: '' },
+          { itemId: 'legacy-service', quantity: 1, name: 'Old Service', price: 0, imgPath: '' },
+        ],
+      }),
+    )
+    vi.mocked(checkoutCart).mockRejectedValueOnce(
+      new ServiceInCartError(
+        'Service items cannot be purchased through checkout',
+        'legacy-service',
+      ),
+    )
+
+    renderWithProviders(<TestComponent />)
+
+    // Both lines are visible up front — neither carries a type.
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('2')
+
+    await act(async () => {
+      screen.getByTestId('checkout').click()
+    })
+
+    // The refused line is gone; the product survives so a retry can succeed.
+    await waitFor(() => {
+      expect(screen.queryByTestId('item-legacy-service')).not.toBeInTheDocument()
+    })
+    expect(screen.getByTestId('item-item-1')).toBeInTheDocument()
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1')
+  })
+
+  it('leaves the cart alone when the rejection names no item', async () => {
+    localStorage.setItem(
+      'alkachof.cart',
+      JSON.stringify({
+        'catalog-1': [
+          { itemId: 'item-1', quantity: 1, name: 'Test Product', price: 1500, imgPath: '' },
+        ],
+      }),
+    )
+    vi.mocked(checkoutCart).mockRejectedValueOnce(
+      new ServiceInCartError('Service items cannot be purchased through checkout', null),
+    )
+
+    renderWithProviders(<TestComponent />)
+
+    await act(async () => {
+      screen.getByTestId('checkout').click()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cart-count')).toHaveTextContent('1')
+    })
+  })
+
+  it('never sends a stale service line to checkout', async () => {
+    localStorage.setItem(
+      'alkachof.cart',
+      JSON.stringify({
+        'catalog-1': [
+          { itemId: 'item-1', quantity: 1, name: 'Test Product', price: 1500, imgPath: '' },
+          {
+            itemId: 'item-3',
+            quantity: 2,
+            name: 'Test Service',
+            price: 0,
+            imgPath: '',
+            type: 'service',
+          },
+        ],
+      }),
+    )
+
+    renderWithProviders(<TestComponent />)
+
+    await act(async () => {
+      screen.getByTestId('checkout').click()
+    })
+
+    await waitFor(() => expect(checkoutCart).toHaveBeenCalled())
+    const [, lines] = vi.mocked(checkoutCart).mock.calls[0]
+    expect(lines.map((l) => l.itemId)).toEqual(['item-1'])
   })
 
   it('should increment quantity when adding same item twice', async () => {

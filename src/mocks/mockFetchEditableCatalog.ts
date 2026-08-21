@@ -6,6 +6,11 @@ const WELCOME_TEXTS = ['Bienvenido a nuestra tienda', '¡Hola! Echa un vistazo',
 const DESCRIPTIONS = ['Productos hechos a mano en Oaxaca', 'Artesanías mexicanas de calidad', 'Lo mejor del mercado local', 'Elaborados con amor y tradición']
 const LOCATIONS = ['Oaxaca, México', 'Ciudad de México', 'Guadalajara, Jalisco', 'San Miguel de Allende']
 const LOCATION_ZIPS = ['68000', '06500', '44100', '37700']
+const IMAGES = [
+  'https://picsum.photos/seed/catalog_artesanal/800/450',
+  'https://picsum.photos/seed/catalog_mercadito/800/600',
+  'https://picsum.photos/seed/catalog_local/800/450',
+]
 
 const PAY_OPTIONS: Array<'cash' | 'credit' | 'transfer' | 'other'> = ['cash', 'credit', 'transfer', 'other']
 const DELIVERY_TYPES: Array<'location-pickup' | 'delivery' | 'shipping'> = ['location-pickup', 'delivery', 'shipping']
@@ -28,6 +33,7 @@ export function mockFetchEditableCatalog(catalogId: string): Promise<Catalog> {
     locationZip: pick(LOCATION_ZIPS),
     deliveryDates: [],
     deliveryLocations: [],
+    image: pick(IMAGES),
   }
   return Promise.resolve(catalog)
 }

@@ -8,16 +8,21 @@ const ITEM_DESCRIPTIONS = [
   'Pieza única, hecha con amor',
 ]
 
+const SERVICE_NAMES = ['Corte de Cabello', 'Reparación de Bicicleta', 'Clases de Bordado']
+const SERVICE_DESCRIPTIONS = ['Incluye lavado y peinado', 'Servicio a domicilio en la zona centro']
+
 export function mockFetchItem(itemId: string): Promise<Item> {
+  const isServiceItem = randomInt(0, 3) === 0
   const item: Item = {
     _id: itemId,
     catalogId: 'mock_catalog',
-    name: pick(ITEM_NAMES),
-    description: pick(ITEM_DESCRIPTIONS),
-    price: randomInt(50, 2000),
+    name: isServiceItem ? pick(SERVICE_NAMES) : pick(ITEM_NAMES),
+    description: isServiceItem ? pick(SERVICE_DESCRIPTIONS) : pick(ITEM_DESCRIPTIONS),
+    price: isServiceItem ? 0 : randomInt(50, 2000),
     imgPath: `https://picsum.photos/seed/${itemId}/600/800`,
     outOfStock: false,
     updatedOn: new Date().toISOString(),
+    type: isServiceItem ? 'service' : 'product',
   }
   return Promise.resolve(item)
 }

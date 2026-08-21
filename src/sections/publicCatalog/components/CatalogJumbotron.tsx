@@ -1,30 +1,35 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, BellRing, HelpCircle, MessageCircle } from 'lucide-react'
+import { Bell, BellRing, HelpCircle, MapPin, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
+import { CatalogHeroImage } from '@/components/CatalogImage'
 import { useAuth } from '@/sections/auth/useAuth'
 import { useChat } from '@/sections/chat/useChat'
 import { useToast } from '@/components/ui/useToast'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
 import { useCatalogSubscription } from '../hooks/useCatalogSubscription'
-import { CatalogLocationCard } from './CatalogLocationCard'
+import { useCatalogLocation } from '../hooks/useCatalogLocation'
 import { ShippingInfoDialog } from './ShippingInfoDialog'
+import { CatalogLocationDialog } from './CatalogLocationDialog'
 
 export function CatalogJumbotron() {
-  const { catalog } = usePublicCatalog()
-  const { isAuthenticated, profile } = useAuth()
+  // Owners can't message or subscribe to themselves; those buttons stay hidden
+  // for them entirely (unlike the buy/ask/request actions, which stay visible
+  // but blocked — see useOwnerGuard).
+  const { catalog, isOwner } = usePublicCatalog()
+  const { isAuthenticated } = useAuth()
   const { findChatWith } = useChat()
   const toast = useToast()
   const navigate = useNavigate()
   const [showShippingInfo, setShowShippingInfo] = useState(false)
+  const [showLocation, setShowLocation] = useState(false)
 
-  // Owners can't message or subscribe to themselves; the buttons only show for
-  // other users. Computed before the early return so the hooks below stay
-  // unconditional.
-  const isOwner = profile?.userId === catalog?.userId
   const { isSubscribed, isLoading: isSubLoading, isPending: isSubPending, toggle } =
     useCatalogSubscription(catalog?._id, isAuthenticated && !isOwner)
+  // Null when the catalog has no usable coordinates — the pin is hidden entirely
+  // rather than opening an empty map.
+  const location = useCatalogLocation(catalog?._id)
 
   if (!catalog) return null
 
@@ -69,10 +74,22 @@ export function CatalogJumbotron() {
         className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary-foreground/10 blur-2xl"
       />
 
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold leading-tight">{catalog.alias}</h1>
-        {catalog.welcomeText && (
-          <p className="text-base text-primary-foreground/80">{catalog.welcomeText}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold leading-tight">{catalog.alias}</h1>
+          {catalog.welcomeText && (
+            <p className="text-base text-primary-foreground/80">{catalog.welcomeText}</p>
+          )}
+        </div>
+        {location && (
+          <button
+            type="button"
+            onClick={() => setShowLocation(true)}
+            aria-label="Ver la ubicación en el mapa"
+            className="shrink-0 rounded-full bg-primary-foreground/20 p-2.5 transition-colors hover:bg-primary-foreground/30 active:scale-95"
+          >
+            <MapPin size={16} />
+          </button>
         )}
       </div>
 
@@ -80,7 +97,7 @@ export function CatalogJumbotron() {
         <p className="text-sm text-primary-foreground/70">{catalog.description}</p>
       )}
 
-      <CatalogLocationCard catalogId={catalog._id} />
+      <CatalogHeroImage src={catalog.image} alt={catalog.alias} />
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
@@ -146,9 +163,13 @@ export function CatalogJumbotron() {
       )}
     </section>
 
-    {/* Rendered outside the section so it doesn't inherit its white text color */}
+    {/* Rendered outside the section so they don't inherit its white text color */}
     {showShippingInfo && (
       <ShippingInfoDialog onClose={() => setShowShippingInfo(false)} />
+    )}
+
+    {showLocation && location && (
+      <CatalogLocationDialog location={location} onClose={() => setShowLocation(false)} />
     )}
     </>
   )

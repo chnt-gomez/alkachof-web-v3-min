@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { formatItemPrice } from '@/lib/format'
+import { isService } from '@/lib/item'
+import { ItemTypeChip } from '@/components/ItemTypeChip'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
 import { ProductDetailDialog } from './ProductDetailDialog'
 import type { Item } from '../actions/fetchCatalogItems'
-
-function formatPrice(cents: number) {
-  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
-}
 
 const HIGHLIGHT_MS = 2600
 
@@ -70,7 +69,7 @@ export function CatalogItemList() {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed p-8 text-center">
-        <p className="text-sm text-muted-foreground">Sin productos aún.</p>
+        <p className="text-sm text-muted-foreground">Sin artículos aún.</p>
       </div>
     )
   }
@@ -106,12 +105,15 @@ export function CatalogItemList() {
               )}
               <div className="flex flex-col gap-1 p-2.5">
                 <p className="line-clamp-2 text-sm font-medium leading-tight">{item.name}</p>
-                <p className="text-sm font-bold text-primary">{formatPrice(item.price)}</p>
-                {item.outOfStock && (
-                  <p className="self-start rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
-                    Sin existencias
-                  </p>
-                )}
+                <p className="text-sm font-bold text-primary">{formatItemPrice(item)}</p>
+                <div className="flex flex-wrap items-center gap-1">
+                  <ItemTypeChip item={item} />
+                  {!isService(item) && item.outOfStock && (
+                    <p className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                      Sin existencias
+                    </p>
+                  )}
+                </div>
               </div>
             </button>
           </li>

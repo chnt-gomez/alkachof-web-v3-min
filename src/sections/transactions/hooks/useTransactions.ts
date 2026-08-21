@@ -23,9 +23,17 @@ export type TransactionsListStatus = 'loading' | 'ready' | 'error'
  * cached and resolved best-effort — a failed lookup just falls back to a
  * generic label, never blocking the list.
  */
-export function useTransactions() {
-  const [role, setRole] = useState<TransactionRole>('buyer')
-  const [statusFilter, setStatusFilter] = useState<TransactionStatus | null>(null)
+export function useTransactions({
+  role,
+  statusFilter,
+  enabled = true,
+}: {
+  role: TransactionRole
+  /** Server-side status filter; `null` means all. */
+  statusFilter: TransactionStatus | null
+  /** When false the list stays empty and no request is made. */
+  enabled?: boolean
+}) {
   const [status, setStatus] = useState<TransactionsListStatus>('loading')
   const [transactions, setTransactions] = useState<TransactionSummary[]>([])
   const [total, setTotal] = useState(0)
@@ -80,9 +88,17 @@ export function useTransactions() {
   )
 
   const reload = useCallback(async () => {
-    setStatus('loading')
     setCatalogNames({})
     setBuyerNames({})
+    // The active filter can exclude product orders entirely (e.g. "Cotizado" is
+    // a request-only status), in which case there is nothing to ask for.
+    if (!enabled) {
+      setTransactions([])
+      setTotal(0)
+      setStatus('ready')
+      return
+    }
+    setStatus('loading')
     try {
       const result = await loadPage(0)
       setTransactions(result.transactions)
@@ -92,7 +108,7 @@ export function useTransactions() {
     } catch {
       setStatus('error')
     }
-  }, [loadPage, resolveHeaders])
+  }, [enabled, loadPage, resolveHeaders])
 
   useEffect(() => {
     reload()
@@ -134,10 +150,6 @@ export function useTransactions() {
   )
 
   return {
-    role,
-    setRole,
-    statusFilter,
-    setStatusFilter,
     status,
     transactions,
     total,

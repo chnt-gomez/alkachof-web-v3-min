@@ -1,6 +1,19 @@
+import { isService, type ItemType } from './item'
+
 /** Format an integer amount of cents (MXN) for display, e.g. 45900 -> "$459.00". */
 export function formatPrice(cents: number): string {
   return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+}
+
+/**
+ * Display price for an item. Items always store a price, so a service with no
+ * price set reads back as 0 — that means "not quoted yet", not "free", and the
+ * real amount is agreed between buyer and seller. A service the seller *did*
+ * price is shown normally, as a starting price.
+ */
+export function formatItemPrice(item: { price: number; type?: ItemType }): string {
+  if (isService(item) && item.price === 0) return 'Precio a convenir'
+  return formatPrice(item.price)
 }
 
 /** Format an ISO date string for display in es-MX, e.g. "14 de julio, 3:05 p.m.". */

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { MessageCircle } from 'lucide-react'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ProgressButton } from '@/components/ui/progressButton'
 import { ApiError } from '@/lib/api'
+import { withMinDuration } from '@/lib/pendingAction'
 import { useAsyncSection } from '@/sections/home/hooks/useAsyncSection'
 import { useChat } from '@/sections/chat/useChat'
 import { formatDate, formatPrice } from '@/lib/format'
@@ -69,7 +71,9 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
       setPending(next)
       setActionError(null)
       try {
-        const updated = await updateTransactionStatus(transaction.id, next)
+        // Moving an order is non-idempotent — held at the standard pace so it
+        // reads as work and can't be tapped twice (see lib/pendingAction).
+        const updated = await withMinDuration(updateTransactionStatus(transaction.id, next))
         setCurrentStatus(updated.status)
         onUpdated(transaction.id, updated.status)
       } catch (err) {
@@ -166,15 +170,18 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
             )}
             <div className="flex flex-wrap gap-2">
               {nextStatuses.map((next) => (
-                <Button
+                <ProgressButton
                   key={next}
                   size="sm"
                   variant={next === 'REJECTED' || next === 'RETURNED' ? 'destructive' : 'default'}
                   disabled={pending !== null}
                   onClick={() => changeStatus(next)}
+                  pending={pending === next}
+                  pendingLabel="Actualizando…"
+                  progressLabel={`${TRANSITION_ACTION_LABEL[next]}: actualizando el pedido`}
                 >
-                  {pending === next ? 'Actualizando...' : TRANSITION_ACTION_LABEL[next]}
-                </Button>
+                  {TRANSITION_ACTION_LABEL[next]}
+                </ProgressButton>
               ))}
             </div>
           </div>

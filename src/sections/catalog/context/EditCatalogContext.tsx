@@ -5,6 +5,8 @@ import { updateCatalog as updateCatalogAction } from '../actions/updateCatalog'
 import { updateItem as updateItemAction } from '../actions/updateItem'
 import { createItem as createItemAction } from '../actions/createItem'
 import { deleteItem as deleteItemAction } from '../actions/deleteItem'
+import { uploadCatalogImage as uploadCatalogImageAction } from '../actions/uploadCatalogImage'
+import { deleteCatalogImage as deleteCatalogImageAction } from '../actions/deleteCatalogImage'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import type { NewItemData } from '../actions/createItem'
@@ -15,6 +17,9 @@ type EditCatalogState = {
   isLoading: boolean
   error: string | null
   updateCatalog: (patch: Partial<Catalog>) => Promise<void>
+  /** Persists immediately and resolves to the new image url. */
+  uploadCatalogImage: (file: File) => Promise<string>
+  deleteCatalogImage: () => Promise<void>
   updateItem: (itemId: string, patch: Partial<Item>, image?: File | null) => Promise<void>
   createItem: (data: NewItemData) => Promise<void>
   deleteItem: (itemId: string) => Promise<void>
@@ -56,6 +61,22 @@ export function EditCatalogProvider({ children }: { children: React.ReactNode })
     }
   }
 
+  // The image endpoints persist immediately, unlike the deferred field form, so
+  // the response's full catalog is written straight back — otherwise a later
+  // "save" of the other fields would re-render from a stale, image-less copy.
+  async function uploadCatalogImage(file: File): Promise<string> {
+    if (!catalog) return ''
+    const updated = await uploadCatalogImageAction(catalog._id, file)
+    setCatalog(updated)
+    return updated.image ?? ''
+  }
+
+  async function deleteCatalogImage(): Promise<void> {
+    if (!catalog) return
+    const updated = await deleteCatalogImageAction(catalog._id)
+    setCatalog(updated)
+  }
+
   async function updateItem(itemId: string, patch: Partial<Item>, image?: File | null) {
     const updated = await updateItemAction(itemId, patch, image)
     setItems((prev) => prev.map((it) => (it._id === itemId ? updated : it)))
@@ -73,7 +94,18 @@ export function EditCatalogProvider({ children }: { children: React.ReactNode })
 
   return (
     <EditCatalogContext.Provider
-      value={{ catalog, items, isLoading, error, updateCatalog, updateItem, createItem, deleteItem }}
+      value={{
+        catalog,
+        items,
+        isLoading,
+        error,
+        updateCatalog,
+        uploadCatalogImage,
+        deleteCatalogImage,
+        updateItem,
+        createItem,
+        deleteItem,
+      }}
     >
       {children}
     </EditCatalogContext.Provider>

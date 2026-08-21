@@ -11,7 +11,7 @@ import { CartDrawer } from '@/sections/cart/components/CartDrawer'
 
 function PublicCatalogContent({ catalogId }: { catalogId: string }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const { isLoading, error, notFound } = usePublicCatalog()
+  const { isLoading, error, notFound, isOwner } = usePublicCatalog()
 
   if (isLoading) {
     return (
@@ -48,6 +48,7 @@ function PublicCatalogContent({ catalogId }: { catalogId: string }) {
         catalogId={catalogId}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
+        isOwner={isOwner}
       />
     </>
   )
@@ -62,9 +63,10 @@ export function PublicCatalogPage() {
 
   return (
     <PublicCatalogProvider catalogId={catalogId}>
-      <main className="flex min-h-dvh flex-col gap-5 p-4">
+      {/* NavShell owns the <main> landmark; this is just the page body. */}
+      <div className="flex flex-1 flex-col gap-5 p-4">
         <PublicCatalogContent catalogId={catalogId} />
-      </main>
+      </div>
     </PublicCatalogProvider>
   )
 }

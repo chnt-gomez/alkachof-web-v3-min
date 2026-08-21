@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Store, CircleUserRound, ReceiptText, MessageCircle, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/BrandMark'
@@ -44,12 +44,18 @@ function NotificationBell() {
 export function NavShell() {
   const { isAuthenticated, profile } = useAuth()
   const { unreadCount } = useChat()
+  const location = useLocation()
 
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <Link to="/" aria-label="Alkachof — inicio">
+          {/* Guests reach the shell through the public catalog, where "inicio"
+              is a protected route — send them to the landing page instead. */}
+          <Link
+            to={isAuthenticated ? '/' : '/about'}
+            aria-label={isAuthenticated ? 'Alkachof — inicio' : 'Alkachof — conoce la plataforma'}
+          >
             <BrandMark />
           </Link>
           {isAuthenticated ? (
@@ -71,13 +77,17 @@ export function NavShell() {
             </div>
           ) : (
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/login">Ingresar</Link>
+              {/* Carry the current page so login returns the visitor to the
+                  catalog they were browsing, not to Inicio. */}
+              <Link to="/login" state={{ from: location.pathname }}>
+                Ingresar
+              </Link>
             </Button>
           )}
         </div>
       </header>
 
-      <main className={cn('flex-1', isAuthenticated && 'pb-24')}>
+      <main className={cn('flex flex-1 flex-col', isAuthenticated && 'pb-24')}>
         <Outlet />
       </main>
 

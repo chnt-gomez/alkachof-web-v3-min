@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
@@ -14,16 +14,25 @@ vi.mock('../actions/updateItem')
 vi.mock('../actions/createItem')
 vi.mock('../actions/deleteItem')
 vi.mock('../actions/broadcastCatalog')
+vi.mock('../actions/uploadCatalogImage')
+vi.mock('../actions/deleteCatalogImage')
 vi.mock('@/sections/publicCatalog/actions/fetchCatalogLocation')
+// CatalogPage renders OwnerQuestionsPanel, which fetches on mount. Left real it
+// hits the network, fails, and renders a second role="alert" box that makes every
+// findByRole('alert') in this file ambiguous.
+vi.mock('@/sections/publicCatalog/actions/fetchCatalogQuestions')
 
 import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
+import { fetchCatalogQuestions } from '@/sections/publicCatalog/actions/fetchCatalogQuestions'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog } from '../actions/updateCatalog'
 import { updateItem } from '../actions/updateItem'
 import { createItem } from '../actions/createItem'
 import { deleteItem } from '../actions/deleteItem'
 import { broadcastCatalog } from '../actions/broadcastCatalog'
+import { uploadCatalogImage } from '../actions/uploadCatalogImage'
+import { deleteCatalogImage } from '../actions/deleteCatalogImage'
 
 const mockCatalog: Catalog = {
   _id: 'cat1',
@@ -80,6 +89,7 @@ beforeEach(() => {
   vi.mocked(fetchMyCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
+  vi.mocked(fetchCatalogQuestions).mockResolvedValue([])
   vi.mocked(updateCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(updateItem).mockImplementation(async (itemId, patch) => ({
     ...mockItems.find((i) => i._id === itemId)!,
@@ -97,7 +107,24 @@ beforeEach(() => {
     updatedOn: new Date().toISOString(),
   })
   vi.mocked(broadcastCatalog).mockResolvedValue({ ok: true })
+  vi.mocked(uploadCatalogImage).mockResolvedValue(withImage('https://cdn.test/cat1_123.png'))
+  vi.mocked(deleteCatalogImage).mockResolvedValue(mockCatalog)
 })
+
+/** The API omits `image` entirely when unset, so build the present case explicitly. */
+function withImage(image: string): Catalog {
+  return { ...mockCatalog, image }
+}
+
+/**
+ * Drives the hidden gallery input inside ImageUploadField's picker sheet.
+ * userEvent.upload refuses display:none inputs, so fire the change directly.
+ */
+function pickFile(container: HTMLElement, file: File) {
+  const input = container.querySelector<HTMLInputElement>('input[type="file"]')
+  if (!input) throw new Error('file input not found — is the picker sheet open?')
+  fireEvent.change(input, { target: { files: [file] } })
+}
 
 describe('CatalogPage', () => {
   it('shows loading state before data resolves', () => {
@@ -156,11 +183,11 @@ describe('CatalogPage', () => {
     expect(screen.queryByText('Editar producto')).not.toBeInTheDocument()
   })
 
-  it('opens add product modal when agregar producto is clicked', async () => {
+  it('opens add item modal when agregar artículo is clicked', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /agregar producto/i }))
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
 
     expect(screen.getByText('Nuevo producto')).toBeInTheDocument()
   })
@@ -227,7 +254,7 @@ describe('CatalogPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /agregar producto/i }))
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
 
     await screen.findByRole('dialog', { name: 'Nuevo producto' })
     const nameInput = await screen.findByPlaceholderText(/nombre del producto/i)
@@ -250,9 +277,101 @@ describe('CatalogPage', () => {
         name: 'Collar nuevo',
         price: 19950,
         image: file,
+        // Product is the default when the seller doesn't touch the type picker.
+        type: 'product',
       }),
     )
     expect(screen.queryByRole('dialog', { name: 'Nuevo producto' })).not.toBeInTheDocument()
+  })
+
+  it('creates a service, defaulting its price to zero when left blank', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
+    await user.click(screen.getByRole('radio', { name: 'Servicio' }))
+
+    // The dialog re-frames itself around the chosen type.
+    const dialog = await screen.findByRole('dialog', { name: 'Nuevo servicio' })
+    expect(within(dialog).getByText(/acordar el precio con cada cliente/i)).toBeInTheDocument()
+
+    await user.type(screen.getByPlaceholderText(/nombre del servicio/i), 'Corte de cabello')
+
+    await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
+    const galleryInput = document.querySelector(
+      'input[type="file"]:not([capture])',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'corte.png', { type: 'image/png' })
+    await user.upload(galleryInput, file)
+    await waitFor(() =>
+      expect(screen.getByRole('img', { name: 'Corte de cabello' })).toBeInTheDocument(),
+    )
+
+    await user.click(screen.getByRole('button', { name: /^agregar$/i }))
+
+    expect(createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Corte de cabello',
+        type: 'service',
+        price: 0,
+      }),
+    )
+  })
+
+  it('recolours the save button to follow the chosen type', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
+    const save = screen.getByRole('button', { name: /^agregar$/i })
+
+    // Product is the default, so the button starts on the signature green.
+    expect(save).toHaveClass('bg-primary')
+    expect(save).not.toHaveClass('bg-service')
+
+    await user.click(screen.getByRole('radio', { name: 'Servicio' }))
+    expect(save).toHaveClass('bg-service')
+    expect(save).not.toHaveClass('bg-primary')
+
+    await user.click(screen.getByRole('radio', { name: 'Producto' }))
+    expect(save).toHaveClass('bg-primary')
+  })
+
+  it('shows the type as read-only when editing, since it cannot be changed', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Bolsa tejida' }))
+
+    expect(screen.queryByRole('radio', { name: 'Servicio' })).not.toBeInTheDocument()
+    expect(
+      screen.getByText('El tipo no se puede cambiar después de crear el artículo.'),
+    ).toBeInTheDocument()
+  })
+
+  it('does not offer the stock flag when editing a service', async () => {
+    vi.mocked(fetchCatalogItems).mockResolvedValue([
+      {
+        _id: 'item3',
+        name: 'Corte de cabello',
+        description: 'Incluye lavado',
+        price: 0,
+        imgPath: '',
+        outOfStock: false,
+        updatedOn: '2024-01-01T00:00:00Z',
+        catalogId: 'cat1',
+        type: 'service',
+      },
+    ])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Corte de cabello' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Editar servicio' })
+    // Services have no stock, so the flag products get is absent here.
+    expect(within(dialog).queryByText('Sin existencias')).not.toBeInTheDocument()
+    expect(within(dialog).getByText('Servicio')).toBeInTheDocument()
   })
 
   it('rejects negative price with a Spanish validation error', async () => {
@@ -352,8 +471,8 @@ describe('CatalogPage', () => {
     vi.mocked(fetchCatalogItems).mockResolvedValue([])
     renderPage()
 
-    expect(await screen.findByText(/aún no tienes productos/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /agregar primer producto/i })).toBeInTheDocument()
+    expect(await screen.findByText(/aún no tienes artículos/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /agregar primer artículo/i })).toBeInTheDocument()
   })
 
   it('opens the announce composer when Anunciar is clicked', async () => {
@@ -420,5 +539,72 @@ describe('CatalogPage', () => {
     await user.click(screen.getByRole('button', { name: /enviar anuncio/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/ya enviaste un anuncio hoy/i)
+  })
+})
+
+describe('CatalogPage catalog image', () => {
+  it('renders the placeholder when the catalog has no image', async () => {
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    expect(screen.getByRole('img', { name: /aún no tiene imagen/i })).toBeInTheDocument()
+    expect(screen.queryByAltText('Tienda de Prueba')).not.toBeInTheDocument()
+  })
+
+  it('renders the catalog image when the api returns one', async () => {
+    vi.mocked(fetchMyCatalog).mockResolvedValue(withImage('https://cdn.test/tienda.png'))
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    expect(await screen.findByAltText('Tienda de Prueba')).toHaveAttribute(
+      'src',
+      'https://cdn.test/tienda.png',
+    )
+    expect(screen.queryByRole('img', { name: /aún no tiene imagen/i })).not.toBeInTheDocument()
+  })
+
+  it('uploads a picked image and renders the url the api returned', async () => {
+    const user = userEvent.setup()
+    const { container } = renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
+    await user.click(await screen.findByRole('button', { name: 'Agregar imagen' }))
+    pickFile(container, new File(['x'], 'tienda.png', { type: 'image/png' }))
+
+    await waitFor(() => expect(uploadCatalogImage).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(uploadCatalogImage).mock.calls[0][0]).toBe('cat1')
+
+    const images = await screen.findAllByAltText('Tienda de Prueba')
+    expect(images[0]).toHaveAttribute('src', 'https://cdn.test/cat1_123.png')
+  })
+
+  it('rejects an unsupported file type before calling the api', async () => {
+    const user = userEvent.setup()
+    const { container } = renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
+    await user.click(await screen.findByRole('button', { name: 'Agregar imagen' }))
+    pickFile(container, new File(['x'], 'tienda.webp', { type: 'image/webp' }))
+
+    // Matched on the full message, not by role: the owner questions panel
+    // renders its own alert, and the field's hint also mentions JPG/PNG.
+    expect(await screen.findByText('Formato no admitido. Usa JPG o PNG.')).toBeInTheDocument()
+    expect(uploadCatalogImage).not.toHaveBeenCalled()
+  })
+
+  it('removes the image and returns the header to the placeholder', async () => {
+    vi.mocked(fetchMyCatalog).mockResolvedValue(withImage('https://cdn.test/tienda.png'))
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
+    await user.click(await screen.findByRole('button', { name: /quitar imagen/i }))
+
+    await waitFor(() => expect(deleteCatalogImage).toHaveBeenCalledWith('cat1'))
+    expect(await screen.findByRole('img', { name: /aún no tiene imagen/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /quitar imagen/i })).not.toBeInTheDocument()
   })
 })

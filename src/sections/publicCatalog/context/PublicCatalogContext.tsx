@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { ApiError } from '@/lib/api'
+import { useAuth } from '@/sections/auth/useAuth'
 import { fetchPublicCatalog, type Catalog } from '../actions/fetchPublicCatalog'
 import { fetchCatalogItems, type Item } from '../actions/fetchCatalogItems'
 
@@ -9,6 +10,13 @@ type PublicCatalogState = {
   isLoading: boolean
   error: string | null
   notFound: boolean
+  /**
+   * The visitor is the catalog's owner, looking at their own shop. They may
+   * browse it, but every buyer-side action (buying, asking, requesting) is
+   * meaningless against themselves and rejected by the backend, so the UI
+   * blocks it up front. Computed once here so every consumer agrees.
+   */
+  isOwner: boolean
 }
 
 const PublicCatalogContext = createContext<PublicCatalogState | null>(null)
@@ -25,6 +33,9 @@ export function PublicCatalogProvider({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const { profile } = useAuth()
+
+  const isOwner = Boolean(catalog && profile && catalog.userId === profile.userId)
 
   useEffect(() => {
     setIsLoading(true)
@@ -47,7 +58,9 @@ export function PublicCatalogProvider({
   }, [catalogId])
 
   return (
-    <PublicCatalogContext.Provider value={{ catalog, items, isLoading, error, notFound }}>
+    <PublicCatalogContext.Provider
+      value={{ catalog, items, isLoading, error, notFound, isOwner }}
+    >
       {children}
     </PublicCatalogContext.Provider>
   )

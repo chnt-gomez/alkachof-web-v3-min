@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, ImageIcon, Loader2, X } from 'lucide-react'
+import { Camera, ImageIcon, Loader2, Trash2, X } from 'lucide-react'
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_BYTES = 5 * 1024 * 1024
+// Must stay in step with the API's multer fileFilter (`api/util/storageFactory.js`):
+// JPEG/PNG only, 10 MB. WebP is deliberately absent — the server rejects it, and
+// its multer error surfaces as an opaque 500, so we reject it up front instead.
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png']
+const MAX_BYTES = 10 * 1024 * 1024
 
 type Props = {
   value: string
@@ -18,6 +21,11 @@ type Props = {
    * preview url so the field renders the choice immediately.
    */
   onFileSelect?: (file: File) => void
+  /**
+   * Removes the persisted image. The control renders only when this is provided
+   * and there is a `value`, so callers without a delete endpoint are untouched.
+   */
+  onDelete?: () => Promise<void>
   alt?: string
   placeholder?: string
   ariaLabel?: string
@@ -28,12 +36,14 @@ export function ImageUploadField({
   onChange,
   upload,
   onFileSelect,
+  onDelete,
   alt,
   placeholder = 'Toca para agregar imagen',
   ariaLabel,
 }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Preview urls we minted ourselves, released when replaced or unmounted.
   const previewUrl = useRef<string | null>(null)
@@ -51,11 +61,11 @@ export function ImageUploadField({
   async function handleFile(file: File) {
     setError(null)
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError('Formato no admitido. Usa JPG, PNG o WebP.')
+      setError('Formato no admitido. Usa JPG o PNG.')
       return
     }
     if (file.size > MAX_BYTES) {
-      setError('La imagen excede el tamaño máximo de 5 MB.')
+      setError('La imagen excede el tamaño máximo de 10 MB.')
       return
     }
     if (!upload) {
@@ -74,13 +84,28 @@ export function ImageUploadField({
     }
   }
 
+  async function handleDelete() {
+    if (!onDelete) return
+    setError(null)
+    setDeleting(true)
+    try {
+      await onDelete()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo quitar la imagen.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const busy = uploading || deleting
+
   return (
     <div className="flex flex-col gap-2">
       <button
         type="button"
         className="flex w-full flex-col items-center justify-center overflow-hidden rounded-xl border bg-muted transition-opacity hover:opacity-80 disabled:opacity-50"
         onClick={() => setSheetOpen(true)}
-        disabled={uploading}
+        disabled={busy}
         aria-label={ariaLabel ?? (value ? 'Cambiar imagen' : 'Agregar imagen')}
         aria-busy={uploading}
       >
@@ -97,6 +122,19 @@ export function ImageUploadField({
           </div>
         )}
       </button>
+
+      {onDelete && value && (
+        <button
+          type="button"
+          onClick={() => void handleDelete()}
+          disabled={busy}
+          aria-busy={deleting}
+          className="flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+        >
+          {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+          {deleting ? 'Quitando…' : 'Quitar imagen'}
+        </button>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-destructive">

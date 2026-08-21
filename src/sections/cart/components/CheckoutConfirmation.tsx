@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Check } from 'lucide-react'
+import { formatPrice } from '@/lib/format'
 import { fetchPublicCatalog, type Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import { Button } from '@/components/ui/button'
 import type { CartLine, CheckoutResult } from '../types'
-
-function formatPrice(cents: number) {
-  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
-}
 
 type Props = {
   catalogId: string

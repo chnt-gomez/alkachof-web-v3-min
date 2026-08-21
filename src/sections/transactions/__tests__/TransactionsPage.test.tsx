@@ -1,8 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TransactionsPage } from '../TransactionsPage'
+import { MIN_PENDING_MS } from '@/lib/pendingAction'
 import type { TransactionListResult } from '../actions/fetchTransactions'
 import type { PurchaseLine, TransactionSummary } from '../types'
 
@@ -11,6 +12,11 @@ vi.mock('../actions/fetchTransactionPurchases')
 vi.mock('../actions/updateTransactionStatus')
 vi.mock('../actions/fetchCatalogSummaries')
 vi.mock('../actions/fetchProfileSummaries')
+
+// Requests are a separate entity rendered under the Servicios tab; stub the
+// list call so the toggle can be exercised without the request stack.
+vi.mock('@/sections/requests/actions/fetchRequests')
+vi.mock('@/sections/requests/actions/updateRequestStatus')
 
 // The detail dialog resolves a chat via the chat section's hook. Stub it (an
 // out-of-section dependency) so no ChatProvider stack is needed; findChatWith
@@ -25,8 +31,15 @@ import { fetchTransactionPurchases } from '../actions/fetchTransactionPurchases'
 import { updateTransactionStatus } from '../actions/updateTransactionStatus'
 import { fetchCatalogSummaries } from '../actions/fetchCatalogSummaries'
 import { fetchProfileSummaries } from '../actions/fetchProfileSummaries'
+import { fetchRequests } from '@/sections/requests/actions/fetchRequests'
+import type { ServiceRequest } from '@/sections/requests/types'
 
 const ISO = new Date('2026-07-14T12:00:00Z').toISOString()
+
+// Status changes are held for MIN_PENDING_MS while the button fills, so any
+// assertion on the result has to outwait it (default findBy timeout is 1000ms,
+// exactly the floor — too close to be reliable).
+const HELD_MS = MIN_PENDING_MS + 1500
 
 const sampleSummary = (overrides: Partial<TransactionSummary> = {}): TransactionSummary => ({
   id: 't1',
@@ -84,6 +97,14 @@ function renderPage(entry = '/transactions') {
   )
 }
 
+/** Pedidos opens on Ventas, so buyer-side tests switch to Compras first. */
+async function renderAsBuyer(entry = '/transactions') {
+  const user = userEvent.setup()
+  renderPage(entry)
+  await user.click(await screen.findByRole('tab', { name: 'Compras' }))
+  return user
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   findChatWith.mockReturnValue(undefined)
@@ -91,13 +112,28 @@ beforeEach(() => {
   vi.mocked(fetchTransactionPurchases).mockResolvedValue([sampleLine()])
   vi.mocked(fetchCatalogSummaries).mockResolvedValue({})
   vi.mocked(fetchProfileSummaries).mockResolvedValue({})
+  vi.mocked(fetchRequests).mockResolvedValue([])
+})
+
+const sampleRequest = (overrides: Partial<ServiceRequest> = {}): ServiceRequest => ({
+  id: 'r1',
+  serviceId: 'svc1',
+  buyerId: 'u1',
+  sellerId: 'u2',
+  catalogId: 'cat1',
+  status: 'REQUESTED',
+  finalPrice: null,
+  customerNote: 'Cuatro ventanas.',
+  dateCreated: ISO,
+  dateUpdated: null,
+  ...overrides,
 })
 
 describe('TransactionsPage', () => {
-  it('lists the buyer transactions by default', async () => {
-    renderPage()
+  it('lists the buyer transactions on the Compras tab', async () => {
+    await renderAsBuyer()
 
-    // Scope to the card so the status badge is not confused with the filter chip.
+    // Scope to the card so the assertion is about the badge, not the page.
     const card = await screen.findByRole('button', { name: /pedido de/i })
     expect(within(card).getByText('En camino')).toBeInTheDocument()
     expect(within(card).getByText('$459.00')).toBeInTheDocument()
@@ -111,7 +147,7 @@ describe('TransactionsPage', () => {
     vi.mocked(fetchCatalogSummaries).mockResolvedValue({
       catABC: { catalogId: 'catABC', alias: 'Mi Tienda Demo' },
     })
-    renderPage()
+    await renderAsBuyer()
 
     const card = await screen.findByRole('button', { name: /pedido de/i })
     expect(within(card).getByText('Mi Tienda Demo')).toBeInTheDocument()
@@ -122,7 +158,7 @@ describe('TransactionsPage', () => {
     vi.mocked(fetchTransactions).mockResolvedValue(
       listResult([sampleSummary({ catalogId: null })]),
     )
-    renderPage()
+    await renderAsBuyer()
 
     const card = await screen.findByRole('button', { name: /pedido de/i })
     expect(within(card).getByText('Catálogo')).toBeInTheDocument()
@@ -130,7 +166,7 @@ describe('TransactionsPage', () => {
     expect(fetchCatalogSummaries).not.toHaveBeenCalled()
   })
 
-  it('renders the buyer name as the seller row header, resolved from counterpartyId', async () => {
+  it('titles a seller row with the buyer name, resolved from counterpartyId', async () => {
     vi.mocked(fetchTransactions).mockResolvedValue(
       listResult([sampleSummary({ counterpartyId: 'buyerX' })]),
     )
@@ -142,8 +178,19 @@ describe('TransactionsPage', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Ventas' }))
 
     const card = await screen.findByRole('button', { name: /ana ramírez/i })
-    expect(within(card).getByText('Ana Ramírez')).toBeInTheDocument()
+    expect(within(card).getByText('Pedido de Ana Ramírez')).toBeInTheDocument()
     expect(fetchProfileSummaries).toHaveBeenCalledWith(['buyerX'])
+  })
+
+  it('titles a buyer row with the shop alone — no "Pedido de" prefix', async () => {
+    vi.mocked(fetchTransactions).mockResolvedValue(listResult([sampleSummary()]))
+    vi.mocked(fetchCatalogSummaries).mockResolvedValue({
+      cat1: { catalogId: 'cat1', alias: 'Rebozos Oaxaca' },
+    })
+    await renderAsBuyer()
+
+    const card = await screen.findByRole('button', { name: /pedido de/i })
+    expect(within(card).getByText('Rebozos Oaxaca')).toBeInTheDocument()
   })
 
   it('refetches with the seller role when the Ventas tab is selected', async () => {
@@ -157,24 +204,30 @@ describe('TransactionsPage', () => {
     )
   })
 
-  it('filters by status when a chip is selected', async () => {
+  it('renders no status filter — the role tabs are the only control', async () => {
     renderPage()
     await screen.findByRole('button', { name: /pedido de/i })
 
-    await userEvent.click(screen.getByRole('button', { name: 'Entregado' }))
-
-    await waitFor(() =>
-      expect(fetchTransactions).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'DELIVERED' }),
-      ),
-    )
+    expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Entregado' })).not.toBeInTheDocument()
+    // Both role tabs stay.
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
   })
 
-  it('shows an empty state when there are no transactions', async () => {
+  it('words the empty state for the role being viewed', async () => {
     vi.mocked(fetchTransactions).mockResolvedValue(listResult([]))
+    const user = userEvent.setup()
     renderPage()
 
-    expect(await screen.findByText('Aún no has realizado compras.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Aún no has recibido ventas ni solicitudes.'),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Compras' }))
+
+    expect(
+      await screen.findByText('Aún no has realizado compras ni solicitudes.'),
+    ).toBeInTheDocument()
   })
 
   it('opens the detail dialog with line items when a card is tapped', async () => {
@@ -241,18 +294,47 @@ describe('TransactionsPage', () => {
       expect(updateTransactionStatus).toHaveBeenCalledWith('t-seller', 'PROCESSING'),
     )
     // Status advanced in place: the PROCESSING actions replace the STARTED ones.
-    expect(await screen.findByRole('button', { name: 'Marcar en camino' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('button', { name: 'Marcar en camino' }, { timeout: HELD_MS }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Marcar en proceso' })).not.toBeInTheDocument()
+  })
+
+  it('holds the status button as a progress bar while the change is in flight', async () => {
+    const started = sampleSummary({ id: 't-seller', status: 'STARTED' })
+    vi.mocked(fetchTransactions).mockResolvedValue(listResult([started]))
+    vi.mocked(updateTransactionStatus).mockResolvedValue({
+      id: 't-seller',
+      purchaseIds: ['p1'],
+      buyerId: 'u2',
+      sellerId: 'me',
+      status: 'PROCESSING',
+      dateCreated: ISO,
+      dateUpdated: ISO,
+    })
+    renderPage()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Ventas' }))
+    await userEvent.click(await screen.findByRole('button', { name: /pedido de/i }))
+
+    // fireEvent, not userEvent: the latter awaits pending timers, which would
+    // sit through the whole hold and miss the state being asserted.
+    fireEvent.click(await screen.findByRole('button', { name: 'Marcar en proceso' }))
+
+    expect(
+      screen.getByRole('progressbar', { name: /marcar en proceso: actualizando el pedido/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Actualizando…' })).toBeDisabled()
   })
 
   it('does not render status actions for a buyer', async () => {
     vi.mocked(fetchTransactions).mockResolvedValue(
       listResult([sampleSummary({ status: 'EN-ROUTE' })]),
     )
-    renderPage()
+    const user = await renderAsBuyer()
 
     const card = await screen.findByRole('button', { name: /pedido de/i })
-    await userEvent.click(card)
+    await user.click(card)
 
     await screen.findByText('Detalle del pedido')
     expect(screen.queryByText('Actualizar estado')).not.toBeInTheDocument()
@@ -304,16 +386,124 @@ describe('TransactionsPage', () => {
     )
   })
 
-  it('surfaces a retryable error when the list fails to load', async () => {
+  it('surfaces a retryable error when both halves of the feed fail', async () => {
     vi.mocked(fetchTransactions).mockRejectedValueOnce(new Error('boom'))
+    vi.mocked(fetchRequests).mockRejectedValueOnce(new Error('boom'))
     renderPage()
 
     expect(await screen.findByText('No pudimos cargar tus pedidos.')).toBeInTheDocument()
 
     vi.mocked(fetchTransactions).mockResolvedValueOnce(listResult([sampleSummary()]))
+    vi.mocked(fetchRequests).mockResolvedValueOnce([])
     await userEvent.click(screen.getByRole('button', { name: /reintentar/i }))
 
     expect(await screen.findByRole('button', { name: /pedido de/i })).toBeInTheDocument()
     expect(screen.queryByText('No pudimos cargar tus pedidos.')).not.toBeInTheDocument()
+  })
+
+  it('still shows what loaded when only one half fails, and says so', async () => {
+    // Requests are down; product orders came back. Showing them silently would
+    // present a partial feed as the whole truth.
+    vi.mocked(fetchRequests).mockRejectedValue(new Error('boom'))
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /pedido de/i })).toBeInTheDocument()
+    expect(
+      screen.getByText('No pudimos cargar parte de tus pedidos. Puede que falten algunos.'),
+    ).toBeInTheDocument()
+    // Not the blanking full-page error.
+    expect(screen.queryByText('No pudimos cargar tus pedidos.')).not.toBeInTheDocument()
+  })
+
+  describe('the merged feed', () => {
+    it('lists product orders and service requests together, newest first', async () => {
+      vi.mocked(fetchTransactions).mockResolvedValue(
+        listResult([sampleSummary({ dateCreated: '2026-07-10T12:00:00Z' })]),
+      )
+      vi.mocked(fetchRequests).mockResolvedValue([
+        sampleRequest({ dateCreated: '2026-07-14T12:00:00Z' }),
+      ])
+      renderPage()
+
+      const rows = await screen.findAllByRole('listitem')
+      expect(rows).toHaveLength(2)
+      // The request is newer, so it sorts above the product order.
+      expect(
+        within(rows[0]).getByRole('button', { name: /solicitud (de|a)/i }),
+      ).toBeInTheDocument()
+      expect(within(rows[1]).getByRole('button', { name: /pedido de/i })).toBeInTheDocument()
+    })
+
+    it('offers no Productos / Servicios split — role is the only division', async () => {
+      renderPage()
+      await screen.findByRole('button', { name: /pedido de/i })
+
+      expect(screen.queryByRole('tab', { name: 'Servicios' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: 'Productos' })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Compras' })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Ventas' })).toBeInTheDocument()
+    })
+
+    it('sends both halves the seller role when Ventas is selected', async () => {
+      renderPage()
+      await screen.findByRole('button', { name: /pedido de/i })
+
+      await userEvent.click(screen.getByRole('tab', { name: 'Ventas' }))
+
+      await waitFor(() => {
+        expect(fetchTransactions).toHaveBeenCalledWith(
+          expect.objectContaining({ role: 'seller' }),
+        )
+        expect(fetchRequests).toHaveBeenCalledWith(expect.objectContaining({ role: 'seller' }))
+      })
+    })
+
+    it('opens the right dialog for each kind of row', async () => {
+      vi.mocked(fetchRequests).mockResolvedValue([sampleRequest()])
+      renderPage()
+
+      await userEvent.click(await screen.findByRole('button', { name: /solicitud (de|a)/i }))
+      expect(await screen.findByText('Detalle de la solicitud')).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+
+      await userEvent.click(screen.getByRole('button', { name: /pedido de/i }))
+      expect(await screen.findByText('Detalle del pedido')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('TransactionsPage role tabs', () => {
+  it('opens on Ventas', async () => {
+    renderPage()
+
+    expect(await screen.findByRole('tab', { name: 'Ventas' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByRole('tab', { name: 'Compras' })).toHaveAttribute('aria-selected', 'false')
+    expect(fetchTransactions).toHaveBeenCalledWith(expect.objectContaining({ role: 'seller' }))
+  })
+
+  it('puts Ventas on the left and Compras on the right', async () => {
+    renderPage()
+    await screen.findByRole('tab', { name: 'Ventas' })
+
+    const labels = screen.getAllByRole('tab').map((t) => t.textContent)
+    expect(labels).toEqual(['Ventas', 'Compras'])
+  })
+
+  // Mirrors the Home tabs: seller side green, buy side the #FF9100 signature.
+  it('paints the active tab with its side of the app', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const ventas = await screen.findByRole('tab', { name: 'Ventas' })
+    expect(ventas).toHaveClass('bg-primary', 'text-primary-foreground')
+    expect(screen.getByRole('tab', { name: 'Compras' }).className).not.toMatch(/bg-buy/)
+
+    await user.click(screen.getByRole('tab', { name: 'Compras' }))
+
+    expect(screen.getByRole('tab', { name: 'Compras' })).toHaveClass('bg-buy', 'text-buy-ink')
+    expect(screen.getByRole('tab', { name: 'Ventas' }).className).not.toMatch(/bg-primary/)
   })
 })

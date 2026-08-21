@@ -1,3 +1,5 @@
+import type { ItemType } from '@/lib/item'
+
 // A cart line is self-contained: it snapshots the item's display data at the
 // moment it was added, so the cart renders without re-fetching the catalog.
 export type CartLine = {
@@ -6,6 +8,12 @@ export type CartLine = {
   name: string
   price: number
   imgPath: string
+  /**
+   * Snapshot of the item's type. Only ever 'product' on lines written after
+   * services shipped; absent on lines already in localStorage from before, which
+   * `isService` correctly reads as products.
+   */
+  type?: ItemType
 }
 
 import type { Transaction } from '@/sections/transactions/types'

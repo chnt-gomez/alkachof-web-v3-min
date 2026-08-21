@@ -1,34 +1,40 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { formatPrice } from '@/lib/format'
+import { withMinDuration } from '@/lib/pendingAction'
+import { cn } from '@/lib/utils'
+import { useToast } from '@/components/ui/useToast'
 import { useAuth } from '@/sections/auth/useAuth'
 import { useCart } from '../context/CartContext'
 import { Button } from '@/components/ui/button'
+import { ProgressButton } from '@/components/ui/progressButton'
+import { ServiceInCartError } from '../actions/checkoutCart'
 import { CartLineItem } from './CartLineItem'
 import { CheckoutConfirmation } from './CheckoutConfirmation'
 import { GuestCheckoutPrompt } from './GuestCheckoutPrompt'
 import type { CartLine, CheckoutResult } from '../types'
 
-// The checkout button fills left-to-right as a progress bar over this window
-// before the confirmation appears, so checkout always registers as work.
-const MIN_CHECKOUT_MS = 1000
-
-function formatPrice(cents: number) {
-  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
-}
-
 type Props = {
   catalogId: string
   isOpen: boolean
   onClose: () => void
+  /**
+   * The viewer owns this catalog. Passed in rather than read from the catalog
+   * context so the cart section stays independent of the public-catalog one.
+   */
+  isOwner?: boolean
 }
 
-export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
+export function CartDrawer({ catalogId, isOpen, onClose, isOwner = false }: Props) {
   const { isAuthenticated } = useAuth()
   const { linesFor, checkout } = useCart()
+  const toast = useToast()
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null)
   const [purchasedLines, setPurchasedLines] = useState<CartLine[]>([])
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [showGuestPrompt, setShowGuestPrompt] = useState(false)
+  /** Name of a service the server refused, once it has been dropped from the cart. */
+  const [rejectedService, setRejectedService] = useState<string | null>(null)
 
   const cartLines = linesFor(catalogId)
 
@@ -41,6 +47,13 @@ export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
   if (!isOpen) return null
 
   const handleCheckout = async () => {
+    // An owner browsing their own shop can't buy from themselves — the backend
+    // would reject it, so say why rather than letting the request go out.
+    if (isOwner) {
+      toast.error('Este es tu catálogo: no puedes comprar tus propios productos.')
+      return
+    }
+
     // Guests can build a cart, but completing the purchase requires an account.
     // Encourage them to sign up instead of hitting the checkout endpoint.
     if (!isAuthenticated) {
@@ -52,14 +65,19 @@ export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
     // view and the confirmation can show the real order summary and total.
     setPurchasedLines(cartLines)
     setIsCheckingOut(true)
+    setRejectedService(null)
     try {
-      const [result] = await Promise.all([
-        checkout(catalogId),
-        new Promise((resolve) => setTimeout(resolve, MIN_CHECKOUT_MS)),
-      ])
+      const result = await withMinDuration(checkout(catalogId))
       setCheckoutResult(result)
-    } catch {
-      // error handled in context
+    } catch (err) {
+      // A service slipped into the cart (added before the client tracked item
+      // types). The context has already removed it and nothing was charged, so
+      // name it and invite a retry rather than showing a bare error.
+      if (err instanceof ServiceInCartError) {
+        const line = cartLines.find((l) => l.itemId === err.itemId)
+        setRejectedService(line?.name ?? 'Un servicio')
+      }
+      // other errors are surfaced by the context's toast
     } finally {
       setIsCheckingOut(false)
     }
@@ -122,6 +140,21 @@ export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
         <div className="flex flex-col gap-4 p-5">
           <h2 className="text-lg font-bold">Tu carrito</h2>
 
+          {rejectedService && (
+            <div
+              role="alert"
+              className="flex flex-col gap-1 rounded-xl border border-amber-300 bg-amber-50 p-3"
+            >
+              <p className="text-sm font-semibold text-amber-900">
+                Quitamos «{rejectedService}» de tu carrito
+              </p>
+              <p className="text-xs text-amber-800">
+                Es un servicio, y los servicios se solicitan al vendedor en lugar de comprarse.
+                No se hizo ningún cargo: puedes finalizar tu pedido con el resto.
+              </p>
+            </div>
+          )}
+
           {isEmpty ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
               <p className="text-sm text-muted-foreground">Tu carrito está vacío</p>
@@ -146,22 +179,15 @@ export function CartDrawer({ catalogId, isOpen, onClose }: Props) {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button
+                <ProgressButton
                   onClick={handleCheckout}
-                  disabled={isCheckingOut}
-                  className="relative w-full overflow-hidden"
+                  aria-disabled={isOwner || undefined}
+                  className={cn('w-full', isOwner && 'opacity-50')}
+                  pending={isCheckingOut}
+                  progressLabel="Procesando pedido"
                 >
-                  {isCheckingOut && (
-                    <span
-                      role="progressbar"
-                      aria-label="Procesando pedido"
-                      className="absolute inset-y-0 left-0 z-0 bg-primary-foreground/25 animate-progress-fill"
-                    />
-                  )}
-                  <span className="relative z-10">
-                    {isCheckingOut ? 'Procesando…' : 'Finalizar pedido'}
-                  </span>
-                </Button>
+                  Finalizar pedido
+                </ProgressButton>
                 <Button
                   onClick={onClose}
                   variant="outline"

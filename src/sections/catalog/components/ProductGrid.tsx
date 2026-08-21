@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { formatItemPrice } from '@/lib/format'
+import { isService } from '@/lib/item'
+import { ItemTypeChip } from '@/components/ItemTypeChip'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import { ItemFormDialog } from './ItemFormDialog'
 import { DeleteItemConfirm } from './DeleteItemConfirm'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
-
-function formatPrice(cents: number) {
-  return (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
-}
 
 export function ProductGrid() {
   const { catalog, items, createItem, updateItem, deleteItem } = useEditCatalog()
@@ -20,20 +19,20 @@ export function ProductGrid() {
     <>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-muted-foreground">
-          {items.length} {items.length === 1 ? 'producto' : 'productos'}
+          {items.length} {items.length === 1 ? 'artículo' : 'artículos'}
         </p>
         <Button size="sm" onClick={() => setAddingProduct(true)}>
           <Plus size={14} className="mr-1" />
-          Agregar producto
+          Agregar artículo
         </Button>
       </div>
 
       {items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center">
-          <p className="text-sm text-muted-foreground">Aún no tienes productos en este catálogo.</p>
+          <p className="text-sm text-muted-foreground">Aún no tienes artículos en este catálogo.</p>
           <Button size="sm" onClick={() => setAddingProduct(true)}>
             <Plus size={14} className="mr-1" />
-            Agregar primer producto
+            Agregar primer artículo
           </Button>
         </div>
       ) : (
@@ -46,7 +45,9 @@ export function ProductGrid() {
               <button
                 className="flex min-w-0 flex-1 items-center gap-3 p-2 text-left focus:outline-none"
                 onClick={() => setEditingItem(item)}
-                aria-label={item.name || 'Producto sin nombre'}
+                aria-label={
+                  item.name || (isService(item) ? 'Servicio sin nombre' : 'Producto sin nombre')
+                }
               >
                 {item.imgPath ? (
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
@@ -63,20 +64,23 @@ export function ProductGrid() {
                 )}
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <p className="line-clamp-2 text-sm font-medium leading-tight">
-                    {item.name || 'Producto sin nombre'}
+                    {item.name || (isService(item) ? 'Servicio sin nombre' : 'Producto sin nombre')}
                   </p>
-                  <p className="text-sm font-bold text-primary">{formatPrice(item.price)}</p>
-                  {item.outOfStock && (
-                    <p className="self-start rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
-                      Sin existencias
-                    </p>
-                  )}
+                  <p className="text-sm font-bold text-primary">{formatItemPrice(item)}</p>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <ItemTypeChip item={item} />
+                    {!isService(item) && item.outOfStock && (
+                      <p className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                        Sin existencias
+                      </p>
+                    )}
+                  </div>
                 </div>
               </button>
               <button
                 type="button"
                 onClick={() => setDeletingItem(item)}
-                aria-label={`Eliminar ${item.name || 'producto'}`}
+                aria-label={`Eliminar ${item.name || (isService(item) ? 'servicio' : 'producto')}`}
                 className="flex shrink-0 items-center px-3 text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <Trash2 size={16} />
@@ -98,8 +102,8 @@ export function ProductGrid() {
       {addingProduct && catalog && (
         <ItemFormDialog
           mode="create"
-          onSubmit={({ name, description, price, image }) =>
-            createItem({ catalogId: catalog._id, name, description, price, image })
+          onSubmit={({ name, description, price, image, type }) =>
+            createItem({ catalogId: catalog._id, name, description, price, image, type })
           }
           onClose={() => setAddingProduct(false)}
         />

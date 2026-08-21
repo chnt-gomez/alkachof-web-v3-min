@@ -1,7 +1,13 @@
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
+import { __mockCatalogsCache } from './mockFetchMyCatalogs'
 
 export function mockUpdateCatalog(catalogId: string, patch: Partial<Catalog>): Promise<Catalog> {
-  const updated: Catalog = {
+  const cache = __mockCatalogsCache()
+  const cached = cache.find((c) => c._id === catalogId)
+
+  // Merge onto the cached catalog rather than a blank one so fields the form
+  // never sends — `image` above all — survive a save instead of being wiped.
+  const base: Catalog = cached ?? {
     _id: catalogId,
     userId: 'user_mock',
     alias: 'Mi Tienda',
@@ -13,7 +19,9 @@ export function mockUpdateCatalog(catalogId: string, patch: Partial<Catalog>): P
     locationZip: '',
     deliveryDates: [],
     deliveryLocations: [],
-    ...patch,
   }
+
+  const updated: Catalog = { ...base, ...patch }
+  if (cached) cache[cache.indexOf(cached)] = updated
   return Promise.resolve(updated)
 }
