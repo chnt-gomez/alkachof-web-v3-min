@@ -10,6 +10,7 @@ import { MIN_PENDING_MS } from '@/lib/pendingAction'
 
 vi.mock('../actions/fetchPublicCatalog')
 vi.mock('../actions/fetchCatalogItems')
+// The jumbotron reads the location to decide whether to show the map pin.
 vi.mock('../actions/fetchCatalogLocation')
 vi.mock('../actions/fetchCatalogQuestions')
 vi.mock('../actions/askQuestion')
@@ -833,5 +834,98 @@ describe('PublicCatalogPage', () => {
         await screen.findByRole('button', { name: /ver carrito \(1 artículo\)/i }),
       ).toBeInTheDocument()
     })
+  })
+})
+
+describe('PublicCatalogPage catalog image', () => {
+  it('renders the catalog image when the api returns one', async () => {
+    vi.mocked(fetchPublicCatalog).mockResolvedValue({
+      ...mockCatalog,
+      image: 'https://cdn.test/tienda.png',
+    })
+    renderPage()
+
+    expect(await screen.findByAltText('Mi Tienda Artesanal')).toHaveAttribute(
+      'src',
+      'https://cdn.test/tienda.png',
+    )
+  })
+
+  it('renders the placeholder when the catalog has no image', async () => {
+    renderPage()
+    await screen.findByText('Mi Tienda Artesanal')
+
+    expect(screen.getByRole('img', { name: /aún no tiene imagen/i })).toBeInTheDocument()
+  })
+
+  it('never shows the owner upload or remove affordances to a visitor', async () => {
+    vi.mocked(fetchPublicCatalog).mockResolvedValue({
+      ...mockCatalog,
+      image: 'https://cdn.test/tienda.png',
+    })
+    renderPage()
+    await screen.findByAltText('Mi Tienda Artesanal')
+
+    expect(screen.queryByRole('button', { name: /quitar imagen/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Agregar imagen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cambiar imagen' })).not.toBeInTheDocument()
+  })
+})
+
+describe('PublicCatalogPage location', () => {
+  const mockLocation = {
+    _id: 'loc1',
+    lat: 17.0654,
+    lng: -96.7237,
+    street_name: 'Calle Macedonio Alcalá',
+    number: '203',
+    additional_number: '',
+    neighborhood: 'Centro',
+    city: 'Oaxaca de Juárez',
+    state: 'Oaxaca',
+    catalogId: 'abc123',
+    zoneId: null,
+  }
+
+  it('hides the map pin when the catalog has no location', async () => {
+    renderPage()
+    await screen.findByText('Mi Tienda Artesanal')
+
+    expect(screen.queryByRole('button', { name: /ubicación en el mapa/i })).not.toBeInTheDocument()
+  })
+
+  it('hides the map pin when the stored coordinates are out of range', async () => {
+    vi.mocked(fetchCatalogLocation).mockResolvedValue({ ...mockLocation, lat: 999, lng: 999 })
+    renderPage()
+    await screen.findByText('Mi Tienda Artesanal')
+
+    expect(screen.queryByRole('button', { name: /ubicación en el mapa/i })).not.toBeInTheDocument()
+  })
+
+  it('opens the location dialog from the map pin', async () => {
+    vi.mocked(fetchCatalogLocation).mockResolvedValue(mockLocation)
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /ubicación en el mapa/i }))
+
+    const dialog = await screen.findByRole('dialog', { name: /ubicación del catálogo/i })
+    expect(within(dialog).getByAltText(/mapa de la ubicación/i)).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(/Calle Macedonio Alcalá 203, Centro, Oaxaca de Juárez, Oaxaca/),
+    ).toBeInTheDocument()
+  })
+
+  it('offers a maps hand-off pointing at the pinned coordinates', async () => {
+    vi.mocked(fetchCatalogLocation).mockResolvedValue(mockLocation)
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /ubicación en el mapa/i }))
+
+    const link = await screen.findByRole('link', { name: /abrir en mi app de mapas/i })
+    // jsdom reports a desktop UA, so this is the non-iOS `geo:` branch.
+    expect(link).toHaveAttribute('href', expect.stringContaining('17.0654,-96.7237'))
+    expect(link.getAttribute('href')).toMatch(/^geo:/)
   })
 })

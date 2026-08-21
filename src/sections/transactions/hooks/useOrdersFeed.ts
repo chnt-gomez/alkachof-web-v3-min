@@ -27,7 +27,9 @@ export type OrdersFeedStatus = 'loading' | 'ready' | 'error'
  * alternative (paging the merged set) is not possible without server support.
  */
 export function useOrdersFeed() {
-  const [role, setRole] = useState<TransactionRole>('buyer')
+  // Opens on Ventas — the left tab, matching Home opening on its left tab. A
+  // `?role=` deep link still wins (see useTransactionDeepLink).
+  const [role, setRole] = useState<TransactionRole>('seller')
   /** Chips filter by status *label*, since the two enums are disjoint. */
   const [statusLabel, setStatusLabel] = useState<string | null>(null)
 

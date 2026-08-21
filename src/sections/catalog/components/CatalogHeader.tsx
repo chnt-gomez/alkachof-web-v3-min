@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Pencil, ExternalLink, MapPin, Megaphone, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PayOptionChips, DeliveryOptionChips } from '@/components/CatalogOptionChips'
+import { CatalogHeroImage } from '@/components/CatalogImage'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import { EditCatalogScreen } from './EditCatalogScreen'
 import { ShareCatalogDialog } from './ShareCatalogDialog'
@@ -46,6 +47,12 @@ export function CatalogHeader() {
         {catalog.description && (
           <p className="text-sm text-primary-foreground/70">{catalog.description}</p>
         )}
+
+        <CatalogHeroImage
+          src={catalog.image}
+          alt={catalog.alias}
+          hint="Toca el lápiz para agregar una imagen a tu catálogo."
+        />
 
         {catalog.location && (
           <p className="flex items-center gap-1.5 text-sm text-primary-foreground/70">

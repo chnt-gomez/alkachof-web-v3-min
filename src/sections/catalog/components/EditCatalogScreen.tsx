@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MapPin, Pencil, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ImageUploadField } from '@/components/ImageUploadField'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import { LocationEditDialog } from './LocationEditDialog'
 import { fetchCatalogLocation, type CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
@@ -24,7 +25,7 @@ type Props = {
 }
 
 export function EditCatalogScreen({ onClose }: Props) {
-  const { catalog, updateCatalog } = useEditCatalog()
+  const { catalog, updateCatalog, uploadCatalogImage, deleteCatalogImage } = useEditCatalog()
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -114,6 +115,22 @@ export function EditCatalogScreen({ onClose }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe tu catálogo"
+            />
+          </Field>
+
+          <Field
+            label="Imagen del catálogo"
+            hint="Se guarda al instante, sin esperar el botón Guardar. Usa JPG o PNG, máximo 10 MB."
+          >
+            <ImageUploadField
+              // The context writes the action's full response back, so `value`
+              // is already current by the time onChange fires — nothing to do.
+              value={catalog?.image ?? ''}
+              onChange={() => {}}
+              upload={uploadCatalogImage}
+              onDelete={deleteCatalogImage}
+              alt={catalog?.alias || 'Catálogo'}
+              placeholder="Toca para agregar imagen del catálogo"
             />
           </Field>
 

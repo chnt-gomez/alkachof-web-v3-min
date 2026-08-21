@@ -9,9 +9,15 @@ import { OrdersList } from './components/OrdersList'
 import { TransactionDetailDialog } from './components/TransactionDetailDialog'
 import type { TransactionRole, TransactionSummary } from './types'
 
-const ROLE_TABS: { value: TransactionRole; label: string }[] = [
-  { value: 'buyer', label: 'Compras' },
-  { value: 'seller', label: 'Ventas' },
+/**
+ * Ordered and colored to mirror the Home tabs: the seller's own side sits on the
+ * left in the app's green, the buy side on the right in the buy signature color.
+ * Same left/right, same two colors, so "which half am I looking at" reads the
+ * same way on both screens.
+ */
+const ROLE_TABS: { value: TransactionRole; label: string; activeClass: string }[] = [
+  { value: 'seller', label: 'Ventas', activeClass: 'bg-primary text-primary-foreground shadow-sm' },
+  { value: 'buyer', label: 'Compras', activeClass: 'bg-buy text-buy-ink shadow-sm' },
 ]
 
 /**
@@ -59,9 +65,7 @@ export function TransactionsPage() {
             onClick={() => setRole(tab.value)}
             className={cn(
               'flex-1 rounded-full py-1.5 text-sm font-medium transition-colors',
-              role === tab.value
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground',
+              role === tab.value ? tab.activeClass : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {tab.label}

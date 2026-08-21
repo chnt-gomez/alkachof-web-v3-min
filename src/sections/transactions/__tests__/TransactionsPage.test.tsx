@@ -97,6 +97,14 @@ function renderPage(entry = '/transactions') {
   )
 }
 
+/** Pedidos opens on Ventas, so buyer-side tests switch to Compras first. */
+async function renderAsBuyer(entry = '/transactions') {
+  const user = userEvent.setup()
+  renderPage(entry)
+  await user.click(await screen.findByRole('tab', { name: 'Compras' }))
+  return user
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   findChatWith.mockReturnValue(undefined)
@@ -122,8 +130,8 @@ const sampleRequest = (overrides: Partial<ServiceRequest> = {}): ServiceRequest 
 })
 
 describe('TransactionsPage', () => {
-  it('lists the buyer transactions by default', async () => {
-    renderPage()
+  it('lists the buyer transactions on the Compras tab', async () => {
+    await renderAsBuyer()
 
     // Scope to the card so the assertion is about the badge, not the page.
     const card = await screen.findByRole('button', { name: /pedido de/i })
@@ -139,7 +147,7 @@ describe('TransactionsPage', () => {
     vi.mocked(fetchCatalogSummaries).mockResolvedValue({
       catABC: { catalogId: 'catABC', alias: 'Mi Tienda Demo' },
     })
-    renderPage()
+    await renderAsBuyer()
 
     const card = await screen.findByRole('button', { name: /pedido de/i })
     expect(within(card).getByText('Mi Tienda Demo')).toBeInTheDocument()
@@ -150,7 +158,7 @@ describe('TransactionsPage', () => {
     vi.mocked(fetchTransactions).mockResolvedValue(
       listResult([sampleSummary({ catalogId: null })]),
     )
-    renderPage()
+    await renderAsBuyer()
 
     const card = await screen.findByRole('button', { name: /pedido de/i })
     expect(within(card).getByText('Catálogo')).toBeInTheDocument()
@@ -179,7 +187,7 @@ describe('TransactionsPage', () => {
     vi.mocked(fetchCatalogSummaries).mockResolvedValue({
       cat1: { catalogId: 'cat1', alias: 'Rebozos Oaxaca' },
     })
-    renderPage()
+    await renderAsBuyer()
 
     const card = await screen.findByRole('button', { name: /pedido de/i })
     expect(within(card).getByText('Rebozos Oaxaca')).toBeInTheDocument()
@@ -206,9 +214,16 @@ describe('TransactionsPage', () => {
     expect(screen.getAllByRole('tab')).toHaveLength(2)
   })
 
-  it('shows an empty state when there are no transactions', async () => {
+  it('words the empty state for the role being viewed', async () => {
     vi.mocked(fetchTransactions).mockResolvedValue(listResult([]))
+    const user = userEvent.setup()
     renderPage()
+
+    expect(
+      await screen.findByText('Aún no has recibido ventas ni solicitudes.'),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Compras' }))
 
     expect(
       await screen.findByText('Aún no has realizado compras ni solicitudes.'),
@@ -316,10 +331,10 @@ describe('TransactionsPage', () => {
     vi.mocked(fetchTransactions).mockResolvedValue(
       listResult([sampleSummary({ status: 'EN-ROUTE' })]),
     )
-    renderPage()
+    const user = await renderAsBuyer()
 
     const card = await screen.findByRole('button', { name: /pedido de/i })
-    await userEvent.click(card)
+    await user.click(card)
 
     await screen.findByText('Detalle del pedido')
     expect(screen.queryByText('Actualizar estado')).not.toBeInTheDocument()
@@ -454,5 +469,41 @@ describe('TransactionsPage', () => {
       await userEvent.click(screen.getByRole('button', { name: /pedido de/i }))
       expect(await screen.findByText('Detalle del pedido')).toBeInTheDocument()
     })
+  })
+})
+
+describe('TransactionsPage role tabs', () => {
+  it('opens on Ventas', async () => {
+    renderPage()
+
+    expect(await screen.findByRole('tab', { name: 'Ventas' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByRole('tab', { name: 'Compras' })).toHaveAttribute('aria-selected', 'false')
+    expect(fetchTransactions).toHaveBeenCalledWith(expect.objectContaining({ role: 'seller' }))
+  })
+
+  it('puts Ventas on the left and Compras on the right', async () => {
+    renderPage()
+    await screen.findByRole('tab', { name: 'Ventas' })
+
+    const labels = screen.getAllByRole('tab').map((t) => t.textContent)
+    expect(labels).toEqual(['Ventas', 'Compras'])
+  })
+
+  // Mirrors the Home tabs: seller side green, buy side the #FF9100 signature.
+  it('paints the active tab with its side of the app', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const ventas = await screen.findByRole('tab', { name: 'Ventas' })
+    expect(ventas).toHaveClass('bg-primary', 'text-primary-foreground')
+    expect(screen.getByRole('tab', { name: 'Compras' }).className).not.toMatch(/bg-buy/)
+
+    await user.click(screen.getByRole('tab', { name: 'Compras' }))
+
+    expect(screen.getByRole('tab', { name: 'Compras' })).toHaveClass('bg-buy', 'text-buy-ink')
+    expect(screen.getByRole('tab', { name: 'Ventas' }).className).not.toMatch(/bg-primary/)
   })
 })

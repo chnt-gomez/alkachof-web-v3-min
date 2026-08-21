@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -81,9 +81,9 @@ const sampleNotification = (overrides: Partial<Notification> = {}): Notification
 // HomePage reads notifications from NotificationsProvider, which activates on
 // login — so the page renders inside real providers with an authenticated
 // session (seeded token + mocked fetchProfile), never a mocked context.
-function renderPage() {
+function renderPage(initialEntry = '/') {
   return render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <ToastProvider>
         <AuthProvider>
           <NotificationsProvider>
@@ -113,6 +113,11 @@ beforeEach(() => {
 afterEach(() => {
   localStorage.clear()
 })
+
+/** Home opens on "Mis cosas"; buy-side content lives behind the Comprar tab. */
+async function openComprar(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('tab', { name: 'Comprar' }))
+}
 
 describe('HomePage', () => {
   it('links to the owner catalog editor from the my-catalog card', async () => {
@@ -190,7 +195,9 @@ describe('HomePage', () => {
     vi.mocked(fetchSavedCatalogs).mockResolvedValue([
       sampleCatalog({ _id: 'saved1', userId: 'other', alias: 'Dulces La Abuela' }),
     ])
+    const user = userEvent.setup()
     renderPage()
+    await openComprar(user)
 
     expect(await screen.findByText('Dulces La Abuela')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /ver catálogo dulces la abuela/i })).toHaveAttribute(
@@ -200,7 +207,9 @@ describe('HomePage', () => {
   })
 
   it('shows the empty saved-catalogs message when there are none', async () => {
+    const user = userEvent.setup()
     renderPage()
+    await openComprar(user)
 
     expect(await screen.findByText(/aún no tienes catálogos guardados/i)).toBeInTheDocument()
   })
@@ -218,5 +227,144 @@ describe('HomePage', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: /reintentar/i }))
 
     expect(await screen.findByText('Notificación recuperada')).toBeInTheDocument()
+  })
+})
+
+describe('HomePage tabs', () => {
+  it('opens on Mis cosas with the seller sections visible', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Tienda de Prueba')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Mis cosas' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Comprar' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('heading', { name: 'Notificaciones' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Catálogos guardados' })).not.toBeInTheDocument()
+  })
+
+  it('swaps the panels when Comprar is selected', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await openComprar(user)
+
+    expect(await screen.findByRole('heading', { name: 'Catálogos guardados' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Mi catálogo' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Comprar' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('does not load saved catalogs until Comprar is opened', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    expect(fetchSavedCatalogs).not.toHaveBeenCalled()
+
+    await openComprar(user)
+
+    await waitFor(() => expect(fetchSavedCatalogs).toHaveBeenCalledTimes(1))
+  })
+
+  it('does not refetch a tab that has already been opened', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await openComprar(user)
+    await waitFor(() => expect(fetchSavedCatalogs).toHaveBeenCalledTimes(1))
+
+    await user.click(screen.getByRole('tab', { name: 'Mis cosas' }))
+    await screen.findByRole('heading', { name: 'Mi catálogo' })
+    await openComprar(user)
+    await screen.findByRole('heading', { name: 'Catálogos guardados' })
+
+    expect(fetchSavedCatalogs).toHaveBeenCalledTimes(1)
+    expect(fetchMyCatalog).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens straight on Comprar when the url asks for it', async () => {
+    renderPage('/?tab=comprar')
+
+    expect(await screen.findByRole('heading', { name: 'Catálogos guardados' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Comprar' })).toHaveAttribute('aria-selected', 'true')
+    // Mis cosas stays unloaded until opened.
+    expect(fetchMyCatalog).not.toHaveBeenCalled()
+  })
+
+  it('decorates the Comprar tab with the buy signature color when active', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    const comprar = screen.getByRole('tab', { name: 'Comprar' })
+    expect(comprar.className).not.toMatch(/bg-buy/)
+
+    await openComprar(user)
+
+    expect(screen.getByRole('tab', { name: 'Comprar' })).toHaveClass('bg-buy', 'text-buy-ink')
+  })
+})
+
+describe('MyCatalogCard', () => {
+  it('shows the article count for a catalog with items', async () => {
+    vi.mocked(fetchCatalogItems).mockResolvedValue([
+      sampleItem({ _id: 'i1' }),
+      sampleItem({ _id: 'i2' }),
+      sampleItem({ _id: 'i3' }),
+    ])
+    renderPage()
+
+    expect(await screen.findByText('3 artículos')).toBeInTheDocument()
+  })
+
+  it('keeps the count singular for a catalog with one item', async () => {
+    renderPage()
+
+    expect(await screen.findByText('1 artículo')).toBeInTheDocument()
+  })
+
+  it('says so when the catalog holds nothing yet', async () => {
+    vi.mocked(fetchCatalogItems).mockResolvedValue([])
+    renderPage()
+
+    expect(await screen.findByText('Sin artículos todavía')).toBeInTheDocument()
+  })
+
+  it('outlines the card in the green signature color', async () => {
+    renderPage()
+
+    const link = await screen.findByRole('link', { name: /abrir mi catálogo/i })
+    expect(link).toHaveClass('border-2', 'border-primary')
+  })
+
+  it('falls back to the invitation copy when the catalog has no image and no name', async () => {
+    vi.mocked(fetchMyCatalog).mockResolvedValue(sampleCatalog({ alias: '', description: '' }))
+    renderPage()
+
+    expect(await screen.findByText('Este es tu espacio para vender')).toBeInTheDocument()
+    expect(
+      screen.getByText('Cuando quieras publicar algo lo podrás hacer aquí'),
+    ).toBeInTheDocument()
+    // The link still has a usable name without the alias.
+    expect(screen.getByRole('link', { name: 'Abrir mi catálogo' })).toBeInTheDocument()
+  })
+
+  it('keeps the real name once the catalog has one', async () => {
+    vi.mocked(fetchMyCatalog).mockResolvedValue(sampleCatalog({ alias: 'Tienda de Prueba' }))
+    renderPage()
+
+    expect(await screen.findByText('Tienda de Prueba')).toBeInTheDocument()
+    expect(screen.queryByText('Este es tu espacio para vender')).not.toBeInTheDocument()
+  })
+
+  it('renders the catalog image large when there is one', async () => {
+    vi.mocked(fetchMyCatalog).mockResolvedValue(
+      sampleCatalog({ image: 'https://cdn.test/tienda.png' }),
+    )
+    const { container } = renderPage()
+
+    await screen.findByText('Tienda de Prueba')
+    const img = container.querySelector('img[src="https://cdn.test/tienda.png"]')
+    expect(img?.parentElement).toHaveClass('h-20', 'w-20')
   })
 })

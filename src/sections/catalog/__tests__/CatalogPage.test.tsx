@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
@@ -14,16 +14,25 @@ vi.mock('../actions/updateItem')
 vi.mock('../actions/createItem')
 vi.mock('../actions/deleteItem')
 vi.mock('../actions/broadcastCatalog')
+vi.mock('../actions/uploadCatalogImage')
+vi.mock('../actions/deleteCatalogImage')
 vi.mock('@/sections/publicCatalog/actions/fetchCatalogLocation')
+// CatalogPage renders OwnerQuestionsPanel, which fetches on mount. Left real it
+// hits the network, fails, and renders a second role="alert" box that makes every
+// findByRole('alert') in this file ambiguous.
+vi.mock('@/sections/publicCatalog/actions/fetchCatalogQuestions')
 
 import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
+import { fetchCatalogQuestions } from '@/sections/publicCatalog/actions/fetchCatalogQuestions'
 import { fetchCatalogItems } from '../actions/fetchCatalogItems'
 import { updateCatalog } from '../actions/updateCatalog'
 import { updateItem } from '../actions/updateItem'
 import { createItem } from '../actions/createItem'
 import { deleteItem } from '../actions/deleteItem'
 import { broadcastCatalog } from '../actions/broadcastCatalog'
+import { uploadCatalogImage } from '../actions/uploadCatalogImage'
+import { deleteCatalogImage } from '../actions/deleteCatalogImage'
 
 const mockCatalog: Catalog = {
   _id: 'cat1',
@@ -80,6 +89,7 @@ beforeEach(() => {
   vi.mocked(fetchMyCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
+  vi.mocked(fetchCatalogQuestions).mockResolvedValue([])
   vi.mocked(updateCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(updateItem).mockImplementation(async (itemId, patch) => ({
     ...mockItems.find((i) => i._id === itemId)!,
@@ -97,7 +107,24 @@ beforeEach(() => {
     updatedOn: new Date().toISOString(),
   })
   vi.mocked(broadcastCatalog).mockResolvedValue({ ok: true })
+  vi.mocked(uploadCatalogImage).mockResolvedValue(withImage('https://cdn.test/cat1_123.png'))
+  vi.mocked(deleteCatalogImage).mockResolvedValue(mockCatalog)
 })
+
+/** The API omits `image` entirely when unset, so build the present case explicitly. */
+function withImage(image: string): Catalog {
+  return { ...mockCatalog, image }
+}
+
+/**
+ * Drives the hidden gallery input inside ImageUploadField's picker sheet.
+ * userEvent.upload refuses display:none inputs, so fire the change directly.
+ */
+function pickFile(container: HTMLElement, file: File) {
+  const input = container.querySelector<HTMLInputElement>('input[type="file"]')
+  if (!input) throw new Error('file input not found — is the picker sheet open?')
+  fireEvent.change(input, { target: { files: [file] } })
+}
 
 describe('CatalogPage', () => {
   it('shows loading state before data resolves', () => {
@@ -512,5 +539,72 @@ describe('CatalogPage', () => {
     await user.click(screen.getByRole('button', { name: /enviar anuncio/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/ya enviaste un anuncio hoy/i)
+  })
+})
+
+describe('CatalogPage catalog image', () => {
+  it('renders the placeholder when the catalog has no image', async () => {
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    expect(screen.getByRole('img', { name: /aún no tiene imagen/i })).toBeInTheDocument()
+    expect(screen.queryByAltText('Tienda de Prueba')).not.toBeInTheDocument()
+  })
+
+  it('renders the catalog image when the api returns one', async () => {
+    vi.mocked(fetchMyCatalog).mockResolvedValue(withImage('https://cdn.test/tienda.png'))
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    expect(await screen.findByAltText('Tienda de Prueba')).toHaveAttribute(
+      'src',
+      'https://cdn.test/tienda.png',
+    )
+    expect(screen.queryByRole('img', { name: /aún no tiene imagen/i })).not.toBeInTheDocument()
+  })
+
+  it('uploads a picked image and renders the url the api returned', async () => {
+    const user = userEvent.setup()
+    const { container } = renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
+    await user.click(await screen.findByRole('button', { name: 'Agregar imagen' }))
+    pickFile(container, new File(['x'], 'tienda.png', { type: 'image/png' }))
+
+    await waitFor(() => expect(uploadCatalogImage).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(uploadCatalogImage).mock.calls[0][0]).toBe('cat1')
+
+    const images = await screen.findAllByAltText('Tienda de Prueba')
+    expect(images[0]).toHaveAttribute('src', 'https://cdn.test/cat1_123.png')
+  })
+
+  it('rejects an unsupported file type before calling the api', async () => {
+    const user = userEvent.setup()
+    const { container } = renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
+    await user.click(await screen.findByRole('button', { name: 'Agregar imagen' }))
+    pickFile(container, new File(['x'], 'tienda.webp', { type: 'image/webp' }))
+
+    // Matched on the full message, not by role: the owner questions panel
+    // renders its own alert, and the field's hint also mentions JPG/PNG.
+    expect(await screen.findByText('Formato no admitido. Usa JPG o PNG.')).toBeInTheDocument()
+    expect(uploadCatalogImage).not.toHaveBeenCalled()
+  })
+
+  it('removes the image and returns the header to the placeholder', async () => {
+    vi.mocked(fetchMyCatalog).mockResolvedValue(withImage('https://cdn.test/tienda.png'))
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
+    await user.click(await screen.findByRole('button', { name: /quitar imagen/i }))
+
+    await waitFor(() => expect(deleteCatalogImage).toHaveBeenCalledWith('cat1'))
+    expect(await screen.findByRole('img', { name: /aún no tiene imagen/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /quitar imagen/i })).not.toBeInTheDocument()
   })
 })

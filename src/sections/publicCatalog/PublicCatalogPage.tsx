@@ -63,9 +63,10 @@ export function PublicCatalogPage() {
 
   return (
     <PublicCatalogProvider catalogId={catalogId}>
-      <main className="flex min-h-dvh flex-col gap-5 p-4">
+      {/* NavShell owns the <main> landmark; this is just the page body. */}
+      <div className="flex flex-1 flex-col gap-5 p-4">
         <PublicCatalogContent catalogId={catalogId} />
-      </main>
+      </div>
     </PublicCatalogProvider>
   )
 }

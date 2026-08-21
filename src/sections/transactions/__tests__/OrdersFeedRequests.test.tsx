@@ -73,12 +73,12 @@ function renderPage() {
   )
 }
 
-/** Renders Pedidos on the given role tab. */
+/** Renders Pedidos on the given role tab. The page opens on Ventas. */
 async function renderAs(role: 'buyer' | 'seller') {
   const user = userEvent.setup()
   renderPage()
-  if (role === 'seller') {
-    await user.click(await screen.findByRole('tab', { name: 'Ventas' }))
+  if (role === 'buyer') {
+    await user.click(await screen.findByRole('tab', { name: 'Compras' }))
   }
   return user
 }

@@ -14,6 +14,12 @@ export type Catalog = {
   locationZip: string
   deliveryDates: string[]
   deliveryLocations: object[]
+  /**
+   * Presentation image url. Absent — not null, not '' — when the owner has not
+   * uploaded one, so branch on presence and render the placeholder. Treat the
+   * url as opaque; never derive it from the catalog id.
+   */
+  image?: string
 }
 
 export async function fetchPublicCatalog(catalogId: string): Promise<Catalog> {

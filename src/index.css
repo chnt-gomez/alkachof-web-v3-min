@@ -28,6 +28,15 @@
   /* Text on a *filled* --color-service surface. The brand purple is light, so a
      white label on it lands around 2.4:1 — this deep ink clears 5:1 instead. */
   --color-service-ink: hsl(250 60% 22%);
+  /* Buy-side identity (#FF9100). Signature color of the "Comprar" tab, which is
+     the visitor/shopper half of Home — deliberately distinct from the green the
+     rest of the app uses for the seller's own things. */
+  --color-buy: hsl(34 100% 50%);
+  --color-buy-soft: hsl(34 100% 94%);
+  /* Text on a *filled* --color-buy surface. #FF9100 is bright, so a white label
+     lands around 2.3:1 — this deep ink clears 5:1 instead. Same trade-off as
+     --color-service-ink above. */
+  --color-buy-ink: hsl(28 85% 18%);
   --color-border: hsl(140 16% 88%);
   --color-input: hsl(140 16% 85%);
   --color-ring: hsl(152 44% 30%);

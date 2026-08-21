@@ -39,8 +39,10 @@ export function AppRouter() {
                   <Route path="/recover" element={<RecoverPage />} />
                   <Route path="/reset/:token" element={<ResetPasswordPage />} />
                   <Route path="/verify/:token" element={<VerifyEmailPage />} />
-                  <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
                   <Route element={<NavShell />}>
+                    {/* Public: the visitor view of a catalog shares the app header
+                        (guest variant) but is not behind ProtectedRoute. */}
+                    <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
                     <Route element={<ProtectedRoute />}>
                       <Route path="/" element={<HomePage />} />
                       <Route path="/product/:id" element={<ProductPage />} />
