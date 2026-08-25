@@ -53,6 +53,7 @@ export function ProfilePage() {
           value={profile.profile_picture_url ?? ''}
           onChange={(url) => updateProfile({ profile_picture_url: url })}
           upload={(file) => uploadProfileImage(profile._id, file)}
+          preset="profiles"
           alt={profile.alias ?? 'Perfil'}
           placeholder="Toca para agregar foto de perfil"
         />

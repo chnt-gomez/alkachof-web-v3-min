@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Camera, ImageIcon, Loader2, Trash2, X } from 'lucide-react'
-
-// Must stay in step with the API's multer fileFilter (`api/util/storageFactory.js`):
-// JPEG/PNG only, 10 MB. WebP is deliberately absent — the server rejects it, and
-// its multer error surfaces as an opaque 500, so we reject it up front instead.
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png']
-const MAX_BYTES = 10 * 1024 * 1024
+import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES, type ImagePresetName } from '@/lib/imagePresets'
+import { resizeImage } from '@/lib/resizeImage'
 
 type Props = {
   value: string
@@ -26,6 +22,19 @@ type Props = {
    * and there is a `value`, so callers without a delete endpoint are untouched.
    */
   onDelete?: () => Promise<void>
+  /**
+   * Fires whenever the image stops being settled — while it is being optimised
+   * for upload, and while it is uploading. Parent forms use it to disable their
+   * submit: in deferred mode the resized file IS what the form sends, so saving
+   * mid-resize would submit the form without it.
+   */
+  onBusyChange?: (busy: boolean) => void
+  /**
+   * Which size bound to shrink the pick to before it leaves the device. The
+   * server re-encodes regardless, so this only decides how much the user has to
+   * upload — but on mobile data that is the difference that matters.
+   */
+  preset: ImagePresetName
   alt?: string
   placeholder?: string
   ariaLabel?: string
@@ -37,11 +46,16 @@ export function ImageUploadField({
   upload,
   onFileSelect,
   onDelete,
+  onBusyChange,
+  preset,
   alt,
   placeholder = 'Toca para agregar imagen',
   ariaLabel,
 }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false)
+  // Shrinking a phone photo can take seconds on a low-end device, so it gets its
+  // own visible phase rather than looking like a frozen picker.
+  const [processing, setProcessing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,22 +66,53 @@ export function ImageUploadField({
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
   }, [])
 
+  // Held in a ref so an inline arrow from the parent does not retrigger the
+  // effect on every render.
+  const notifyBusy = useRef(onBusyChange)
+  notifyBusy.current = onBusyChange
+  useEffect(() => {
+    notifyBusy.current?.(processing || uploading)
+  }, [processing, uploading])
+
   function showPreview(file: File) {
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
     previewUrl.current = URL.createObjectURL(file)
     onChange(previewUrl.current)
   }
 
-  async function handleFile(file: File) {
+  async function handleFile(picked: File) {
     setError(null)
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError('Formato no admitido. Usa JPG o PNG.')
+    if (!ACCEPTED_TYPES.includes(picked.type)) {
+      setError('Formato no admitido. Usa JPG, PNG o WebP.')
       return
     }
-    if (file.size > MAX_BYTES) {
+    // Checked against the original: this is the API's own upload limit, and a
+    // pick this large is worth rejecting before spending time decoding it.
+    if (picked.size > MAX_UPLOAD_BYTES) {
       setError('La imagen excede el tamaño máximo de 10 MB.')
       return
     }
+
+    // Shrinking happens before both modes: deferred mode hands the file to a
+    // parent form that submits it as-is, so resizing only in the upload branch
+    // would silently leave those uploads full size. Never throws — a browser
+    // that cannot do it returns the original and the server resizes instead.
+    //
+    // The decode runs off the main thread (createImageBitmap) and the encode is
+    // async, so the UI stays interactive throughout — this only marks the phase.
+    setProcessing(true)
+    let file = picked
+    try {
+      file = await resizeImage(picked, preset)
+    } catch {
+      // resizeImage is contracted never to throw. Belt and braces: if that ever
+      // changes, send the original rather than stranding the pick — the server
+      // re-encodes whatever it receives, so the upload still ends up bounded.
+      file = picked
+    } finally {
+      setProcessing(false)
+    }
+
     if (!upload) {
       showPreview(file)
       onFileSelect?.(file)
@@ -97,7 +142,7 @@ export function ImageUploadField({
     }
   }
 
-  const busy = uploading || deleting
+  const busy = processing || uploading || deleting
 
   return (
     <div className="flex flex-col gap-2">
@@ -107,10 +152,21 @@ export function ImageUploadField({
         onClick={() => setSheetOpen(true)}
         disabled={busy}
         aria-label={ariaLabel ?? (value ? 'Cambiar imagen' : 'Agregar imagen')}
-        aria-busy={uploading}
+        aria-busy={processing || uploading}
       >
-        {uploading ? (
-          <div className="flex h-32 w-full items-center justify-center gap-2 text-sm text-muted-foreground">
+        {processing ? (
+          <div
+            role="status"
+            className="flex h-32 w-full items-center justify-center gap-2 text-sm text-muted-foreground"
+          >
+            <Loader2 size={16} className="animate-spin" />
+            Optimizando imagen para internet…
+          </div>
+        ) : uploading ? (
+          <div
+            role="status"
+            className="flex h-32 w-full items-center justify-center gap-2 text-sm text-muted-foreground"
+          >
             <Loader2 size={16} className="animate-spin" />
             Subiendo imagen…
           </div>

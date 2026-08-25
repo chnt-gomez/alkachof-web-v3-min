@@ -49,31 +49,44 @@ double-tap or a retry needs no special handling.
 | 401 | `{"message":"Auth failed"}` | missing/expired token, or user not active |
 | 403 | `{"message":"Unauthorized"}` | authenticated but not this catalog's owner |
 | 404 | `{"message":"Catalog not found"}` | no catalog with that id |
-| 500 | — | **rejected file type or oversized file** (known API gap — see below) |
+| 400 | `{"message":"Unsupported image type. Use JPEG, PNG or WebP"}` | not an image the API can decode |
+| 400 | `{"message":"Image exceeds the maximum upload size"}` | over 10 MB |
+| 400 | `{"message":"The uploaded file is not a readable image"}` | corrupt or truncated bytes |
 
-## ⚠️ Read this before wiring the picker: a real client/server mismatch
+## Image processing (resolved — this section used to describe a mismatch)
 
-`src/components/ImageUploadField.tsx` currently validates:
+**The WebP/500 problem is gone.** The API now re-encodes every upload, so the
+input format only has to be something it can decode: `image/jpeg`, `image/png`
+and `image/webp` are all accepted, and bad uploads answer **400 with a readable
+message** instead of an opaque 500.
 
-```ts
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_BYTES = 5 * 1024 * 1024
-```
+Uploads are shrunk **on the client** before they are sent — see
+`src/lib/resizeImage.ts` and `src/lib/imagePresets.ts`. A 5 MB phone photo leaves
+the device at ~150 KB, which saves the user's upload bandwidth and keeps the
+resize work off the VPS.
 
-The API accepts **JPEG and PNG only** (`image/jpeg`, `image/jpg`, `image/png`) up to **10 MB**. Two
-consequences:
+`ImageUploadField` takes a required **`preset`** prop naming the bound to use:
 
-1. **WebP passes client validation and then fails on the server.** Worse, the API's multer errors
-   surface through the global handler as a **500**, not a 400 — so the user picks a `.webp`, waits,
-   and gets a generic server error with no useful message. This is not new to the catalog image:
-   **profile pictures and item images have the same latent bug today** via the same component.
-2. The 5 MB client limit is stricter than the server's 10 MB, which is harmless — it just rejects
-   some files the server would have accepted.
+| preset | Max | Fit | Used by |
+|---|---|---|---|
+| `profiles` | 512×512 | centre-crop square | `ProfilePage` |
+| `products` | 1200 | preserve aspect | `ItemFormDialog` |
+| `catalogs` | 1600 | preserve aspect | `EditCatalogScreen` |
 
-**Recommended fix (client-side, small):** drop `'image/webp'` from `ACCEPTED_TYPES` so the component
-rejects it up front with the existing Spanish message, and raise `MAX_BYTES` to 10 MB to match. That
-fixes catalog, profile, and item uploads in one edit. If product wants WebP support, that is an API
-change (`api/util/storageFactory.js` `fileFilter`) — ask, do not work around it client-side.
+While the pick is being shrunk the field shows *"Optimizando imagen para
+internet…"*, and reports it through **`onBusyChange`** so the hosting form can
+disable its submit — in deferred mode the resized file is what the form sends, so
+saving mid-optimise would submit without it.
+
+Two things to keep true:
+
+- **`src/lib/imagePresets.ts` mirrors the API's `CONSTANTS.IMAGE`.** If one moves,
+  move the other.
+- **Client resizing is an optimisation, never a guarantee.** `resizeImage` never
+  throws — every failure path (no `createImageBitmap`, a codec the canvas cannot
+  encode, a HEIC the browser cannot decode) returns the original file, and the
+  server re-encodes it instead. Do not build anything that assumes the uploaded
+  file is already bounded.
 
 ## Work items
 

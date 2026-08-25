@@ -34,6 +34,9 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
   const [price, setPrice] = useState(initial ? String(initial.price / 100) : '')
   const [imgPath, setImgPath] = useState(initial?.imgPath ?? '')
   const [image, setImage] = useState<File | null>(null)
+  // The resized file IS what this form submits, so saving before it is ready
+  // would send the item without its image.
+  const [imageBusy, setImageBusy] = useState(false)
   const [outOfStock, setOutOfStock] = useState(initial?.outOfStock ?? false)
   const [type, setType] = useState<ItemType>(initial?.type ?? 'product')
 
@@ -133,6 +136,8 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
               value={imgPath}
               onChange={setImgPath}
               onFileSelect={setImage}
+              onBusyChange={setImageBusy}
+              preset="products"
               alt={name || (service ? 'Servicio' : 'Producto')}
             />
 
@@ -204,7 +209,7 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
                 service && 'bg-service text-service-ink hover:bg-service/90',
               )}
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || imageBusy}
             >
               {saving ? 'Guardando…' : saveLabel}
             </Button>
