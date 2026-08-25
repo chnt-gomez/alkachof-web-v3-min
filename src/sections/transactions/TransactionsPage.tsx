@@ -50,7 +50,7 @@ export function TransactionsPage() {
   } = useOrdersFeed()
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionSummary | null>(null)
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequestRow | null>(null)
-  const { highlightedId, registerCard } = useTransactionDeepLink({ role, setRole, status })
+  const { highlightedId, registerCard } = useTransactionDeepLink({ role, setRole, status, rows })
 
   return (
     <div className="flex flex-col gap-4 p-5">

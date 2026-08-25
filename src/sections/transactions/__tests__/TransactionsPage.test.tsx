@@ -359,7 +359,7 @@ describe('TransactionsPage', () => {
     vi.mocked(fetchTransactions).mockResolvedValue(
       listResult([sampleSummary({ id: 't1' }), sampleSummary({ id: 't2' })]),
     )
-    renderPage('/transactions?transaction=t2')
+    renderPage('/transactions?highlight=t2&role=seller')
 
     const cards = await screen.findAllByRole('button', { name: /pedido de/i })
     // The highlight class lands on the <li> wrapping the target's card.
@@ -371,9 +371,30 @@ describe('TransactionsPage', () => {
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalled())
   })
 
+  // A deep-link switches tabs one commit after mount, so the first tab's fetch is
+  // still in flight. Letting that late answer land blanks the tab the user sees.
+  it('ignores the first tab\'s response when it lands after the deep-link switch', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    vi.mocked(fetchTransactions).mockImplementation(async ({ role }) => {
+      if (role === 'seller') {
+        await delay(60)
+        return listResult([])
+      }
+      await delay(10)
+      return listResult([sampleSummary({ id: 't9' })])
+    })
+    renderPage('/transactions?highlight=t9&role=buyer')
+
+    const card = await screen.findByRole('button', { name: /pedido de/i })
+    await delay(120)
+    expect(card).toBeInTheDocument()
+    expect(screen.queryByText(/no tienes/i)).not.toBeInTheDocument()
+  })
+
   it('switches to the seller tab when the deep-link names role=seller', async () => {
     Element.prototype.scrollIntoView = vi.fn()
-    renderPage('/transactions?transaction=t1&role=seller')
+    renderPage('/transactions?highlight=t1&role=seller')
 
     await waitFor(() =>
       expect(fetchTransactions).toHaveBeenCalledWith(

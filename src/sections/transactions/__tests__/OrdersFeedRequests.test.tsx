@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
@@ -65,9 +65,9 @@ const at = (status: RequestStatus, finalPrice: number | null = null): ServiceReq
   finalPrice,
 })
 
-function renderPage() {
+function renderPage(entry = '/transactions') {
   return render(
-    <MemoryRouter initialEntries={['/transactions']}>
+    <MemoryRouter initialEntries={[entry]}>
       <TransactionsPage />
     </MemoryRouter>,
   )
@@ -110,6 +110,74 @@ beforeEach(() => {
   })
   vi.mocked(fetchCatalogSummaries).mockResolvedValue({})
   vi.mocked(fetchProfileSummaries).mockResolvedValue({})
+})
+
+describe('request notification deep-links', () => {
+  // The API points request notifications at this page — requests have no page of
+  // their own — with `?highlight=<requestId>&role=<recipient's role>`.
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+
+  it('highlights the request named by the notification', async () => {
+    renderPage('/transactions?highlight=req1&role=seller')
+
+    const card = await screen.findByRole('button', { name: /Solicitud de/i })
+    await waitFor(() => expect(card.closest('li')).toHaveClass('transaction-highlight'))
+  })
+
+  // A priced-quote notification goes to the buyer, and the page opens on Ventas.
+  it('switches to Compras when the notification names the buyer side', async () => {
+    vi.mocked(fetchRequests).mockImplementation(async ({ role }) =>
+      role === 'buyer' ? [at('PRICED', 95000)] : [],
+    )
+    renderPage('/transactions?highlight=req1&role=buyer')
+
+    const card = await screen.findByRole('button', { name: /Solicitud a/i })
+    await waitFor(() => expect(card.closest('li')).toHaveClass('transaction-highlight'))
+    expect(screen.getByRole('tab', { name: 'Compras' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  // The deep-link switches tabs while the first tab's fetch is still in flight.
+  // If that late answer is allowed to land, it overwrites the tab the user is
+  // actually looking at — with the seller's empty list, here.
+  it('ignores the first tab\'s response when it lands after the switch', async () => {
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    vi.mocked(fetchRequests).mockImplementation(async ({ role }) => {
+      if (role === 'seller') {
+        await delay(60)
+        return []
+      }
+      await delay(10)
+      return [at('PRICED', 95000)]
+    })
+    renderPage('/transactions?highlight=req1&role=buyer')
+
+    const card = await screen.findByRole('button', { name: /Solicitud a/i })
+    // Still there once the stale seller response has had time to arrive.
+    await delay(120)
+    expect(card).toBeInTheDocument()
+    expect(screen.getByText('Instalación de Cortinas')).toBeInTheDocument()
+  })
+
+  // Notifications stored before the API started sending `role` have none, and
+  // the page opens on Ventas — so a purchase must still be found.
+  it('looks in the other tab when the notification names no role', async () => {
+    vi.mocked(fetchRequests).mockImplementation(async ({ role }) =>
+      role === 'buyer' ? [base] : [],
+    )
+    renderPage('/transactions?highlight=req1')
+
+    const card = await screen.findByRole('button', { name: /Solicitud a/i })
+    await waitFor(() => expect(card.closest('li')).toHaveClass('transaction-highlight'))
+    expect(screen.getByRole('tab', { name: 'Compras' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
 })
 
 describe('service requests in the Pedidos feed', () => {

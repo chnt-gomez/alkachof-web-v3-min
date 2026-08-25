@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { ToastProvider } from '@/components/ui/toast'
@@ -22,6 +22,12 @@ import { ChatProvider } from '@/sections/chat/context/ChatContext'
 import { CartProvider } from '@/sections/cart/context/CartContext'
 import { NavShell } from '@/components/NavShell'
 import { ProtectedRoute } from './ProtectedRoute'
+
+/** Retired route: forward to Pedidos, keeping `?highlight=` and `?role=`. */
+function RequestsRedirect() {
+  const { search } = useLocation()
+  return <Navigate to={`/transactions${search}`} replace />
+}
 
 export function AppRouter() {
   return (
@@ -49,6 +55,10 @@ export function AppRouter() {
                       <Route path="/catalog" element={<CatalogPage />} />
                       <Route path="/profile" element={<ProfilePage />} />
                       <Route path="/transactions" element={<TransactionsPage />} />
+                      {/* Notifications stored before 2026-08-25 point service
+                          requests at a "/requests" page that never shipped —
+                          requests live in Pedidos. Alias it so those keep working. */}
+                      <Route path="/requests" element={<RequestsRedirect />} />
                       <Route path="/chats" element={<ChatListPage />} />
                     </Route>
                   </Route>

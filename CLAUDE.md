@@ -36,12 +36,29 @@ Protected (wrapped in `NavShell` + `ProtectedRoute`):
 - `/` → `HomePage`
 - `/catalog` → `CatalogPage` (owner's own catalog editor — resolved from the auth token, no id in the URL)
 - `/product/:id` → `ProductPage`
-- `/transactions` → `TransactionsPage` (the "Pedidos" tab — buyer/seller order history)
+- `/transactions` → `TransactionsPage` (the "Pedidos" tab — buyer/seller order history, product orders *and* service requests)
+- `/requests` → redirect to `/transactions` (retired route kept alive for notifications stored with the old path)
 - `/profile` → `ProfilePage`
 
 - `*` → `NotFoundPage`
 
 Note: each user owns exactly one catalog. `/catalog` (no id) is the owner editing their own catalog; `/catalog/:catalogId` is the public visitor view. **The shopping cart has no route** — it's a client-side drawer accessible from within the `PublicCatalogPage`.
+
+### Notification deep links
+
+The API owns the route shapes it sends in `notification.metadata.navigationUrl`
+(`api/services/navigationUrlService.js` in `alkachof-api` — single file, single owner).
+Orders and service requests both deep-link to the Pedidos page:
+
+```
+/transactions?highlight=<transactionId|requestId>&role=<buyer|seller>
+```
+
+`role` is the *recipient's* side of the deal — without it the page opens on Ventas and a
+buyer's row isn't in the list it fetched. `useTransactionDeepLink` reads both params,
+switches tabs, then scrolls to and pulses the card. **If a route shape changes here, change
+`navigationUrlService.js` too** — already-stored notifications keep the path they were
+created with, so retired paths need an alias route (see `/requests`).
 
 ### Sections pattern
 

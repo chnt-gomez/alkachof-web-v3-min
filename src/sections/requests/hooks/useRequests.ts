@@ -54,6 +54,11 @@ export function useRequests({
   // the service names: a miss falls back to a generic label.
   const [aliases, setAliases] = useState<Record<string, string>>({})
   const inFlight = useRef(new Set<string>())
+  // Bumped on every load. A response whose ticket is no longer the current one
+  // belongs to a role/filter the user has already left — a notification deep-link
+  // switches tabs one commit after mount, so the first tab's answer routinely
+  // arrives late — and writing it would blank the list they are looking at.
+  const loadTicket = useRef(0)
 
   const resolveServices = useCallback(async (rows: ServiceRequest[]) => {
     const ids = Array.from(new Set(rows.map((r) => r.serviceId))).filter(
@@ -116,6 +121,7 @@ export function useRequests({
   )
 
   const reload = useCallback(async () => {
+    const ticket = ++loadTicket.current
     setAliases({})
     // The active filter can exclude requests entirely (e.g. "En camino" is a
     // product-only status), in which case there is nothing to ask for.
@@ -127,11 +133,13 @@ export function useRequests({
     setStatus('loading')
     try {
       const result = await fetchRequests({ role, status: statusFilter ?? undefined })
+      if (ticket !== loadTicket.current) return
       setRequests(result)
       setStatus('ready')
       void resolveServices(result)
       void resolveAliases(result)
     } catch {
+      if (ticket !== loadTicket.current) return
       setStatus('error')
     }
   }, [enabled, role, statusFilter, resolveServices, resolveAliases])
