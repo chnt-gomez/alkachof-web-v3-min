@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchTransactions } from '../actions/fetchTransactions'
 import { fetchCatalogSummaries } from '../actions/fetchCatalogSummaries'
 import { fetchProfileSummaries } from '../actions/fetchProfileSummaries'
@@ -42,6 +42,11 @@ export function useTransactions({
   // user on seller rows). Accumulated across pages; reset when the role changes.
   const [catalogNames, setCatalogNames] = useState<Record<string, string>>({})
   const [buyerNames, setBuyerNames] = useState<Record<string, string>>({})
+  // Bumped on every load. A response whose ticket is no longer the current one
+  // belongs to a role/filter the user has already left — a notification deep-link
+  // switches tabs one commit after mount, so the first tab's answer routinely
+  // arrives late — and writing it would blank the list they are looking at.
+  const loadTicket = useRef(0)
 
   const loadPage = useCallback(
     (skip: number) =>
@@ -88,6 +93,7 @@ export function useTransactions({
   )
 
   const reload = useCallback(async () => {
+    const ticket = ++loadTicket.current
     setCatalogNames({})
     setBuyerNames({})
     // The active filter can exclude product orders entirely (e.g. "Cotizado" is
@@ -101,11 +107,13 @@ export function useTransactions({
     setStatus('loading')
     try {
       const result = await loadPage(0)
+      if (ticket !== loadTicket.current) return
       setTransactions(result.transactions)
       setTotal(result.total)
       setStatus('ready')
       void resolveHeaders(result.transactions)
     } catch {
+      if (ticket !== loadTicket.current) return
       setStatus('error')
     }
   }, [enabled, loadPage, resolveHeaders])
@@ -126,9 +134,13 @@ export function useTransactions({
   )
 
   const loadMore = useCallback(async () => {
+    const ticket = loadTicket.current
     setLoadingMore(true)
     try {
       const result = await loadPage(transactions.length)
+      // The tab or filter changed while the page was in flight: appending it now
+      // would mix two lists.
+      if (ticket !== loadTicket.current) return
       setTransactions((prev) => [...prev, ...result.transactions])
       setTotal(result.total)
       void resolveHeaders(result.transactions)
