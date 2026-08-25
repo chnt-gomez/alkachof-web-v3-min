@@ -27,6 +27,10 @@ type Props = {
 export function EditCatalogScreen({ onClose }: Props) {
   const { catalog, updateCatalog, uploadCatalogImage, deleteCatalogImage } = useEditCatalog()
   const [saving, setSaving] = useState(false)
+  // The catalog image persists on its own endpoint, but saving the other fields
+  // mid-upload would re-render this form from a catalog that does not carry the
+  // new image yet.
+  const [imageBusy, setImageBusy] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const [alias, setAlias] = useState(catalog?.alias ?? '')
@@ -120,7 +124,7 @@ export function EditCatalogScreen({ onClose }: Props) {
 
           <Field
             label="Imagen del catálogo"
-            hint="Se guarda al instante, sin esperar el botón Guardar. Usa JPG o PNG, máximo 10 MB."
+            hint="Se guarda al instante, sin esperar el botón Guardar. Usa JPG, PNG o WebP, máximo 10 MB."
           >
             <ImageUploadField
               // The context writes the action's full response back, so `value`
@@ -129,6 +133,8 @@ export function EditCatalogScreen({ onClose }: Props) {
               onChange={() => {}}
               upload={uploadCatalogImage}
               onDelete={deleteCatalogImage}
+              onBusyChange={setImageBusy}
+              preset="catalogs"
               alt={catalog?.alias || 'Catálogo'}
               placeholder="Toca para agregar imagen del catálogo"
             />
@@ -212,7 +218,7 @@ export function EditCatalogScreen({ onClose }: Props) {
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button className="flex-1" onClick={handleSave} disabled={saving}>
+          <Button className="flex-1" onClick={handleSave} disabled={saving || imageBusy}>
             {saving ? 'Guardando…' : 'Guardar'}
           </Button>
         </div>

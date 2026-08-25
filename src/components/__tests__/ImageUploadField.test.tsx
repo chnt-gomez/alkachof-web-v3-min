@@ -13,7 +13,7 @@ describe('ImageUploadField', () => {
     const upload = vi.fn().mockResolvedValue('https://example.com/uploaded.png')
     const onChange = vi.fn()
 
-    render(<ImageUploadField value="" onChange={onChange} upload={upload} />)
+    render(<ImageUploadField value="" onChange={onChange} upload={upload} preset="products" />)
 
     await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
     const file = new File(['hello'], 'foto.png', { type: 'image/png' })
@@ -28,7 +28,7 @@ describe('ImageUploadField', () => {
     const onFileSelect = vi.fn()
     const onChange = vi.fn()
 
-    render(<ImageUploadField value="" onChange={onChange} onFileSelect={onFileSelect} />)
+    render(<ImageUploadField preset="products" value="" onChange={onChange} onFileSelect={onFileSelect} />)
 
     await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
     const file = new File(['hello'], 'foto.png', { type: 'image/png' })
@@ -43,7 +43,7 @@ describe('ImageUploadField', () => {
     const upload = vi.fn()
     const onChange = vi.fn()
 
-    render(<ImageUploadField value="" onChange={onChange} upload={upload} />)
+    render(<ImageUploadField value="" onChange={onChange} upload={upload} preset="products" />)
 
     await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
     const bad = new File(['x'], 'doc.pdf', { type: 'application/pdf' })
@@ -60,7 +60,7 @@ describe('ImageUploadField', () => {
     const upload = vi.fn()
     const onChange = vi.fn()
 
-    render(<ImageUploadField value="" onChange={onChange} upload={upload} />)
+    render(<ImageUploadField value="" onChange={onChange} upload={upload} preset="products" />)
 
     await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
     const big = new File([new Uint8Array(11 * 1024 * 1024)], 'big.png', { type: 'image/png' })
@@ -70,32 +70,47 @@ describe('ImageUploadField', () => {
     expect(upload).not.toHaveBeenCalled()
   })
 
-  // The API's fileFilter rejects WebP and surfaces it as an opaque 500, so the
-  // client has to catch it first — see followup.CatalogImageApi.md.
-  it('rejects WebP up front instead of letting the server 500', async () => {
+  // WebP is accepted now: the API re-encodes every upload, so the input format
+  // only has to be something it can decode. It used to 500 on the server.
+  it('accepts a WebP pick', async () => {
     const user = userEvent.setup()
-    const upload = vi.fn()
+    const upload = vi.fn().mockResolvedValue('https://cdn.test/foto.webp')
     const onChange = vi.fn()
 
-    render(<ImageUploadField value="" onChange={onChange} upload={upload} />)
+    render(<ImageUploadField value="" onChange={onChange} upload={upload} preset="products" />)
 
     await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
     const webp = new File(['x'], 'foto.webp', { type: 'image/webp' })
     fireEvent.change(getGalleryInput(), { target: { files: [webp] } })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Formato no admitido. Usa JPG o PNG.')
+    await waitFor(() => expect(upload).toHaveBeenCalled())
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('still rejects a file that is not an image', async () => {
+    const user = userEvent.setup()
+    const upload = vi.fn()
+
+    render(<ImageUploadField value="" onChange={vi.fn()} upload={upload} preset="products" />)
+
+    await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
+    fireEvent.change(getGalleryInput(), {
+      target: { files: [new File(['x'], 'doc.pdf', { type: 'application/pdf' })] },
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Formato no admitido. Usa JPG, PNG o WebP.')
     expect(upload).not.toHaveBeenCalled()
   })
 
   it('shows no remove control unless onDelete is given', async () => {
-    render(<ImageUploadField value="https://example.com/old.png" onChange={vi.fn()} upload={vi.fn()} />)
+    render(<ImageUploadField value="https://example.com/old.png" onChange={vi.fn()} upload={vi.fn()} preset="products" />)
 
     expect(screen.queryByRole('button', { name: /quitar imagen/i })).not.toBeInTheDocument()
   })
 
   it('hides the remove control when there is no image to remove', async () => {
     render(
-      <ImageUploadField
+      <ImageUploadField preset="products"
         value=""
         onChange={vi.fn()}
         upload={vi.fn()}
@@ -111,7 +126,7 @@ describe('ImageUploadField', () => {
     const onDelete = vi.fn().mockRejectedValue(new Error('No eres el dueño'))
 
     render(
-      <ImageUploadField
+      <ImageUploadField preset="products"
         value="https://example.com/old.png"
         onChange={vi.fn()}
         upload={vi.fn()}
@@ -131,7 +146,7 @@ describe('ImageUploadField', () => {
     const onChange = vi.fn()
 
     render(
-      <ImageUploadField
+      <ImageUploadField preset="products"
         value="https://example.com/old.png"
         onChange={onChange}
         upload={upload}

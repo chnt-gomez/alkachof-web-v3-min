@@ -6,6 +6,7 @@ import { CatalogPage } from '../CatalogPage'
 import { ToastProvider } from '@/components/ui/toast'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
+import { resizeImage } from '@/lib/resizeImage'
 
 vi.mock('@/sections/catalogs/actions/fetchMyCatalog')
 vi.mock('../actions/fetchCatalogItems')
@@ -17,6 +18,9 @@ vi.mock('../actions/broadcastCatalog')
 vi.mock('../actions/uploadCatalogImage')
 vi.mock('../actions/deleteCatalogImage')
 vi.mock('@/sections/publicCatalog/actions/fetchCatalogLocation')
+// Mocked so the optimize phase can be held open; defaults to a pass-through in
+// beforeEach so every other test sees the file it picked.
+vi.mock('@/lib/resizeImage', () => ({ resizeImage: vi.fn() }))
 // CatalogPage renders OwnerQuestionsPanel, which fetches on mount. Left real it
 // hits the network, fails, and renders a second role="alert" box that makes every
 // findByRole('alert') in this file ambiguous.
@@ -86,6 +90,7 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(resizeImage).mockImplementation(async (file) => file)
   vi.mocked(fetchMyCatalog).mockResolvedValue(mockCatalog)
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
@@ -586,12 +591,70 @@ describe('CatalogPage catalog image', () => {
 
     await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
     await user.click(await screen.findByRole('button', { name: 'Agregar imagen' }))
-    pickFile(container, new File(['x'], 'tienda.webp', { type: 'image/webp' }))
+    // WebP is accepted now that the API re-encodes every upload, so this uses a
+    // genuine non-image instead.
+    pickFile(container, new File(['x'], 'tienda.pdf', { type: 'application/pdf' }))
 
     // Matched on the full message, not by role: the owner questions panel
-    // renders its own alert, and the field's hint also mentions JPG/PNG.
-    expect(await screen.findByText('Formato no admitido. Usa JPG o PNG.')).toBeInTheDocument()
+    // renders its own alert, and the field's hint also mentions the formats.
+    expect(await screen.findByText('Formato no admitido. Usa JPG, PNG o WebP.')).toBeInTheDocument()
     expect(uploadCatalogImage).not.toHaveBeenCalled()
+  })
+
+  // Optimising a phone photo can take seconds. In the item dialog the resized
+  // file IS what the form submits, so saving mid-optimise would create the item
+  // without its image.
+  it('blocks saving a new item while its image is being optimized', async () => {
+    const user = userEvent.setup()
+    let release!: (file: File) => void
+    vi.mocked(resizeImage).mockImplementation(
+      () => new Promise<File>((resolve) => { release = resolve }),
+    )
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /agregar artículo/i }))
+    await screen.findByRole('dialog', { name: 'Nuevo producto' })
+    await user.type(await screen.findByPlaceholderText(/nombre del producto/i), 'Collar nuevo')
+
+    await user.click(screen.getByRole('button', { name: /agregar imagen/i }))
+    const file = new File(['x'], 'foto.png', { type: 'image/png' })
+    fireEvent.change(
+      document.querySelector('input[type="file"]:not([capture])') as HTMLInputElement,
+      { target: { files: [file] } },
+    )
+
+    expect(await screen.findByText('Optimizando imagen para internet…')).toBeInTheDocument()
+    const save = screen.getByRole('button', { name: /^agregar$/i })
+    expect(save).toBeDisabled()
+
+    release(file)
+    await waitFor(() => expect(save).toBeEnabled())
+    await user.click(save)
+    await waitFor(() =>
+      expect(createItem).toHaveBeenCalledWith(expect.objectContaining({ image: file })),
+    )
+  })
+
+  it('blocks saving the catalog while its image is being optimized', async () => {
+    const user = userEvent.setup()
+    let release!: (file: File) => void
+    vi.mocked(resizeImage).mockImplementation(
+      () => new Promise<File>((resolve) => { release = resolve }),
+    )
+    const { container } = renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
+    await user.click(await screen.findByRole('button', { name: 'Agregar imagen' }))
+    const file = new File(['x'], 'tienda.png', { type: 'image/png' })
+    pickFile(container, file)
+
+    expect(await screen.findByText('Optimizando imagen para internet…')).toBeInTheDocument()
+    const save = screen.getByRole('button', { name: 'Guardar' })
+    expect(save).toBeDisabled()
+
+    release(file)
+    await waitFor(() => expect(save).toBeEnabled())
   })
 
   it('removes the image and returns the header to the placeholder', async () => {

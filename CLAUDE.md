@@ -199,6 +199,35 @@ Images are the primary marketing channel for sellers. Violating these rules degr
 - **Always use `object-contain` + `w-full`** so the image scales to fit its column width while preserving its natural aspect ratio and expanding the container vertically.
 - For dialogs showing enlarged product images: cap the dialog at `max-h-[90vh]` with `overflow-y-auto` so very tall images remain scrollable without overflowing the viewport.
 
+### Image uploads
+
+Every pick is shrunk on the client before it is sent (`src/lib/resizeImage.ts`),
+so a 5 MB phone photo leaves the device at ~150 KB. This saves the user's upload
+bandwidth on mobile data and keeps the resize work off the cheap VPS.
+
+- **`ImageUploadField` requires a `preset`** — `profiles` (512² square crop),
+  `products` (1200) or `catalogs` (1600). It bounds the pick in *both* modes:
+  upload-now and deferred (`onFileSelect`), because a deferred file is submitted
+  as-is by its parent form.
+- **Optimising is a visible phase.** The field shows *"Optimizando imagen para
+  internet…"* while it shrinks, because on a low-end phone this takes seconds and
+  would otherwise look like a frozen picker. The work does not block the UI — the
+  decode runs off the main thread and the encode is async.
+- **A form containing an image field must disable its submit while the field is
+  busy.** Pass `onBusyChange` and fold it into the button's `disabled`. In
+  deferred mode the resized file *is* what the form sends, so saving mid-optimise
+  submits without the image. `ItemFormDialog` and `EditCatalogScreen` do this;
+  `ProfilePage` needs no guard because its image persists on its own endpoint
+  with no adjacent submit.
+- **`src/lib/imagePresets.ts` mirrors the API's `CONSTANTS.IMAGE`** in
+  `alkachof-api/api/constants/constants.js`. Keep the two in step.
+- **`resizeImage` never throws.** Every failure path — no `createImageBitmap`, a
+  codec the canvas cannot encode, a HEIC the browser cannot decode — returns the
+  original file. The API re-encodes whatever it receives, so this stays a pure
+  optimisation. **Never assume an uploaded file is already bounded.**
+- Output is WebP, and the API accepts JPEG/PNG/WebP. Bad uploads answer 400 with
+  a readable message (this used to be an opaque 500).
+
 ### Product grid layout
 
 Use a **CSS `columns-2`** masonry layout (not `grid grid-cols-2`) for product lists. This stacks items down each column so cards with different image heights never leave trailing blank cells.
