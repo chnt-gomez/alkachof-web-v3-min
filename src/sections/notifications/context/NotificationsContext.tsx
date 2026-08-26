@@ -3,6 +3,7 @@ import { ApiError } from '@/lib/api'
 import { useAuth } from '@/sections/auth/useAuth'
 import { useToast } from '@/components/ui/useToast'
 import {
+  deleteNotification,
   fetchNotifications,
   markNotificationSeen,
   unreadCount,
@@ -79,6 +80,30 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const remove = useCallback(
+    async (id: string) => {
+      const index = notifications.findIndex((n) => n._id === id)
+      if (index === -1) return
+      const removed = notifications[index]
+      setNotifications((prev) => prev.filter((n) => n._id !== id))
+      try {
+        await deleteNotification(id)
+      } catch (err) {
+        // 404 → already gone server-side, so dropping it was right.
+        if (err instanceof ApiError && err.status === 404) return
+        // Anything else: the row is still there, so put it back where it was.
+        setNotifications((prev) => {
+          if (prev.some((n) => n._id === id)) return prev
+          const next = [...prev]
+          next.splice(index, 0, removed)
+          return next
+        })
+        toast.error('No pudimos eliminar la notificación.')
+      }
+    },
+    [notifications, toast],
+  )
+
   const value = useMemo<NotificationsState>(
     () => ({
       notifications,
@@ -86,8 +111,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       unseen: unreadCount(notifications),
       reload,
       markSeen,
+      remove,
     }),
-    [notifications, status, reload, markSeen],
+    [notifications, status, reload, markSeen, remove],
   )
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>

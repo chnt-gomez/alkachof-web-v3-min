@@ -2,9 +2,27 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchTransactions } from '../actions/fetchTransactions'
 import { fetchCatalogSummaries } from '../actions/fetchCatalogSummaries'
 import { fetchProfileSummaries } from '../actions/fetchProfileSummaries'
-import type { TransactionRole, TransactionStatus, TransactionSummary } from '../types'
+import type {
+  OrdersScope,
+  TransactionRole,
+  TransactionStatus,
+  TransactionSummary,
+} from '../types'
 
 const PAGE_SIZE = 20
+
+/**
+ * Appends a page, skipping rows already held.
+ *
+ * Skip-based paging over a moving dataset can hand back a row twice: archiving
+ * is evaluated per request, so a row that un-archives between two calls shifts
+ * every later row down a slot and the next page repeats one. Without this, that
+ * renders the same order twice under a duplicate React key.
+ */
+function appendNew<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+  const held = new Set(existing.map((row) => row.id))
+  return [...existing, ...incoming.filter((row) => !held.has(row.id))]
+}
 
 /** Generic labels when a row's shop/buyer can't be resolved. */
 const CATALOG_FALLBACK = 'Catálogo'
@@ -13,9 +31,10 @@ const BUYER_FALLBACK = 'Comprador'
 export type TransactionsListStatus = 'loading' | 'ready' | 'error'
 
 /**
- * Owns the transactions list state: role tab, status filter, and skip-based
- * pagination that accumulates pages behind a "load more" action. Changing the
- * role or filter resets the list and refetches from the first page.
+ * Owns the transactions list state: role tab, status filter, scope, and
+ * skip-based pagination that accumulates pages behind a "load more" action.
+ * Changing the role, filter or scope resets the list and refetches from the
+ * first page.
  *
  * Each row also gets a human-readable header (`headerFor`): the shop name on the
  * buyer view (resolved from `catalogId`) and the buyer name on the seller view
@@ -26,11 +45,14 @@ export type TransactionsListStatus = 'loading' | 'ready' | 'error'
 export function useTransactions({
   role,
   statusFilter,
+  scope = 'active',
   enabled = true,
 }: {
   role: TransactionRole
   /** Server-side status filter; `null` means all. */
   statusFilter: TransactionStatus | null
+  /** Which slice of the feed to read; `history` includes archived rows. */
+  scope?: OrdersScope
   /** When false the list stays empty and no request is made. */
   enabled?: boolean
 }) {
@@ -53,10 +75,11 @@ export function useTransactions({
       fetchTransactions({
         role,
         status: statusFilter ?? undefined,
+        scope,
         limit: PAGE_SIZE,
         skip,
       }),
-    [role, statusFilter],
+    [role, statusFilter, scope],
   )
 
   const resolveHeaders = useCallback(
@@ -141,7 +164,7 @@ export function useTransactions({
       // The tab or filter changed while the page was in flight: appending it now
       // would mix two lists.
       if (ticket !== loadTicket.current) return
-      setTransactions((prev) => [...prev, ...result.transactions])
+      setTransactions((prev) => appendNew(prev, result.transactions))
       setTotal(result.total)
       void resolveHeaders(result.transactions)
     } catch {

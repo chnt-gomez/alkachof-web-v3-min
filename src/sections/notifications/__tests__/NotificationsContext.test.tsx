@@ -27,11 +27,16 @@ vi.mock('../actions/fetchNotifications', async (importOriginal) => ({
   fetchNotifications: vi.fn(),
   fetchAllNotifications: vi.fn(),
   markNotificationSeen: vi.fn(),
+  deleteNotification: vi.fn(),
 }))
 
 import { fetchProfile } from '@/sections/auth/actions/fetchProfile'
 import { connectLiveSocket } from '../liveSocket'
-import { fetchNotifications, markNotificationSeen } from '../actions/fetchNotifications'
+import {
+  deleteNotification,
+  fetchNotifications,
+  markNotificationSeen,
+} from '../actions/fetchNotifications'
 
 const sampleNotification = (overrides: Partial<Notification> = {}): Notification => ({
   _id: 'n1',
@@ -46,7 +51,7 @@ const sampleNotification = (overrides: Partial<Notification> = {}): Notification
 // Minimal consumer exposing the provider state so assertions target real
 // provider behavior (list contents, mark-seen) without a full page.
 function Probe() {
-  const { notifications, status, markSeen } = useNotifications()
+  const { notifications, status, markSeen, remove } = useNotifications()
   return (
     <div>
       <span data-testid="status">{status}</span>
@@ -54,6 +59,7 @@ function Probe() {
         {notifications.map((n) => (
           <li key={n._id}>
             <button onClick={() => markSeen(n._id)}>{n.message}</button>
+            <button onClick={() => remove(n._id)}>{`Eliminar ${n.message}`}</button>
           </li>
         ))}
       </ul>
@@ -170,6 +176,55 @@ describe('NotificationsProvider', () => {
       expect(screen.getByLabelText('Notificaciones')).toBeInTheDocument(),
     )
     expect(markNotificationSeen).toHaveBeenCalledWith('n1')
+  })
+
+  it('deletes a notification, dropping it from the list and the badge', async () => {
+    const notification = sampleNotification()
+    vi.mocked(fetchNotifications).mockResolvedValue([notification])
+    vi.mocked(deleteNotification).mockResolvedValue(undefined)
+    renderWithProviders()
+
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: `Eliminar ${notification.message}` }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: notification.message })).not.toBeInTheDocument(),
+    )
+    expect(deleteNotification).toHaveBeenCalledWith('n1')
+    expect(screen.getByLabelText('Notificaciones')).toBeInTheDocument()
+  })
+
+  it('keeps a notification dropped when the server says it is already gone (404)', async () => {
+    const notification = sampleNotification()
+    vi.mocked(fetchNotifications).mockResolvedValue([notification])
+    vi.mocked(deleteNotification).mockRejectedValue(new ApiError('No encontrada', 404))
+    renderWithProviders()
+
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: `Eliminar ${notification.message}` }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: notification.message })).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('restores the notification and warns when the delete fails', async () => {
+    const notification = sampleNotification()
+    vi.mocked(fetchNotifications).mockResolvedValue([notification])
+    vi.mocked(deleteNotification).mockRejectedValue(new ApiError('Boom', 500))
+    renderWithProviders()
+
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: `Eliminar ${notification.message}` }))
+
+    expect(
+      await screen.findByRole('button', { name: notification.message }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos eliminar la notificación.')
   })
 
   it('drops a notification the server no longer knows (404) on mark-seen', async () => {

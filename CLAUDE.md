@@ -162,7 +162,17 @@ The public catalog (`/catalog/:catalogId`) is reachable without logging in. `Pub
 
 The "Pedidos" page (4th `NavShell` tab) lists the user's transactions split by role — **Compras** (buyer) and **Ventas** (seller) — with status-chip filtering, "Cargar más" pagination, and a per-transaction detail dialog. State lives in the `useTransactions` hook (role/filter/skip pagination, accumulates pages); no Context — it's a read-mostly page. `Transaction` is a domain type owned here (`types.ts`) and re-exported from `src/sections/cart/types.ts`.
 
-It talks to two backend endpoints (both mocked in dev stage per the mock rules): `GET /transaction/all?role&status&limit&skip` (→ `TransactionListResult`) and `GET /transaction/:id/purchases` (→ `PurchaseLine[]`). Money is cents everywhere; format with `formatPrice`. Deferred (Phase 2): action buttons in the detail dialog wired to the existing `/transaction/:id` status/code/confirm endpoints.
+It talks to these backend endpoints (all mocked in dev stage per the mock rules): `GET /transaction/all?role&status&limit&skip` and `GET /transaction/history?…` (both → `TransactionListResult`), plus `GET /transaction/:id/purchases` (→ `PurchaseLine[]`). Money is cents everywhere; format with `formatPrice`. Deferred (Phase 2): action buttons in the detail dialog wired to the existing `/transaction/:id` status/code/confirm endpoints.
+
+#### The feed is filtered: active vs history (`OrdersScope`)
+
+The API leaves **finished** orders (`DELIVERED`/`REJECTED`/`RETURNED` for products, `COMPLETED`/`REJECTED`/`CANCELED` for services) and ones with **no activity for 5 days** out of `/{entity}/all`, so this screen stays short without anything being deleted — an order belongs to both parties, so one side clearing their view must never destroy the other's record. `/{entity}/history` is the same shape over everything and is the **only** route to an archived row.
+
+`useOrdersFeed` owns a single `scope: OrdersScope` (`'active' | 'history'`) and passes it to **both** halves, which must switch together — a screen showing active products beside archived services would be incoherent. The `ScopeToggle` in the page header flips it; the empty active list also offers a way in, and words itself as *"no tienes … activas"* rather than the history's absolute *"aún no has recibido …"*, because a user whose orders are all archived still has orders.
+
+**Both halves paginate now.** `/request/all` used to return every request as a bare `{ requests }`; it returns a page envelope (`RequestListResult`) and at most `limit` rows, so nothing may treat that array as complete — read `total`. `useRequests` therefore accumulates pages exactly like `useTransactions`, and `loadMore` asks only the halves that still have rows (asking an exhausted one refetches its last page and duplicates rows). Both hooks dedupe on append via `appendNew`: skip-based paging over a dataset where rows can un-archive mid-session can legitimately hand back a row the client already holds.
+
+The client **never** applies the archive rule itself — the server owns it. The one exception is `src/mocks/ordersArchive.ts`, which mirrors `api/util/orderFeedQuery.js` so the dev stage behaves like production; **keep the two in step** (same arrangement as `imagePresets.ts`). Full contract: `followup.OrdersFeedPagination.md`.
 
 ### Notifications section (`src/sections/notifications/`)
 

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Megaphone, Bell } from 'lucide-react'
+import { Megaphone, Bell, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatRelative } from '@/lib/format'
 import {
@@ -11,9 +11,11 @@ type Props = {
   notifications: Notification[]
   /** Called with the notification id when a linkable row is clicked. */
   onSeen: (id: string) => void
+  /** Called with the notification id when its trash button is pressed. */
+  onDelete: (id: string) => void
 }
 
-export function NotificationList({ notifications, onSeen }: Props) {
+export function NotificationList({ notifications, onSeen, onDelete }: Props) {
   if (notifications.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -26,7 +28,7 @@ export function NotificationList({ notifications, onSeen }: Props) {
     <ul className="flex flex-col gap-2">
       {notifications.map((notification) => (
         <li key={notification._id}>
-          <NotificationRow notification={notification} onSeen={onSeen} />
+          <NotificationRow notification={notification} onSeen={onSeen} onDelete={onDelete} />
         </li>
       ))}
     </ul>
@@ -36,9 +38,11 @@ export function NotificationList({ notifications, onSeen }: Props) {
 function NotificationRow({
   notification,
   onSeen,
+  onDelete,
 }: {
   notification: Notification
   onSeen: (id: string) => void
+  onDelete: (id: string) => void
 }) {
   const unread = !notification.seenOn
   const link = notificationLink(notification)
@@ -46,13 +50,8 @@ function NotificationRow({
   // target are informational (e.g. admin messages).
   const Icon = link ? Megaphone : Bell
 
-  const content = (
-    <div
-      className={cn(
-        'flex items-start gap-3 rounded-2xl border p-4 shadow-sm',
-        unread ? 'border-primary/30 bg-primary/5' : 'bg-card',
-      )}
-    >
+  const body = (
+    <span className="flex min-w-0 flex-1 items-start gap-3 p-4 text-left">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
         <Icon size={16} />
       </span>
@@ -69,38 +68,52 @@ function NotificationRow({
           {formatRelative(notification.createdOn)}
         </time>
       </span>
-    </div>
+    </span>
   )
 
-  // The API ships a ready-to-use relative path in `metadata.navigationUrl`.
-  // A linkable notification navigates and marks itself seen on click.
-  if (link) {
-    return (
-      <Link
-        to={link}
-        onClick={() => onSeen(notification._id)}
-        className="block rounded-2xl transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        {content}
-      </Link>
-    )
-  }
+  // The clickable area and the trash button are siblings, never nested — a
+  // button inside a link is invalid and swallows the row's own click.
+  const interactiveArea = 'flex min-w-0 flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'
 
-  // Informational notifications (no navigation target) don't navigate, but an
-  // unread one can still be dismissed — tapping it marks it seen. Once seen it's
-  // just a static message with no interactive affordance.
-  if (unread) {
-    return (
+  return (
+    <div
+      className={cn(
+        'flex items-stretch overflow-hidden rounded-2xl border shadow-sm transition-shadow',
+        unread ? 'border-primary/30 bg-primary/5' : 'bg-card',
+        link && 'hover:shadow-md',
+      )}
+    >
+      {/* The API ships a ready-to-use relative path in `metadata.navigationUrl`.
+          A linkable notification navigates and marks itself seen on click. */}
+      {link ? (
+        <Link to={link} onClick={() => onSeen(notification._id)} className={interactiveArea}>
+          {body}
+        </Link>
+      ) : unread ? (
+        // Informational notifications (no navigation target) don't navigate, but
+        // an unread one can still be dismissed — tapping it marks it seen.
+        <button
+          type="button"
+          onClick={() => onSeen(notification._id)}
+          aria-label="Marcar como leída"
+          className={interactiveArea}
+        >
+          {body}
+        </button>
+      ) : (
+        // Seen and informational: a static message with no interactive affordance
+        // other than the trash button.
+        body
+      )}
+
       <button
         type="button"
-        onClick={() => onSeen(notification._id)}
-        aria-label="Marcar como leída"
-        className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        onClick={() => onDelete(notification._id)}
+        aria-label={`Eliminar notificación: ${notification.message}`}
+        className="flex shrink-0 items-center px-3 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
       >
-        {content}
+        <Trash2 size={16} />
       </button>
-    )
-  }
-
-  return content
+    </div>
+  )
 }
