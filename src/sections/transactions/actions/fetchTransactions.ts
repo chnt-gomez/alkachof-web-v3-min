@@ -1,13 +1,20 @@
 import { api } from '@/lib/api'
 import { IS_DEV_STAGE } from '@/lib/stage'
 import { mockFetchTransactions } from '@/mocks'
-import type { TransactionRole, TransactionStatus, TransactionSummary } from '../types'
+import type {
+  OrdersScope,
+  TransactionRole,
+  TransactionStatus,
+  TransactionSummary,
+} from '../types'
 
 export type FetchTransactionsParams = {
   role: TransactionRole
   status?: TransactionStatus
   limit?: number
   skip?: number
+  /** `active` (default) hits the filtered feed; `history` includes archived rows. */
+  scope?: OrdersScope
 }
 
 export type TransactionListResult = {
@@ -17,6 +24,14 @@ export type TransactionListResult = {
   skip: number
 }
 
+/**
+ * A page of the caller's product orders for one role.
+ *
+ * `/transaction/all` is the **active feed**, not everything — despite the name,
+ * the API filters out finished and long-untouched orders. `/transaction/history`
+ * is the same shape over the full set. Both take the same query parameters, so
+ * only the path differs.
+ */
 export async function fetchTransactions(
   params: FetchTransactionsParams,
 ): Promise<TransactionListResult> {
@@ -27,5 +42,6 @@ export async function fetchTransactions(
   search.set('limit', String(params.limit ?? 20))
   search.set('skip', String(params.skip ?? 0))
 
-  return api<TransactionListResult>(`/transaction/all?${search.toString()}`)
+  const path = params.scope === 'history' ? '/transaction/history' : '/transaction/all'
+  return api<TransactionListResult>(`${path}?${search.toString()}`)
 }

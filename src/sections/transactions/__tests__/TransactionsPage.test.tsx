@@ -105,6 +105,14 @@ async function renderAsBuyer(entry = '/transactions') {
   return user
 }
 
+// `/request/all` returns a page envelope now, not a bare array.
+const requestPage = (requests: ServiceRequest[]) => ({
+  requests,
+  total: requests.length,
+  limit: 20,
+  skip: 0,
+})
+
 beforeEach(() => {
   vi.clearAllMocks()
   findChatWith.mockReturnValue(undefined)
@@ -112,7 +120,7 @@ beforeEach(() => {
   vi.mocked(fetchTransactionPurchases).mockResolvedValue([sampleLine()])
   vi.mocked(fetchCatalogSummaries).mockResolvedValue({})
   vi.mocked(fetchProfileSummaries).mockResolvedValue({})
-  vi.mocked(fetchRequests).mockResolvedValue([])
+  vi.mocked(fetchRequests).mockResolvedValue(requestPage([]))
 })
 
 const sampleRequest = (overrides: Partial<ServiceRequest> = {}): ServiceRequest => ({
@@ -214,19 +222,35 @@ describe('TransactionsPage', () => {
     expect(screen.getAllByRole('tab')).toHaveLength(2)
   })
 
+  // On the active feed the copy says *activas*: a user whose orders have all
+  // been archived still has orders, so the absolute wording would be false.
   it('words the empty state for the role being viewed', async () => {
     vi.mocked(fetchTransactions).mockResolvedValue(listResult([]))
     const user = userEvent.setup()
     renderPage()
 
     expect(
-      await screen.findByText('Aún no has recibido ventas ni solicitudes.'),
+      await screen.findByText('No tienes ventas ni solicitudes activas.'),
     ).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: 'Compras' }))
 
     expect(
-      await screen.findByText('Aún no has realizado compras ni solicitudes.'),
+      await screen.findByText('No tienes compras ni solicitudes activas.'),
+    ).toBeInTheDocument()
+  })
+
+  // Only the history can say "you have never had one", because only it looked at
+  // everything.
+  it('uses absolute wording once the history itself comes back empty', async () => {
+    vi.mocked(fetchTransactions).mockResolvedValue(listResult([]))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Ver más antiguos' }))
+
+    expect(
+      await screen.findByText('Aún no has recibido ventas ni solicitudes.'),
     ).toBeInTheDocument()
   })
 
@@ -415,7 +439,7 @@ describe('TransactionsPage', () => {
     expect(await screen.findByText('No pudimos cargar tus pedidos.')).toBeInTheDocument()
 
     vi.mocked(fetchTransactions).mockResolvedValueOnce(listResult([sampleSummary()]))
-    vi.mocked(fetchRequests).mockResolvedValueOnce([])
+    vi.mocked(fetchRequests).mockResolvedValueOnce(requestPage([]))
     await userEvent.click(screen.getByRole('button', { name: /reintentar/i }))
 
     expect(await screen.findByRole('button', { name: /pedido de/i })).toBeInTheDocument()
@@ -441,9 +465,9 @@ describe('TransactionsPage', () => {
       vi.mocked(fetchTransactions).mockResolvedValue(
         listResult([sampleSummary({ dateCreated: '2026-07-10T12:00:00Z' })]),
       )
-      vi.mocked(fetchRequests).mockResolvedValue([
-        sampleRequest({ dateCreated: '2026-07-14T12:00:00Z' }),
-      ])
+      vi.mocked(fetchRequests).mockResolvedValue(
+        requestPage([sampleRequest({ dateCreated: '2026-07-14T12:00:00Z' })]),
+      )
       renderPage()
 
       const rows = await screen.findAllByRole('listitem')
@@ -480,7 +504,7 @@ describe('TransactionsPage', () => {
     })
 
     it('opens the right dialog for each kind of row', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([sampleRequest()])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([sampleRequest()]))
       renderPage()
 
       await userEvent.click(await screen.findByRole('button', { name: /solicitud (de|a)/i }))

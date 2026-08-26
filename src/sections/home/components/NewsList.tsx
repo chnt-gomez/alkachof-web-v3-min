@@ -12,6 +12,14 @@ type Props = {
  * Admin announcements styled like notification rows, but with different
  * behavior: no seen state and no navigation — tapping a row opens a dialog
  * with the full announcement.
+ *
+ * **Deliberately no delete button, despite looking like a deletable
+ * notification.** An announcement is a single global row every user reads —
+ * there is no per-user copy — so "delete" here would not hide it for one
+ * person, it would destroy it for everyone (and the API only lets an admin do
+ * that at all). A notification, by contrast, is one user's private row, which
+ * is what makes its trash button safe. Do not copy the trash affordance over
+ * from `NotificationList` until per-user delivery of announcements exists.
  */
 export function NewsList({ news }: Props) {
   const [selected, setSelected] = useState<AdminMessage | null>(null)

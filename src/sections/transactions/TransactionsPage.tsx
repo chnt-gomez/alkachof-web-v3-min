@@ -7,7 +7,7 @@ import { useOrdersFeed } from './hooks/useOrdersFeed'
 import { useTransactionDeepLink } from './hooks/useTransactionDeepLink'
 import { OrdersList } from './components/OrdersList'
 import { TransactionDetailDialog } from './components/TransactionDetailDialog'
-import type { TransactionRole, TransactionSummary } from './types'
+import type { OrdersScope, TransactionRole, TransactionSummary } from './types'
 
 /**
  * Ordered and colored to mirror the Home tabs: the seller's own side sits on the
@@ -31,12 +31,21 @@ const ROLE_TABS: { value: TransactionRole; label: string; activeClass: string }[
  * `orderStatusFilter.ts`, and `statusLabel`/`setStatusLabel` on `useOrdersFeed`
  * — so bringing it back is re-rendering one component here. Revisit when real
  * accounts carry enough history to need it.
+ *
+ * **The list defaults to what is still happening.** The API drops finished
+ * orders and ones untouched for five days out of the default feed, which is what
+ * keeps this screen short without deleting anything (an order belongs to both
+ * parties — one side clearing their view must not erase the other's record).
+ * "Ver más antiguos" re-reads the same feed with archived rows included, and is
+ * the only route to a completed order.
  */
 export function TransactionsPage() {
   const {
     role,
     setRole,
     statusLabel,
+    scope,
+    setScope,
     status,
     partialError,
     rows,
@@ -54,7 +63,10 @@ export function TransactionsPage() {
 
   return (
     <div className="flex flex-col gap-4 p-5">
-      <h1 className="text-2xl font-bold tracking-tight">Pedidos</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Pedidos</h1>
+        <ScopeToggle scope={scope} onChange={setScope} />
+      </div>
 
       <div role="tablist" aria-label="Tipo de pedido" className="flex gap-1 rounded-full bg-muted p-1">
         {ROLE_TABS.map((tab) => (
@@ -78,7 +90,12 @@ export function TransactionsPage() {
       {partialError && <PartialError onRetry={reload} />}
       {status === 'ready' &&
         (rows.length === 0 ? (
-          <EmptyState role={role} filtered={statusLabel !== null} />
+          <EmptyState
+            role={role}
+            filtered={statusLabel !== null}
+            scope={scope}
+            onShowHistory={() => setScope('history')}
+          />
         ) : (
           <>
             <OrdersList
@@ -168,18 +185,89 @@ function PartialError({ onRetry }: { onRetry: () => void }) {
   )
 }
 
-function EmptyState({ role, filtered }: { role: TransactionRole; filtered: boolean }) {
+/**
+ * Switches the whole feed between what is still happening and everything ever.
+ * Deliberately a single button rather than a second row of tabs: the active list
+ * is the answer nearly every time, and a phone has no room for two pill rows
+ * stacked above the content.
+ */
+function ScopeToggle({
+  scope,
+  onChange,
+}: {
+  scope: OrdersScope
+  onChange: (next: OrdersScope) => void
+}) {
+  const showingHistory = scope === 'history'
+  return (
+    <Button
+      size="sm"
+      variant={showingHistory ? 'secondary' : 'ghost'}
+      onClick={() => onChange(showingHistory ? 'active' : 'history')}
+      aria-pressed={showingHistory}
+      className="shrink-0"
+    >
+      {showingHistory ? 'Regresar a recientes' : 'Ver más antiguos'}
+    </Button>
+  )
+}
+
+function EmptyState({
+  role,
+  filtered,
+  scope,
+  onShowHistory,
+}: {
+  role: TransactionRole
+  filtered: boolean
+  scope: OrdersScope
+  onShowHistory: () => void
+}) {
   // A filtered-empty list is a different message from a genuinely empty one —
   // otherwise a chip that matches nothing reads as "you have no orders at all".
-  const message = filtered
-    ? 'No hay pedidos con este estado.'
-    : role === 'buyer'
-      ? 'Aún no has realizado compras ni solicitudes.'
-      : 'Aún no has recibido ventas ni solicitudes.'
+  if (filtered) {
+    return <EmptyMessage>No hay pedidos con este estado.</EmptyMessage>
+  }
 
+  // On the history there is genuinely nothing, ever — no point offering a way
+  // to look deeper.
+  if (scope === 'history') {
+    return (
+      <EmptyMessage>
+        {role === 'buyer'
+          ? 'Aún no has realizado compras ni solicitudes.'
+          : 'Aún no has recibido ventas ni solicitudes.'}
+      </EmptyMessage>
+    )
+  }
+
+  // An empty *active* list is ambiguous: it means either "nothing yet" or
+  // "everything you had is finished". The absolute wording used on the older
+  // list ("aún no has recibido...") would be a plain lie for a user whose twenty
+  // completed sales have all been archived — so this half says *activas*, and
+  // points at the only place the rest can be seen, using the same words as the
+  // header toggle.
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
+      <p className="text-sm text-muted-foreground">
+        {role === 'buyer'
+          ? 'No tienes compras ni solicitudes activas.'
+          : 'No tienes ventas ni solicitudes activas.'}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Los pedidos terminados y los que llevan días sin movimiento siguen guardados.
+      </p>
+      <Button size="sm" variant="outline" onClick={onShowHistory}>
+        Ver más antiguos
+      </Button>
+    </div>
+  )
+}
+
+function EmptyMessage({ children }: { children: React.ReactNode }) {
   return (
     <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-      {message}
+      {children}
     </p>
   )
 }

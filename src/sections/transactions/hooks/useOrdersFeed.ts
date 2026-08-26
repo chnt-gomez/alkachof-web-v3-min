@@ -3,7 +3,12 @@ import { useRequests } from '@/sections/requests/hooks/useRequests'
 import type { ServiceRequest, ServiceRequestRow } from '@/sections/requests/types'
 import { filterByLabel } from '../components/orderStatusFilter'
 import { useTransactions } from './useTransactions'
-import type { TransactionRole, TransactionStatus, TransactionSummary } from '../types'
+import type {
+  OrdersScope,
+  TransactionRole,
+  TransactionStatus,
+  TransactionSummary,
+} from '../types'
 
 /**
  * One row of the Pedidos feed. Product orders and service requests sit in the
@@ -19,12 +24,17 @@ export type OrdersFeedStatus = 'loading' | 'ready' | 'error'
 /**
  * The Pedidos feed: buyer or seller, both entities merged, newest first.
  *
- * The two sources disagree about paging — transactions are paginated
- * server-side, requests come back whole — so "Cargar más" pulls the next page of
- * transactions only and the merge re-sorts. A consequence worth knowing: an
- * older transaction arriving on page 2 inserts *below* requests already on
- * screen rather than appending to the bottom. That is correct by date, and the
- * alternative (paging the merged set) is not possible without server support.
+ * **Both halves now paginate.** They are still two independent server-side
+ * lists with their own totals, so "Cargar más" asks each half that still has
+ * rows for its next page and the merge re-sorts the accumulated result. A
+ * consequence worth knowing: an older row arriving on page 2 inserts *below*
+ * rows already on screen rather than appending to the bottom. That is correct by
+ * date, and paging the merged set is not possible without a combined endpoint.
+ *
+ * `scope` switches the whole feed between the active list and the full history.
+ * The API filters finished and long-untouched orders out of the active one, so
+ * the history is the only way to reach them — both halves must switch together,
+ * or the screen would show active products beside archived services.
  */
 export function useOrdersFeed() {
   // Opens on Ventas — the left tab, matching Home opening on its left tab. A
@@ -32,6 +42,7 @@ export function useOrdersFeed() {
   const [role, setRole] = useState<TransactionRole>('seller')
   /** Chips filter by status *label*, since the two enums are disjoint. */
   const [statusLabel, setStatusLabel] = useState<string | null>(null)
+  const [scope, setScope] = useState<OrdersScope>('active')
 
   const active = filterByLabel(statusLabel)
   // A label that belongs to only one entity switches the other off entirely,
@@ -42,11 +53,13 @@ export function useOrdersFeed() {
   const transactionsFeed = useTransactions({
     role,
     statusFilter: active?.transaction ?? null,
+    scope,
     enabled: wantsTransactions,
   })
   const requestsFeed = useRequests({
     role,
     statusFilter: active?.request ?? null,
+    scope,
     enabled: wantsRequests,
   })
 
@@ -110,18 +123,33 @@ export function useOrdersFeed() {
     [requestsFeed],
   )
 
+  // Each half owns its own paging, so "load more" asks only the halves that
+  // actually have another page — asking an exhausted one would refetch its last
+  // page and duplicate rows.
+  const transactionsHaveMore = wantsTransactions && transactionsFeed.hasMore
+  const requestsHaveMore = wantsRequests && requestsFeed.hasMore
+
+  const loadMore = useCallback(async () => {
+    await Promise.all([
+      transactionsHaveMore ? transactionsFeed.loadMore() : Promise.resolve(),
+      requestsHaveMore ? requestsFeed.loadMore() : Promise.resolve(),
+    ])
+  }, [transactionsHaveMore, requestsHaveMore, transactionsFeed, requestsFeed])
+
   return {
     role,
     setRole,
     statusLabel,
     setStatusLabel,
+    scope,
+    setScope,
     status,
     partialError,
     rows,
-    // Only product orders paginate; requests arrive whole.
-    hasMore: transactionsFeed.hasMore,
-    loadingMore: transactionsFeed.loadingMore,
-    loadMore: transactionsFeed.loadMore,
+    // Rows are left to see if *either* half has another page.
+    hasMore: transactionsHaveMore || requestsHaveMore,
+    loadingMore: transactionsFeed.loadingMore || requestsFeed.loadingMore,
+    loadMore,
     reload,
     patchTransaction,
     patchRequest,

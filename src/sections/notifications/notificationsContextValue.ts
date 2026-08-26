@@ -13,6 +13,11 @@ export type NotificationsState = {
   reload: () => void
   /** Optimistically mark one notification as seen and persist it. */
   markSeen: (id: string) => Promise<void>
+  /**
+   * Optimistically drop one notification and delete it server-side. Permanent —
+   * there is no undo. A failure puts the row back where it was.
+   */
+  remove: (id: string) => Promise<void>
 }
 
 export const NotificationsContext = createContext<NotificationsState | null>(null)

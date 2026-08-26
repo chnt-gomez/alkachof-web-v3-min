@@ -1,6 +1,6 @@
 import { api } from '@/lib/api'
 import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchNotifications, mockMarkNotificationSeen } from '@/mocks'
+import { mockDeleteNotification, mockFetchNotifications, mockMarkNotificationSeen } from '@/mocks'
 
 export type NotificationMetadata = {
   /**
@@ -75,4 +75,14 @@ export async function markNotificationSeen(id: string): Promise<Notification> {
     method: 'POST',
   })
   return data.notification
+}
+
+/**
+ * Delete a single notification — permanently, server-side (there is no undo and
+ * no trash). Only the owner may delete their own; a notification that is already
+ * gone answers 404, which the caller can treat as success.
+ */
+export async function deleteNotification(id: string): Promise<void> {
+  if (IS_DEV_STAGE) return mockDeleteNotification(id)
+  await api<{ message: string }>(`/notification/${id}/delete`, { method: 'POST' })
 }

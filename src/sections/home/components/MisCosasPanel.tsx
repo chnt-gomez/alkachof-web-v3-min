@@ -57,6 +57,7 @@ export function MisCosasPanel({ myCatalog, notifications, news }: Props) {
           <NotificationList
             notifications={notifications.notifications}
             onSeen={notifications.markSeen}
+            onDelete={notifications.remove}
           />
         )}
       </section>

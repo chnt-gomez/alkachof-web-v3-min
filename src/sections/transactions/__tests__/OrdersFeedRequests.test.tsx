@@ -46,6 +46,15 @@ import { fetchProfileSummaries } from '../actions/fetchProfileSummaries'
 // exactly the floor — too close to be reliable).
 const HELD_MS = MIN_PENDING_MS + 1500
 
+// `/request/all` returns a page envelope now, not a bare array. Rows in these
+// tests always fit one page, so total is simply the row count.
+const requestPage = (requests: ServiceRequest[]) => ({
+  requests,
+  total: requests.length,
+  limit: 20,
+  skip: 0,
+})
+
 const base: ServiceRequest = {
   id: 'req1',
   serviceId: 'svc1',
@@ -101,7 +110,7 @@ const rejectDialog = () => within(screen.getByRole('dialog', { name: 'Rechazar p
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(fetchRequests).mockResolvedValue([base])
+  vi.mocked(fetchRequests).mockResolvedValue(requestPage([base]))
   vi.mocked(fetchTransactions).mockResolvedValue({
     transactions: [],
     total: 0,
@@ -129,7 +138,7 @@ describe('request notification deep-links', () => {
   // A priced-quote notification goes to the buyer, and the page opens on Ventas.
   it('switches to Compras when the notification names the buyer side', async () => {
     vi.mocked(fetchRequests).mockImplementation(async ({ role }) =>
-      role === 'buyer' ? [at('PRICED', 95000)] : [],
+      role === 'buyer' ? requestPage([at('PRICED', 95000)]) : requestPage([]),
     )
     renderPage('/transactions?highlight=req1&role=buyer')
 
@@ -149,10 +158,10 @@ describe('request notification deep-links', () => {
     vi.mocked(fetchRequests).mockImplementation(async ({ role }) => {
       if (role === 'seller') {
         await delay(60)
-        return []
+        return requestPage([])
       }
       await delay(10)
-      return [at('PRICED', 95000)]
+      return requestPage([at('PRICED', 95000)])
     })
     renderPage('/transactions?highlight=req1&role=buyer')
 
@@ -167,7 +176,7 @@ describe('request notification deep-links', () => {
   // the page opens on Ventas — so a purchase must still be found.
   it('looks in the other tab when the notification names no role', async () => {
     vi.mocked(fetchRequests).mockImplementation(async ({ role }) =>
-      role === 'buyer' ? [base] : [],
+      role === 'buyer' ? requestPage([base]) : requestPage([]),
     )
     renderPage('/transactions?highlight=req1')
 
@@ -297,7 +306,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('has nothing to do while the buyer holds a quote', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('PRICED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('PRICED', 95000)]))
       await openFirstRequest('seller')
 
       // PRICED is entirely the buyer's move — the seller cannot re-quote,
@@ -309,7 +318,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('starts the work once the buyer has accepted', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('ACCEPTED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('ACCEPTED', 95000)]))
       vi.mocked(updateRequestStatus).mockResolvedValue(at('SERVING', 95000))
       const user = await openFirstRequest('seller')
 
@@ -332,7 +341,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('accepts a quote, moving it to ACCEPTED', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('PRICED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('PRICED', 95000)]))
       vi.mocked(updateRequestStatus).mockResolvedValue(at('ACCEPTED', 95000))
       const user = await openFirstRequest('buyer')
 
@@ -344,7 +353,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('holds the buyer\'s own moves the same way — the standard is role-blind', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('PRICED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('PRICED', 95000)]))
       vi.mocked(updateRequestStatus).mockResolvedValue(at('ACCEPTED', 95000))
       await openFirstRequest('buyer')
 
@@ -357,7 +366,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('turns a quote down, sending it back for a fresh one with no price', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('PRICED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('PRICED', 95000)]))
       // The server clears finalPrice on the way back to REQUESTED.
       vi.mocked(updateRequestStatus).mockResolvedValue(at('REQUESTED', null))
       const user = await openFirstRequest('buyer')
@@ -385,7 +394,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('offers the current note, pre-filled and selected, before rejecting', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('PRICED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('PRICED', 95000)]))
       const user = await openFirstRequest('buyer')
 
       await user.click(dialog().getByRole('button', { name: 'Rechazar precio' }))
@@ -401,7 +410,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('sends the rewritten note with the rejection', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('PRICED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('PRICED', 95000)]))
       vi.mocked(updateRequestStatus).mockResolvedValue({
         ...at('REQUESTED', null),
         customerNote: 'Ahora son 6 ventanas.',
@@ -432,7 +441,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('backs out of the rejection without sending', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('PRICED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('PRICED', 95000)]))
       const user = await openFirstRequest('buyer')
 
       await user.click(dialog().getByRole('button', { name: 'Rechazar precio' }))
@@ -444,7 +453,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('holds the reject button as a progress bar while it is in flight', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('PRICED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('PRICED', 95000)]))
       vi.mocked(updateRequestStatus).mockResolvedValue(at('REQUESTED', null))
       const user = await openFirstRequest('buyer')
 
@@ -458,7 +467,7 @@ describe('service requests in the Pedidos feed', () => {
     })
 
     it('cannot start the work itself once accepted', async () => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('ACCEPTED', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('ACCEPTED', 95000)]))
       await openFirstRequest('buyer')
 
       expect(dialog().queryByRole('button', { name: 'Iniciar servicio' })).not.toBeInTheDocument()
@@ -469,7 +478,7 @@ describe('service requests in the Pedidos feed', () => {
   it.each(['buyer', 'seller'] as const)(
     'lets the %s complete a job in progress',
     async (role) => {
-      vi.mocked(fetchRequests).mockResolvedValue([at('SERVING', 95000)])
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('SERVING', 95000)]))
       vi.mocked(updateRequestStatus).mockResolvedValue(at('COMPLETED', 95000))
       const user = await openFirstRequest(role)
 
@@ -480,7 +489,7 @@ describe('service requests in the Pedidos feed', () => {
   )
 
   it('offers no actions on a terminal request', async () => {
-    vi.mocked(fetchRequests).mockResolvedValue([at('COMPLETED', 95000)])
+    vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('COMPLETED', 95000)]))
     await openFirstRequest('seller')
 
     expect(dialog().queryByText('Acciones')).not.toBeInTheDocument()
@@ -488,10 +497,10 @@ describe('service requests in the Pedidos feed', () => {
   })
 
   it('shows a combined empty state when neither kind has rows', async () => {
-    vi.mocked(fetchRequests).mockResolvedValue([])
+    vi.mocked(fetchRequests).mockResolvedValue(requestPage([]))
     await renderAs('seller')
     expect(
-      await screen.findByText('Aún no has recibido ventas ni solicitudes.'),
+      await screen.findByText('No tienes ventas ni solicitudes activas.'),
     ).toBeInTheDocument()
   })
 })
