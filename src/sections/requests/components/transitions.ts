@@ -5,9 +5,9 @@ import type { RequestRole, RequestStatus } from '../types'
  * status and role, the only status values the server will accept.
  *
  *   REQUESTED ─(seller quotes)→ PRICED ─(buyer accepts)→ ACCEPTED ─(seller starts)→ SERVING
- *       ▲                          │                                                  │
- *       └──(buyer turns it down)───┘                            (either party)        ▼
- *                                                                              COMPLETED
+ *       ▲                          │                          │                        │
+ *       └──(buyer turns it down)───┘                  (buyer completes)     (buyer only) ▼
+ *                                                              ▼                   COMPLETED
  *
  * The API answers 400 `Invalid status transition` for both "illegal from this
  * status" and "not your role", so the UI is driven from this table rather than
@@ -31,10 +31,11 @@ const TRANSITIONS: Partial<
   },
   ACCEPTED: {
     SERVING: ['seller'],
+    COMPLETED: ['buyer'],
     CANCELED: ['buyer'],
   },
   SERVING: {
-    COMPLETED: ['buyer', 'seller'],
+    COMPLETED: ['buyer'],
     CANCELED: ['buyer'],
   },
 }

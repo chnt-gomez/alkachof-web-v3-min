@@ -45,9 +45,11 @@ export function requestStatusHint(
     case 'ACCEPTED':
       return role === 'seller'
         ? 'El comprador aceptó tu precio. Inicia cuando estés listo.'
-        : 'Aceptaste el precio. El vendedor iniciará el servicio.'
+        : 'Aceptaste el precio. Puedes confirmarlo cuando esté listo, o el vendedor iniciará el servicio.'
     case 'SERVING':
-      return 'El servicio está en proceso. Cualquiera de los dos puede marcarlo como completado.'
+      return role === 'buyer'
+        ? 'El servicio está en proceso. Cuando termine, confírmalo aquí.'
+        : 'El cliente confirmará cuando el servicio termine.'
     case 'REJECTED':
       return role === 'buyer'
         ? 'El vendedor rechazó esta solicitud.'

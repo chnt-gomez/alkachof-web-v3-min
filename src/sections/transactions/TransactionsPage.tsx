@@ -59,7 +59,14 @@ export function TransactionsPage() {
   } = useOrdersFeed()
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionSummary | null>(null)
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequestRow | null>(null)
-  const { highlightedId, registerCard } = useTransactionDeepLink({ role, setRole, status, rows })
+  const { highlightedId, registerCard } = useTransactionDeepLink({
+    role,
+    setRole,
+    scope,
+    setScope,
+    status,
+    rows,
+  })
 
   return (
     <div className="flex flex-col gap-4 p-5">
@@ -117,6 +124,7 @@ export function TransactionsPage() {
                 {loadingMore ? 'Cargando...' : 'Cargar más'}
               </Button>
             )}
+            {scope === 'active' && <ArchiveHint role={role} />}
           </>
         ))}
 
@@ -182,6 +190,31 @@ function PartialError({ onRetry }: { onRetry: () => void }) {
         Reintentar
       </Button>
     </div>
+  )
+}
+
+/**
+ * Standing footnote under a non-empty active list: whatever you cannot find is
+ * probably archived, not gone.
+ *
+ * This is the safety net for every way a user can end up looking for a row that
+ * is no longer in the default feed — a completed order, one untouched for five
+ * days, or a notification tapped late whose deep link predates the state that
+ * archived it. Rather than detect those cases (the last one cannot be detected
+ * from here at all), the page says the same true thing every time, and the
+ * wording deliberately echoes the header toggle's "Ver más antiguos" so the way
+ * to act on it is already on screen.
+ *
+ * Only on the active feed: on the history there is nothing deeper to look in.
+ * Only under a non-empty list: `EmptyState` already carries this message, with a
+ * button, and would say it twice.
+ */
+function ArchiveHint({ role }: { role: TransactionRole }) {
+  return (
+    <p className="px-2 pt-1 text-center text-xs text-muted-foreground">
+      Si no encuentras lo que estás buscando, es probable que se haya archivado en tus{' '}
+      {role === 'buyer' ? 'compras' : 'ventas'} antiguas.
+    </p>
   )
 }
 

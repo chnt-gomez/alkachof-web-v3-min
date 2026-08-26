@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import type { TransactionRole } from '../types'
+import type { OrdersScope, TransactionRole } from '../types'
 import type { TransactionsListStatus } from './useTransactions'
 
 const HIGHLIGHT_MS = 2600
@@ -8,6 +8,8 @@ const HIGHLIGHT_MS = 2600
 type Params = {
   role: TransactionRole
   setRole: (role: TransactionRole) => void
+  scope: OrdersScope
+  setScope: (scope: OrdersScope) => void
   status: TransactionsListStatus
   /** The rows currently on screen — the signal that a new list has landed. */
   rows: { id: string }[]
@@ -27,19 +29,28 @@ type Params = {
  * are never fetched while it's closed — so a miss on the active tab flips to the
  * other one once and looks again when its rows arrive.
  *
+ * `scope=history` is the same idea for the other axis. A finished order is archived
+ * out of the active feed the instant it completes, so the notification announcing a
+ * completion would otherwise land on a list that cannot contain its target. Only
+ * `history` is honoured — `active` is already the default, and anything else is
+ * treated as absent.
+ *
  * Callers register each card's element via `registerCard` and apply the
  * `transaction-highlight` class while its id equals `highlightedId`.
  */
-export function useTransactionDeepLink({ role, setRole, status, rows }: Params) {
+export function useTransactionDeepLink({ role, setRole, scope, setScope, status, rows }: Params) {
   const [searchParams, setSearchParams] = useSearchParams()
   const targetId = searchParams.get('highlight')
   const roleParam = searchParams.get('role')
   const targetRole: TransactionRole | null =
     roleParam === 'buyer' || roleParam === 'seller' ? roleParam : null
+  const targetScope: OrdersScope | null =
+    searchParams.get('scope') === 'history' ? 'history' : null
 
   const cardRefs = useRef(new Map<string, HTMLElement>())
   const handledId = useRef<string | null>(null)
   const roleSwitched = useRef(false)
+  const scopeSwitched = useRef(false)
   // The rows on screen when we switched tabs, or null if we never did. Switching
   // does not swap the list in the same commit — the new tab's fetch starts an
   // effect later — so for a moment a 'ready' feed still holds the rows of the tab
@@ -71,11 +82,28 @@ export function useTransactionDeepLink({ role, setRole, status, rows }: Params) 
     }
   }, [targetId, targetRole, role, rowsKey, setRole])
 
+  // And to the history feed when the link names it — a completed order is not in
+  // the active list this page opens on. Kept separate from the role switch above
+  // rather than merged: the two axes are independent, and a link may need either,
+  // both, or neither. React batches both setters into one re-render, so this
+  // still costs a single refetch, and both write the same `rowsAtSwitch` value.
+  useEffect(() => {
+    if (!targetId || !targetScope || scopeSwitched.current) return
+    scopeSwitched.current = true
+    if (scope !== targetScope) {
+      rowsAtSwitch.current = rowsKey
+      setScope(targetScope)
+    }
+  }, [targetId, targetScope, scope, rowsKey, setScope])
+
   useEffect(() => {
     if (!targetId || status !== 'ready') return
     if (handledId.current === targetId) return
     // If the notification named a role, wait until that tab is active and loaded.
     if (targetRole && role !== targetRole) return
+    // Likewise for the feed: searching the active list for a row the link told us
+    // is archived would miss, and burn the one retry below on a certain failure.
+    if (targetScope && scope !== targetScope) return
 
     const card = cardRefs.current.get(targetId)
 
@@ -94,12 +122,15 @@ export function useTransactionDeepLink({ role, setRole, status, rows }: Params) 
     // re-trigger it.
     handledId.current = targetId
 
-    // Drop the params so a manual reload doesn't re-fire the highlight.
+    // Drop the params so a manual reload doesn't re-fire the highlight. The feed
+    // stays on history if we switched it — the row the user came for lives there,
+    // and the header toggle is the visible way back.
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev)
         next.delete('highlight')
         next.delete('role')
+        next.delete('scope')
         return next
       },
       { replace: true },
@@ -113,7 +144,7 @@ export function useTransactionDeepLink({ role, setRole, status, rows }: Params) 
     requestAnimationFrame(() => card.scrollIntoView({ block: 'center', behavior: 'smooth' }))
     setHighlightedId(targetId)
     highlightTimeout.current = window.setTimeout(() => setHighlightedId(null), HIGHLIGHT_MS)
-  }, [targetId, targetRole, role, status, rowsKey, setRole, setSearchParams])
+  }, [targetId, targetRole, role, targetScope, scope, status, rowsKey, setRole, setSearchParams])
 
   useEffect(() => () => window.clearTimeout(highlightTimeout.current), [])
 

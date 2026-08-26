@@ -13,6 +13,7 @@ import { fetchTransactionPurchases } from '../actions/fetchTransactionPurchases'
 import { updateTransactionStatus } from '../actions/updateTransactionStatus'
 import { StatusBadge } from './StatusBadge'
 import { allowedTransitions, TRANSITION_ACTION_LABEL } from './transitions'
+import { ConfirmReceiptDialog } from './ConfirmReceiptDialog'
 import type { TransactionRole, TransactionStatus, TransactionSummary } from '../types'
 
 type Props = {
@@ -62,9 +63,9 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
   const [currentStatus, setCurrentStatus] = useState<TransactionStatus>(transaction.status)
   const [pending, setPending] = useState<TransactionStatus | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
 
-  // Seller-only for now; buyer-driven transitions are a separate effort.
-  const nextStatuses = role === 'seller' ? allowedTransitions(currentStatus, role) : []
+  const nextStatuses = allowedTransitions(currentStatus, role)
 
   const changeStatus = useCallback(
     async (next: TransactionStatus) => {
@@ -75,6 +76,7 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
         // reads as work and can't be tapped twice (see lib/pendingAction).
         const updated = await withMinDuration(updateTransactionStatus(transaction.id, next))
         setCurrentStatus(updated.status)
+        setConfirming(false)
         onUpdated(transaction.id, updated.status)
       } catch (err) {
         // The backend returns 500 for a disallowed transition (e.g. the list
@@ -90,6 +92,16 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
     },
     [transaction.id, onUpdated],
   )
+
+  if (confirming) {
+    return (
+      <ConfirmReceiptDialog
+        pending={pending === 'DELIVERED'}
+        onConfirm={() => void changeStatus('DELIVERED')}
+        onClose={() => setConfirming(false)}
+      />
+    )
+  }
 
   return (
     <Dialog onClose={onClose} ariaLabel="Detalle del pedido" title="Detalle del pedido">
@@ -173,9 +185,9 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
                 <ProgressButton
                   key={next}
                   size="sm"
-                  variant={next === 'REJECTED' || next === 'RETURNED' ? 'destructive' : 'default'}
+                  variant={next === 'REJECTED' ? 'destructive' : 'default'}
                   disabled={pending !== null}
-                  onClick={() => changeStatus(next)}
+                  onClick={() => next === 'DELIVERED' ? setConfirming(true) : void changeStatus(next)}
                   pending={pending === next}
                   pendingLabel="Actualizando…"
                   progressLabel={`${TRANSITION_ACTION_LABEL[next]}: actualizando el pedido`}
