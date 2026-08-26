@@ -5,11 +5,10 @@ import type { TransactionRole, TransactionStatus } from '../types'
  * Given a current status and the caller's role, it returns the statuses the
  * caller may move the transaction to via `POST /transaction/:id/status`.
  *
- * READY-FOR-PICKUP is intentionally absent as a source: it only advances to
- * DELIVERED through the pickup confirmation-code flow, never a direct status
- * update. REJECTED, DELIVERED and RETURNED are terminal (no outgoing edges).
- * The backend remains the source of truth; this only decides which action
- * buttons to render.
+ * The buyer may confirm receipt (DELIVERED) from any non-terminal status. REJECTED,
+ * DELIVERED and RETURNED are terminal. RETURNED is orphaned (no inbound edges).
+ * The backend remains the source of truth; this only decides which action buttons
+ * to render.
  */
 const TRANSITIONS: Partial<
   Record<TransactionStatus, Partial<Record<TransactionStatus, TransactionRole[]>>>
@@ -17,14 +16,18 @@ const TRANSITIONS: Partial<
   STARTED: {
     PROCESSING: ['seller'],
     REJECTED: ['seller'],
+    DELIVERED: ['buyer'],
   },
   PROCESSING: {
     'READY-FOR-PICKUP': ['seller'],
     'EN-ROUTE': ['seller'],
+    DELIVERED: ['buyer'],
+  },
+  'READY-FOR-PICKUP': {
+    DELIVERED: ['buyer'],
   },
   'EN-ROUTE': {
-    DELIVERED: ['buyer', 'seller'],
-    RETURNED: ['buyer'],
+    DELIVERED: ['buyer'],
   },
 }
 
@@ -34,7 +37,7 @@ export const TRANSITION_ACTION_LABEL: Record<TransactionStatus, string> = {
   PROCESSING: 'Marcar en proceso',
   'READY-FOR-PICKUP': 'Marcar listo para recoger',
   'EN-ROUTE': 'Marcar en camino',
-  DELIVERED: 'Marcar entregado',
+  DELIVERED: 'Confirmar recepción',
   REJECTED: 'Rechazar',
   RETURNED: 'Marcar devuelto',
 }

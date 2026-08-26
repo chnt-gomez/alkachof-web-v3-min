@@ -475,16 +475,28 @@ describe('service requests in the Pedidos feed', () => {
     })
   })
 
-  it.each(['buyer', 'seller'] as const)(
-    'lets the %s complete a job in progress',
-    async (role) => {
-      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at('SERVING', 95000)]))
+  // Completing is the buyer confirming they received the service. The seller can
+  // start the work but cannot declare it received on the customer's behalf.
+  it.each(['SERVING', 'ACCEPTED'] as const)(
+    'lets the buyer complete a job from %s',
+    async (status) => {
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at(status, 95000)]))
       vi.mocked(updateRequestStatus).mockResolvedValue(at('COMPLETED', 95000))
-      const user = await openFirstRequest(role)
+      const user = await openFirstRequest('buyer')
 
       await user.click(dialog().getByRole('button', { name: 'Marcar completado' }))
 
       expect(updateRequestStatus).toHaveBeenCalledWith('req1', 'COMPLETED', undefined, undefined)
+    },
+  )
+
+  it.each(['SERVING', 'ACCEPTED'] as const)(
+    'does not let the seller complete a job from %s',
+    async (status) => {
+      vi.mocked(fetchRequests).mockResolvedValue(requestPage([at(status, 95000)]))
+      await openFirstRequest('seller')
+
+      expect(dialog().queryByRole('button', { name: 'Marcar completado' })).not.toBeInTheDocument()
     },
   )
 

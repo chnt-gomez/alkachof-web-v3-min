@@ -351,17 +351,95 @@ describe('TransactionsPage', () => {
     expect(screen.getByRole('button', { name: 'Actualizando…' })).toBeDisabled()
   })
 
-  it('does not render status actions for a buyer', async () => {
+  // Confirming receipt is the buyer's only action, and it is available from every
+  // non-terminal status — including READY-FOR-PICKUP, which used to be a dead end
+  // (it advanced only through a pickup-code flow this client never implemented).
+  it.each(['STARTED', 'PROCESSING', 'READY-FOR-PICKUP', 'EN-ROUTE'] as const)(
+    'offers a buyer the receipt confirmation from %s',
+    async (status) => {
+      vi.mocked(fetchTransactions).mockResolvedValue(listResult([sampleSummary({ status })]))
+      const user = await renderAsBuyer()
+
+      await user.click(await screen.findByRole('button', { name: /pedido de/i }))
+
+      await screen.findByText('Detalle del pedido')
+      expect(screen.getByRole('button', { name: 'Confirmar recepción' })).toBeInTheDocument()
+    },
+  )
+
+  it('asks the buyer to confirm before completing, and only then calls the API', async () => {
+    vi.mocked(fetchTransactions).mockResolvedValue(
+      listResult([sampleSummary({ id: 't-buyer', status: 'READY-FOR-PICKUP' })]),
+    )
+    vi.mocked(updateTransactionStatus).mockResolvedValue({
+      id: 't-buyer',
+      purchaseIds: ['p1'],
+      buyerId: 'me',
+      sellerId: 'u2',
+      status: 'DELIVERED',
+      dateCreated: ISO,
+      dateUpdated: ISO,
+    })
+    const user = await renderAsBuyer()
+
+    await user.click(await screen.findByRole('button', { name: /pedido de/i }))
+    await user.click(await screen.findByRole('button', { name: 'Confirmar recepción' }))
+
+    // The first tap only opens the dialog — this is the whole point of the
+    // extra step, and without this assertion the test would pass with it gone.
+    expect(updateTransactionStatus).not.toHaveBeenCalled()
+    await screen.findByText(/no se puede deshacer/i)
+
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar recepción' }),
+    )
+
+    await waitFor(() =>
+      expect(updateTransactionStatus).toHaveBeenCalledWith('t-buyer', 'DELIVERED'),
+    )
+  })
+
+  it('backs out of the receipt confirmation without touching the order', async () => {
     vi.mocked(fetchTransactions).mockResolvedValue(
       listResult([sampleSummary({ status: 'EN-ROUTE' })]),
     )
     const user = await renderAsBuyer()
 
-    const card = await screen.findByRole('button', { name: /pedido de/i })
-    await user.click(card)
+    await user.click(await screen.findByRole('button', { name: /pedido de/i }))
+    await user.click(await screen.findByRole('button', { name: 'Confirmar recepción' }))
+    await user.click(await screen.findByRole('button', { name: 'Atrás' }))
+
+    expect(updateTransactionStatus).not.toHaveBeenCalled()
+    expect(await screen.findByText('Detalle del pedido')).toBeInTheDocument()
+  })
+
+  // Completion is the receiving party's statement; a seller cannot close an order
+  // on the buyer's behalf. Guards the rule the transitions map now encodes.
+  it('does not offer a seller the receipt confirmation', async () => {
+    vi.mocked(fetchTransactions).mockResolvedValue(
+      listResult([sampleSummary({ status: 'EN-ROUTE' })]),
+    )
+    renderPage()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Ventas' }))
+    await userEvent.click(await screen.findByRole('button', { name: /pedido de/i }))
 
     await screen.findByText('Detalle del pedido')
-    expect(screen.queryByText('Actualizar estado')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirmar recepción' })).not.toBeInTheDocument()
+  })
+
+  // RETURNED keeps its badge for rows created before the edge was removed, but
+  // nothing may reach it any more.
+  it('offers no way to mark an order returned', async () => {
+    vi.mocked(fetchTransactions).mockResolvedValue(
+      listResult([sampleSummary({ status: 'EN-ROUTE' })]),
+    )
+    const user = await renderAsBuyer()
+
+    await user.click(await screen.findByRole('button', { name: /pedido de/i }))
+
+    await screen.findByText('Detalle del pedido')
+    expect(screen.queryByRole('button', { name: /devuelto/i })).not.toBeInTheDocument()
   })
 
   it('accumulates the next page when load more is tapped', async () => {
@@ -429,6 +507,66 @@ describe('TransactionsPage', () => {
       'aria-selected',
       'true',
     )
+  })
+
+  // A completed order is archived the instant it finishes, so the notification
+  // announcing it links with scope=history — without honouring that, the page
+  // would search the active feed, which by definition cannot hold the target.
+  it('opens the history feed when the deep-link names scope=history', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    vi.mocked(fetchTransactions).mockResolvedValue(
+      listResult([sampleSummary({ id: 't1', status: 'DELIVERED' })]),
+    )
+    renderPage('/transactions?highlight=t1&role=seller&scope=history')
+
+    await waitFor(() =>
+      expect(fetchTransactions).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'seller', scope: 'history' }),
+      ),
+    )
+    const card = await screen.findByRole('button', { name: /pedido de/i })
+    await waitFor(() => expect(card.closest('li')).toHaveClass('transaction-highlight'))
+  })
+
+  it('stays on the active feed when the deep-link omits the scope', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    renderPage('/transactions?highlight=t1&role=seller')
+
+    await waitFor(() => expect(fetchTransactions).toHaveBeenCalled())
+    expect(fetchTransactions).not.toHaveBeenCalledWith(
+      expect.objectContaining({ scope: 'history' }),
+    )
+  })
+
+  // The standing safety net: every route to a missing row ends here, including
+  // the stale-by-time links the scope param cannot cover.
+  it('tells the buyer where archived orders went, under a non-empty active list', async () => {
+    await renderAsBuyer()
+
+    await screen.findByRole('button', { name: /pedido de/i })
+    expect(await screen.findByText(/se haya archivado en tus compras antiguas/i)).toBeInTheDocument()
+  })
+
+  it('words the archive hint for the seller side', async () => {
+    renderPage()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Ventas' }))
+    await screen.findByRole('button', { name: /pedido de/i })
+    expect(await screen.findByText(/se haya archivado en tus ventas antiguas/i)).toBeInTheDocument()
+  })
+
+  it('drops the archive hint on the history feed, where there is nothing deeper', async () => {
+    renderPage()
+
+    await screen.findByRole('button', { name: /pedido de/i })
+    await userEvent.click(screen.getByRole('button', { name: 'Ver más antiguos' }))
+
+    await waitFor(() =>
+      expect(fetchTransactions).toHaveBeenCalledWith(
+        expect.objectContaining({ scope: 'history' }),
+      ),
+    )
+    expect(screen.queryByText(/se haya archivado/i)).not.toBeInTheDocument()
   })
 
   it('surfaces a retryable error when both halves of the feed fail', async () => {
