@@ -16,6 +16,7 @@ import { RecoverPage } from '@/sections/auth/RecoverPage'
 import { ResetPasswordPage } from '@/sections/auth/ResetPasswordPage'
 import { VerifyEmailPage } from '@/sections/auth/VerifyEmailPage'
 import { AboutPage } from '@/sections/about/AboutPage'
+import { JoinPage } from '@/sections/join/JoinPage'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { NotificationsProvider } from '@/sections/notifications/context/NotificationsContext'
 import { ChatProvider } from '@/sections/chat/context/ChatContext'
@@ -40,6 +41,7 @@ export function AppRouter() {
                 <CartProvider>
                   <Routes>
                   <Route path="/about" element={<AboutPage />} />
+                  <Route path="/join" element={<JoinPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
                   <Route path="/recover" element={<RecoverPage />} />
