@@ -20,6 +20,13 @@ export type Catalog = {
    * url as opaque; never derive it from the catalog id.
    */
   image?: string
+  /**
+   * Public url of the catalog's permanent QR code (1024x1024 PNG), encoding
+   * `/join?catalogId=<id>`. Absent until the backend mints it — normally a
+   * transient one-refresh gap right after creation, but not guaranteed, so
+   * guard on presence rather than assuming it's always there.
+   */
+  qr?: string
 }
 
 export async function fetchPublicCatalog(catalogId: string): Promise<Catalog> {

@@ -130,6 +130,7 @@ export function CatalogHeader() {
         <ShareCatalogDialog
           catalogId={catalog._id}
           catalogName={catalog.alias}
+          qr={catalog.qr}
           onClose={() => setSharing(false)}
         />
       )}

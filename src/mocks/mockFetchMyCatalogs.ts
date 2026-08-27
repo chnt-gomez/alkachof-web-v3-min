@@ -1,5 +1,5 @@
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
-import { pick, randomId, randomInt } from './random'
+import { mockQrUrl, pick, randomId, randomInt } from './random'
 
 const ALIASES = ['Mi Tienda Artesanal', 'Tienda de Don Carlos', 'Productos Locales', 'El Mercadito']
 const WELCOME_TEXTS = ['Bienvenido a nuestra tienda', '¡Hola! Echa un vistazo', 'Descubre nuestros productos']
@@ -15,8 +15,9 @@ const IMAGES = [
 let cache: Catalog[] | null = null
 
 function buildCatalog(): Catalog {
+  const _id = randomId()
   return {
-    _id: randomId(),
+    _id,
     userId: 'me',
     alias: pick(ALIASES),
     welcomeText: pick(WELCOME_TEXTS),
@@ -28,6 +29,7 @@ function buildCatalog(): Catalog {
     deliveryDates: [],
     deliveryLocations: [],
     image: pick(IMAGES),
+    qr: mockQrUrl(_id),
   }
 }
 

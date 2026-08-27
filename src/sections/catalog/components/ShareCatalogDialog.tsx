@@ -1,4 +1,4 @@
-import { Copy } from 'lucide-react'
+import { Copy, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/useToast'
@@ -7,15 +7,18 @@ import { catalogShareUrl } from '@/lib/shareUrl'
 type Props = {
   catalogId: string
   catalogName: string
+  /** Public url of the catalog's QR code (`catalog.qr`); absent until the backend mints it. */
+  qr?: string
   onClose: () => void
 }
 
 /**
  * Explains the value of sharing, then copies the public catalog link and opens
  * the native share sheet (WhatsApp, etc.) in a single tap. On browsers without
- * the Web Share API, it just confirms the copy with a toast.
+ * the Web Share API, it just confirms the copy with a toast. Also shows the
+ * catalog's permanent QR code so nearby customers can scan straight in.
  */
-export function ShareCatalogDialog({ catalogId, catalogName, onClose }: Props) {
+export function ShareCatalogDialog({ catalogId, catalogName, qr, onClose }: Props) {
   const toast = useToast()
   const shareUrl = catalogShareUrl(catalogId)
 
@@ -55,6 +58,26 @@ export function ShareCatalogDialog({ catalogId, catalogName, onClose }: Props) {
           <Copy size={16} />
           Copiar link
         </Button>
+
+        {qr && (
+          <div className="flex flex-col items-center gap-3 border-t pt-5">
+            <p className="text-center text-sm text-muted-foreground">
+              O muestra este código para que tus clientes cercanos escaneen y entren directo a tu
+              catálogo.
+            </p>
+            <img
+              src={qr}
+              alt="Código QR de tu catálogo"
+              className="w-full max-w-[220px] object-contain"
+            />
+            <Button asChild size="sm" variant="outline">
+              <a href={qr} download="qr-catalogo.png">
+                <Download size={14} />
+                Descargar QR
+              </a>
+            </Button>
+          </div>
+        )}
       </div>
     </Dialog>
   )
