@@ -1,5 +1,5 @@
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
-import { pick, randomInt } from './random'
+import { mockQrUrl, pick, randomInt } from './random'
 
 const ALIASES = ['Mi Tienda Artesanal', 'Tienda de Don Carlos', 'Productos Locales', 'El Mercadito']
 const WELCOME_TEXTS = ['Bienvenido a nuestra tienda', '¡Hola! Echa un vistazo', 'Descubre nuestros productos', 'Gracias por visitarnos']
@@ -34,6 +34,7 @@ export function mockFetchEditableCatalog(catalogId: string): Promise<Catalog> {
     deliveryDates: [],
     deliveryLocations: [],
     image: pick(IMAGES),
+    qr: mockQrUrl(catalogId),
   }
   return Promise.resolve(catalog)
 }
