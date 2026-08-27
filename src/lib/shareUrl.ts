@@ -5,14 +5,14 @@ const PUBLIC_APP_URL = import.meta.env.VITE_PUBLIC_APP_URL ?? 'https://alkachof.
 
 /** Absolute, shareable URL for a catalog's public page. */
 export function catalogShareUrl(catalogId: string): string {
-  return `${PUBLIC_APP_URL.replace(/\/$/, '')}/catalog/${catalogId}`
+  return `${PUBLIC_APP_URL.replace(/\/$/, '')}/join?catalogId=${catalogId}`
 }
 
 /**
  * Absolute, shareable URL that deep-links to a specific product within a
- * catalog. Opening it lands on the catalog page, which scrolls to and
- * highlights the product (see CatalogItemList's `?product=` handling).
+ * catalog. Opening it lands on the join page, which then navigates to the
+ * catalog page and scrolls to the specified product.
  */
 export function productShareUrl(catalogId: string, productId: string): string {
-  return `${catalogShareUrl(catalogId)}?product=${encodeURIComponent(productId)}`
+  return `${catalogShareUrl(catalogId)}&product=${encodeURIComponent(productId)}`
 }
