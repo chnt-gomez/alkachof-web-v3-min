@@ -8,10 +8,7 @@ import type { Profile } from '../types'
  * deliberately absent: the backend merge would take it and reassign the
  * profile to another user.
  */
-export type ProfileFields = Pick<
-  Profile,
-  'alias' | 'profileDescription' | 'phoneCountry' | 'phoneContact'
->
+export type ProfileFields = Pick<Profile, 'alias' | 'profileDescription'>
 
 export async function updateProfile(
   profileId: string,

@@ -16,13 +16,17 @@ export function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [phone, setPhone] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [done, setDone] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!email || !password) {
+    if (!email || !password || !phone) {
       toast.error('Completa todos los campos')
+      return
+    }
+    if (!/^\d{10}$/.test(phone)) {
+      toast.error('El teléfono debe tener 10 dígitos')
       return
     }
     if (password.length < 6) {
@@ -35,33 +39,13 @@ export function SignupPage() {
     }
     setSubmitting(true)
     try {
-      await signup({ email, password })
-      setDone(true)
+      await signup({ email, password, phone })
+      navigate('/verify', { state: { email } })
     } catch {
       toast.error('No pudimos crear la cuenta. Intenta de nuevo.')
     } finally {
       setSubmitting(false)
     }
-  }
-
-  if (done) {
-    return (
-      <AuthScreen>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-xl">Revisa tu correo</CardTitle>
-            <CardDescription>
-              Te enviamos un enlace para activar tu cuenta. Una vez verificada podrás iniciar sesión.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full" onClick={() => navigate('/login')}>
-              Ir a iniciar sesión
-            </Button>
-          </CardContent>
-        </Card>
-      </AuthScreen>
-    )
   }
 
   return (
@@ -82,6 +66,18 @@ export function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tucorreo@ejemplo.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Teléfono</Label>
+              <Input
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="5512345678"
               />
             </div>
             <div className="space-y-2">

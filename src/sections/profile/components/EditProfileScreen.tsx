@@ -34,11 +34,9 @@ export function EditProfileScreen({ profile, onSaved, onClose }: Props) {
 
   const [alias, setAlias] = useState(profile.alias ?? '')
   const [profileDescription, setProfileDescription] = useState(profile.profileDescription ?? '')
-  const [phoneCountry, setPhoneCountry] = useState(profile.phoneCountry ?? '')
-  const [phoneContact, setPhoneContact] = useState(profile.phoneContact ?? '')
 
   async function handleSave() {
-    const patch = buildPatch(profile, { alias, profileDescription, phoneCountry, phoneContact })
+    const patch = buildPatch(profile, { alias, profileDescription })
     if (Object.keys(patch).length === 0) {
       onClose()
       return
@@ -92,27 +90,6 @@ export function EditProfileScreen({ profile, onSaved, onClose }: Props) {
               onChange={(e) => setProfileDescription(e.target.value)}
               placeholder="Ej. Vendo artesanías hechas a mano"
             />
-          </Field>
-
-          <Field label="Teléfono de contacto">
-            <div className="flex gap-2">
-              <input
-                className="input w-20 shrink-0"
-                value={phoneCountry}
-                onChange={(e) => setPhoneCountry(e.target.value)}
-                placeholder="+52"
-                inputMode="tel"
-                aria-label="Lada"
-              />
-              <input
-                className="input flex-1"
-                value={phoneContact}
-                onChange={(e) => setPhoneContact(e.target.value)}
-                placeholder="5512345678"
-                inputMode="tel"
-                aria-label="Número de teléfono"
-              />
-            </div>
           </Field>
 
           <p className="text-xs text-muted-foreground">

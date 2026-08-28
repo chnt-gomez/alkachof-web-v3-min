@@ -1,42 +1,29 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { AuthScreen } from '@/components/AuthScreen'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { validateToken } from './actions/validateToken'
 import { resetPassword } from './actions/resetPassword'
 
-type Status = 'validating' | 'invalid' | 'ready' | 'done'
-
 export function ResetPasswordPage() {
-  const { token = '' } = useParams<{ token: string }>()
   const navigate = useNavigate()
 
-  const [status, setStatus] = useState<Status>('validating')
+  const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    validateToken(token)
-      .then(() => {
-        if (active) setStatus('ready')
-      })
-      .catch(() => {
-        if (active) setStatus('invalid')
-      })
-    return () => {
-      active = false
-    }
-  }, [token])
+  const [done, setDone] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    if (!code.trim()) {
+      setError('Ingresa el código que te enviamos')
+      return
+    }
     if (!password) {
       setError('Ingresa tu nueva contraseña')
       return
@@ -51,47 +38,17 @@ export function ResetPasswordPage() {
     }
     setSubmitting(true)
     try {
-      await resetPassword({ token, password })
-      setStatus('done')
+      await resetPassword({ token: code.trim(), password })
+      setDone(true)
       setTimeout(() => navigate('/login'), 1500)
     } catch {
-      setError('No pudimos restablecer tu contraseña. Intenta de nuevo.')
+      setError('El código no es válido o expiró. Solicita uno nuevo.')
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (status === 'validating') {
-    return (
-      <AuthScreen>
-        <p aria-busy="true" className="text-center text-sm text-muted-foreground">
-          Validando enlace...
-        </p>
-      </AuthScreen>
-    )
-  }
-
-  if (status === 'invalid') {
-    return (
-      <AuthScreen>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-xl">Enlace inválido</CardTitle>
-            <CardDescription>
-              El enlace para restablecer tu contraseña no es válido o ya expiró.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to="/recover">
-              <Button className="w-full">Solicitar uno nuevo</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </AuthScreen>
-    )
-  }
-
-  if (status === 'done') {
+  if (done) {
     return (
       <AuthScreen>
         <Card className="w-full">
@@ -114,10 +71,21 @@ export function ResetPasswordPage() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-xl">Nueva contraseña</CardTitle>
-          <CardDescription>Define una contraseña para tu cuenta</CardDescription>
+          <CardDescription>Ingresa el código que te enviamos y define una nueva contraseña</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="code">Código de verificación</Label>
+              <Input
+                id="code"
+                type="text"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="a3f9c2b81d04"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
               <Input
@@ -147,6 +115,12 @@ export function ResetPasswordPage() {
               {submitting ? 'Guardando...' : 'Guardar contraseña'}
             </Button>
           </form>
+          <p className="mt-4 text-sm text-muted-foreground">
+            ¿No recibiste el código?{' '}
+            <Link to="/recover" className="font-medium text-primary underline-offset-4 hover:underline">
+              Solicita uno nuevo
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </AuthScreen>
