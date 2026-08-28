@@ -53,21 +53,6 @@ export function MyCatalogCard({ catalog, itemCount }: Props) {
         </span>
         <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
       </Link>
-
-      {itemCount === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-            <PackagePlus size={26} />
-          </span>
-          <h3 className="text-base font-semibold">Empieza a vender en Alkachof</h3>
-          <p className="text-sm text-muted-foreground">
-            Agrega tu primer producto para que tus clientes lo descubran.
-          </p>
-          <Button asChild>
-            <Link to="/catalog">Agregar productos</Link>
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

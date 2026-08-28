@@ -11,7 +11,5 @@ export type Profile = {
   userId: string
   profileDescription?: string
   alias?: string
-  phoneCountry?: string
-  phoneContact?: string
   profile_picture_url?: string
 }

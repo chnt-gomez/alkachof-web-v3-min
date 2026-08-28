@@ -18,8 +18,6 @@ const sampleProfile = (overrides: Partial<Profile> = {}): Profile => ({
   userId: 'user1',
   alias: 'artesano_mx',
   profileDescription: 'Vendo artesanías hechas a mano',
-  phoneCountry: '+52',
-  phoneContact: '5512345678',
   profile_picture_url: 'https://example.com/foto.jpg',
   ...overrides,
 })
@@ -53,17 +51,14 @@ describe('ProfilePage', () => {
 
     expect(await screen.findByText('artesano_mx')).toBeInTheDocument()
     expect(screen.getByText('Vendo artesanías hechas a mano')).toBeInTheDocument()
-    expect(screen.getByText('+52 5512345678')).toBeInTheDocument()
   })
 
   it('falls back to a dash when a field is empty', async () => {
-    vi.mocked(fetchProfile).mockResolvedValue(
-      sampleProfile({ profileDescription: '', phoneCountry: '', phoneContact: '' })
-    )
+    vi.mocked(fetchProfile).mockResolvedValue(sampleProfile({ profileDescription: '' }))
     renderPage()
 
     expect(await screen.findByText('artesano_mx')).toBeInTheDocument()
-    expect(screen.getAllByText('—')).toHaveLength(2)
+    expect(screen.getAllByText('—')).toHaveLength(1)
   })
 
   it('opens the edit screen prefilled with the current values', async () => {
@@ -75,7 +70,6 @@ describe('ProfilePage', () => {
     const dialog = screen.getByRole('dialog', { name: 'Editar perfil' })
     expect(dialog).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Ej. artesano_mx')).toHaveValue('artesano_mx')
-    expect(screen.getByLabelText('Número de teléfono')).toHaveValue('5512345678')
   })
 
   it('saves the changed fields and shows them on the page', async () => {

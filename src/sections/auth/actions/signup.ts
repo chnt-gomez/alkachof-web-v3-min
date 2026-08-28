@@ -6,6 +6,7 @@ import type { User } from '../types'
 export type SignupData = {
   email: string
   password: string
+  phone: string
 }
 
 export type SignupResult = {

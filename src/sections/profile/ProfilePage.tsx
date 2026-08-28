@@ -25,8 +25,6 @@ export function ProfilePage() {
     )
   }
 
-  const phone = [profile.phoneCountry, profile.phoneContact].filter(Boolean).join(' ')
-
   return (
     <div className="flex flex-col gap-6 p-5">
       <header className="flex items-start justify-between gap-3">
@@ -71,12 +69,6 @@ export function ProfilePage() {
             Descripción
           </dt>
           <dd>{profile.profileDescription || '—'}</dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Teléfono de contacto
-          </dt>
-          <dd>{phone || '—'}</dd>
         </div>
       </dl>
 

@@ -11,8 +11,6 @@ function seedProfile(): Profile {
     userId: `user_${randomId()}`,
     alias: 'artesano_demo',
     profileDescription: 'Cuenta de demostración en etapa de desarrollo',
-    phoneCountry: '+52',
-    phoneContact: '5512345678',
     profile_picture_url: 'https://picsum.photos/seed/profile/200/200',
   }
 }

@@ -35,9 +35,10 @@ describe('RecoverPage', () => {
     const user = userEvent.setup()
     renderPage()
     await user.type(screen.getByLabelText('Correo'), 'user@admin.com')
-    await user.click(screen.getByRole('button', { name: 'Enviar enlace' }))
+    await user.click(screen.getByRole('button', { name: 'Enviar código' }))
 
-    expect(await screen.findByText('Revisa tu correo')).toBeInTheDocument()
+    expect(await screen.findByText('Revisa tu teléfono')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ingresar código' })).toBeInTheDocument()
     expect(requestRecovery).toHaveBeenCalledWith({ email: 'user@admin.com' })
   })
 
@@ -46,15 +47,15 @@ describe('RecoverPage', () => {
     const user = userEvent.setup()
     renderPage()
     await user.type(screen.getByLabelText('Correo'), 'unknown@admin.com')
-    await user.click(screen.getByRole('button', { name: 'Enviar enlace' }))
+    await user.click(screen.getByRole('button', { name: 'Enviar código' }))
 
-    expect(await screen.findByText('Revisa tu correo')).toBeInTheDocument()
+    expect(await screen.findByText('Revisa tu teléfono')).toBeInTheDocument()
   })
 
   it('blocks submission with an empty email', async () => {
     const user = userEvent.setup()
     renderPage()
-    await user.click(screen.getByRole('button', { name: 'Enviar enlace' }))
+    await user.click(screen.getByRole('button', { name: 'Enviar código' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/ingresa tu correo/i)
     expect(requestRecovery).not.toHaveBeenCalled()
   })

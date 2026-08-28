@@ -14,7 +14,7 @@ import { LoginPage } from '@/sections/auth/LoginPage'
 import { SignupPage } from '@/sections/auth/SignupPage'
 import { RecoverPage } from '@/sections/auth/RecoverPage'
 import { ResetPasswordPage } from '@/sections/auth/ResetPasswordPage'
-import { VerifyEmailPage } from '@/sections/auth/VerifyEmailPage'
+import { VerifyPhonePage } from '@/sections/auth/VerifyPhonePage'
 import { AboutPage } from '@/sections/about/AboutPage'
 import { JoinPage } from '@/sections/join/JoinPage'
 import { AuthProvider } from '@/sections/auth/AuthContext'
@@ -45,8 +45,8 @@ export function AppRouter() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
                   <Route path="/recover" element={<RecoverPage />} />
-                  <Route path="/reset/:token" element={<ResetPasswordPage />} />
-                  <Route path="/verify/:token" element={<VerifyEmailPage />} />
+                  <Route path="/reset" element={<ResetPasswordPage />} />
+                  <Route path="/verify" element={<VerifyPhonePage />} />
                   <Route element={<NavShell />}>
                     {/* Public: the visitor view of a catalog shares the app header
                         (guest variant) but is not behind ProtectedRoute. */}

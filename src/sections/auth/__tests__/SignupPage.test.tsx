@@ -20,6 +20,7 @@ function renderPage() {
           <Routes>
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/login" element={<div>Login</div>} />
+            <Route path="/verify" element={<div>Verify</div>} />
           </Routes>
         </AuthProvider>
       </ToastProvider>
@@ -33,14 +34,22 @@ beforeEach(() => {
   vi.mocked(fetchProfile).mockResolvedValue({ _id: 'p', userId: 'u' })
 })
 
+async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText('Correo'), 'a@b.com')
+  await user.type(screen.getByLabelText('Teléfono'), '5512345678')
+  await user.type(screen.getByLabelText('Contraseña'), 'secret123')
+  await user.type(screen.getByLabelText('Confirmar contraseña'), 'secret123')
+}
+
 describe('SignupPage', () => {
   it('renders the signup form in Spanish', () => {
     renderPage()
     expect(screen.getAllByText('Crear cuenta').length).toBeGreaterThan(0)
     expect(screen.getByLabelText('Correo')).toBeInTheDocument()
+    expect(screen.getByLabelText('Teléfono')).toBeInTheDocument()
   })
 
-  it('shows the verify-your-email confirmation on success', async () => {
+  it('navigates to the phone verification screen on success', async () => {
     vi.mocked(signup).mockResolvedValue({
       message: 'ok',
       user: { _id: 'u1', email: 'a@b.com', status: 'pending-registration', type: 'user', created: '' },
@@ -48,12 +57,25 @@ describe('SignupPage', () => {
     const user = userEvent.setup()
     renderPage()
 
+    await fillValidForm(user)
+    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
+
+    expect(await screen.findByText('Verify')).toBeInTheDocument()
+    expect(signup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'secret123', phone: '5512345678' })
+  })
+
+  it('rejects a phone number that is not 10 digits', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
     await user.type(screen.getByLabelText('Correo'), 'a@b.com')
+    await user.type(screen.getByLabelText('Teléfono'), '551234')
     await user.type(screen.getByLabelText('Contraseña'), 'secret123')
     await user.type(screen.getByLabelText('Confirmar contraseña'), 'secret123')
     await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
 
-    expect(await screen.findByText('Revisa tu correo')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/10 dígitos/i)
+    expect(signup).not.toHaveBeenCalled()
   })
 
   it('rejects mismatched passwords', async () => {
@@ -61,6 +83,7 @@ describe('SignupPage', () => {
     renderPage()
 
     await user.type(screen.getByLabelText('Correo'), 'a@b.com')
+    await user.type(screen.getByLabelText('Teléfono'), '5512345678')
     await user.type(screen.getByLabelText('Contraseña'), 'secret123')
     await user.type(screen.getByLabelText('Confirmar contraseña'), 'different')
     await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
@@ -74,6 +97,7 @@ describe('SignupPage', () => {
     renderPage()
 
     await user.type(screen.getByLabelText('Correo'), 'a@b.com')
+    await user.type(screen.getByLabelText('Teléfono'), '5512345678')
     await user.type(screen.getByLabelText('Contraseña'), '123')
     await user.type(screen.getByLabelText('Confirmar contraseña'), '123')
     await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
