@@ -43,7 +43,7 @@ export function RecoverPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Link to="/reset">
+            <Link to="/reset" state={{ email }}>
               <Button className="w-full">Ingresar código</Button>
             </Link>
             <Link to="/login">

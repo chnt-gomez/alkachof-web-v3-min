@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { VerifyPhonePage } from '../VerifyPhonePage'
 import { ToastProvider } from '@/components/ui/toast'
+import { ApiError } from '@/lib/api'
 
 vi.mock('../actions/verifyPhone')
 vi.mock('../actions/resendPhoneCode')
@@ -34,22 +35,57 @@ describe('VerifyPhonePage', () => {
     const user = userEvent.setup()
     renderPage({ email: 'a@b.com' })
 
-    await user.type(screen.getByLabelText('Código de verificación'), 'a3f9c2b81d04')
+    await user.type(screen.getByLabelText('Código de verificación'), '043532')
     await user.click(screen.getByRole('button', { name: 'Verificar' }))
 
     expect(await screen.findByText('Teléfono verificado')).toBeInTheDocument()
-    expect(verifyPhone).toHaveBeenCalledWith({ code: 'a3f9c2b81d04' })
+    expect(verifyPhone).toHaveBeenCalledWith({ email: 'a@b.com', code: '043532' })
   })
 
-  it('shows an error when the code is invalid', async () => {
-    vi.mocked(verifyPhone).mockRejectedValue(new Error('Invalid token'))
+  it('only accepts digits in the code field, up to 6', async () => {
     const user = userEvent.setup()
     renderPage({ email: 'a@b.com' })
 
-    await user.type(screen.getByLabelText('Código de verificación'), 'bad-code')
+    await user.type(screen.getByLabelText('Código de verificación'), 'ab12cd34ef')
+    expect(screen.getByLabelText('Código de verificación')).toHaveValue('1234')
+  })
+
+  it('shows an error when the code is invalid', async () => {
+    vi.mocked(verifyPhone).mockRejectedValue(new ApiError('Invalid token', 400))
+    const user = userEvent.setup()
+    renderPage({ email: 'a@b.com' })
+
+    await user.type(screen.getByLabelText('Código de verificación'), '999999')
     await user.click(screen.getByRole('button', { name: 'Verificar' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/no es válido o expiró/i)
+  })
+
+  it('shows the destroyed-code state after too many wrong attempts', async () => {
+    vi.mocked(verifyPhone).mockRejectedValue(
+      new ApiError('Too many incorrect attempts. Request a new code.', 400, {
+        message: 'Too many incorrect attempts. Request a new code.',
+        codeDestroyed: true,
+      }),
+    )
+    const user = userEvent.setup()
+    renderPage({ email: 'a@b.com' })
+
+    await user.type(screen.getByLabelText('Código de verificación'), '999999')
+    await user.click(screen.getByRole('button', { name: 'Verificar' }))
+
+    expect(await screen.findByText('Código bloqueado')).toBeInTheDocument()
+  })
+
+  it('shows a rate-limit message on 429', async () => {
+    vi.mocked(verifyPhone).mockRejectedValue(new ApiError('Too many requests', 429))
+    const user = userEvent.setup()
+    renderPage({ email: 'a@b.com' })
+
+    await user.type(screen.getByLabelText('Código de verificación'), '999999')
+    await user.click(screen.getByRole('button', { name: 'Verificar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/demasiados intentos/i)
   })
 
   it('shows an email input when no email was passed in navigation state', () => {

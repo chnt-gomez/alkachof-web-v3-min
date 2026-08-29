@@ -3,6 +3,8 @@ import { IS_DEV_STAGE } from '@/lib/stage'
 import { mockResetPassword } from '@/mocks'
 
 export type ResetPasswordRequest = {
+  email: string
+  /** The 6-digit code the user typed. Field is named `token` server-side. */
   token: string
   password: string
 }

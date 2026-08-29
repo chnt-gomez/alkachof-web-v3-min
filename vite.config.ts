@@ -11,6 +11,6 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ['rosita-nonsynonymous-carmella.ngrok-free.dev']
+    allowedHosts: ['app.alkachof.mx']
   }
 })

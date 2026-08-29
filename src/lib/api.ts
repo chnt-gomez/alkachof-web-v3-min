@@ -18,6 +18,22 @@ export class ApiError extends Error {
   }
 }
 
+/** Envelope A — controller-rejected error body. Carries the codeDestroyed flag. */
+export type ApiErrorBody = {
+  message?: string
+  /** Present and true only when a verification/reset code was destroyed by too many attempts. */
+  codeDestroyed?: boolean
+  /** Present only on a 429, from the rate limiter. ISO 8601. */
+  availableAt?: string
+  /** Envelope B — global error handler. */
+  error?: { message?: string }
+}
+
+/** True only when the code was destroyed server-side after too many wrong attempts — key off this flag, never the message string. */
+export function isCodeDestroyedError(err: unknown): boolean {
+  return err instanceof ApiError && (err.body as ApiErrorBody | undefined)?.codeDestroyed === true
+}
+
 type ApiOptions = Omit<RequestInit, 'body'> & {
   body?: unknown
   authenticated?: boolean
