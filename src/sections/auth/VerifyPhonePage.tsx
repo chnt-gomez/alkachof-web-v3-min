@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/useToast'
+import { ApiError, isCodeDestroyedError } from '@/lib/api'
 import { verifyPhone } from './actions/verifyPhone'
 import { resendPhoneCode } from './actions/resendPhoneCode'
 
@@ -19,6 +20,7 @@ export function VerifyPhonePage() {
   const [email, setEmail] = useState(stateEmail)
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [codeDestroyed, setCodeDestroyed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [resending, setResending] = useState(false)
   const [done, setDone] = useState(false)
@@ -26,30 +28,42 @@ export function VerifyPhonePage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    if (!email.trim()) {
+      setError('Ingresa tu correo')
+      return
+    }
     if (!code.trim()) {
       setError('Ingresa el código de verificación')
       return
     }
     setSubmitting(true)
     try {
-      await verifyPhone({ code: code.trim() })
+      await verifyPhone({ email: email.trim(), code: code.trim() })
       setDone(true)
-    } catch {
-      setError('El código no es válido o expiró. Solicita uno nuevo.')
+    } catch (err) {
+      if (isCodeDestroyedError(err)) {
+        setCodeDestroyed(true)
+      } else if (err instanceof ApiError && err.status === 429) {
+        setError('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.')
+      } else {
+        setError('El código no es válido o expiró.')
+      }
     } finally {
       setSubmitting(false)
     }
   }
 
   async function handleResend() {
-    if (!email) {
+    if (!email.trim()) {
       setError('Ingresa tu correo para reenviar el código')
       return
     }
     setError(null)
     setResending(true)
     try {
-      await resendPhoneCode({ email })
+      await resendPhoneCode({ email: email.trim() })
+      setCodeDestroyed(false)
+      setCode('')
       toast.success('Te enviamos un nuevo código')
     } catch {
       toast.error('No pudimos reenviar el código. Intenta de nuevo.')
@@ -70,6 +84,27 @@ export function VerifyPhonePage() {
             <Link to="/login">
               <Button className="w-full">Ir a iniciar sesión</Button>
             </Link>
+          </CardContent>
+        </Card>
+      </AuthScreen>
+    )
+  }
+
+  if (codeDestroyed) {
+    return (
+      <AuthScreen>
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-xl">Código bloqueado</CardTitle>
+            <CardDescription>
+              Bloqueamos este código por seguridad. Hiciste demasiados intentos incorrectos.
+              Solicita un código nuevo para continuar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={handleResend} disabled={resending}>
+              {resending ? 'Reenviando...' : 'Reenviar código'}
+            </Button>
           </CardContent>
         </Card>
       </AuthScreen>
@@ -103,10 +138,13 @@ export function VerifyPhonePage() {
               <Input
                 id="code"
                 type="text"
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
                 autoComplete="one-time-code"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="a3f9c2b81d04"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
               />
             </div>
             {error && (

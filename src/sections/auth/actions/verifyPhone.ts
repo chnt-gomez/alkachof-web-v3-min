@@ -3,6 +3,8 @@ import { IS_DEV_STAGE } from '@/lib/stage'
 import { mockVerifyPhone } from '@/mocks'
 
 export type VerifyPhoneRequest = {
+  email: string
+  /** Exactly 6 digits, leading zeros significant. Send as typed — never parse to a number. */
   code: string
 }
 

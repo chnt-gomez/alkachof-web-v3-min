@@ -30,7 +30,7 @@ Current routes:
 
 Public:
 - `/catalog/:catalogId` → `PublicCatalogPage` (visitor view of a catalog by id)
-- `/login`, `/signup`, `/recover`, `/reset/:token`, `/verify/:token` → auth pages
+- `/login`, `/signup`, `/recover`, `/reset`, `/verify` → auth pages (the reset/verify code is typed into a form field, not read from a URL param)
 
 Protected (wrapped in `NavShell` + `ProtectedRoute`):
 - `/` → `HomePage`
