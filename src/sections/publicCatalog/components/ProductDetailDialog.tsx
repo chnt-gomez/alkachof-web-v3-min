@@ -14,6 +14,7 @@ import { useServiceRequest } from '../hooks/useServiceRequest'
 import { useOwnerGuard } from '../hooks/useOwnerGuard'
 import { ServiceRequestDialog } from './ServiceRequestDialog'
 import type { Item } from '../actions/fetchCatalogItems'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 type Props = {
   item: Item
@@ -130,7 +131,7 @@ export function ProductDetailDialog({ item, onClose }: Props) {
 
         {item.imgPath && (
           <img
-            src={item.imgPath}
+            src={resolveMediaUrl(item.imgPath)}
             alt={item.name}
             className="w-full object-contain"
           />

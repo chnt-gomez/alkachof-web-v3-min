@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Camera, ImageIcon, Loader2, Trash2, X } from 'lucide-react'
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES, type ImagePresetName } from '@/lib/imagePresets'
 import { resizeImage } from '@/lib/resizeImage'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 type Props = {
   value: string
@@ -171,7 +172,7 @@ export function ImageUploadField({
             Subiendo imagen…
           </div>
         ) : value ? (
-          <img src={value} alt={alt ?? 'Imagen'} className="w-full object-contain" />
+          <img src={resolveMediaUrl(value)} alt={alt ?? 'Imagen'} className="w-full object-contain" />
         ) : (
           <div className="flex h-32 w-full items-center justify-center text-xs text-muted-foreground">
             {placeholder}

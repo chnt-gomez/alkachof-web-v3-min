@@ -12,6 +12,7 @@ import { deleteItem } from '@/sections/catalog/actions/deleteItem'
 import { ItemFormDialog } from '@/sections/catalog/components/ItemFormDialog'
 import { DeleteItemConfirm } from '@/sections/catalog/components/DeleteItemConfirm'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 export function ProductPage() {
   const { id } = useParams<{ id: string }>()
@@ -60,7 +61,7 @@ export function ProductPage() {
             <CardContent className="flex flex-col gap-4">
               {item.imgPath ? (
                 <div className="flex w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
-                  <img src={item.imgPath} alt={item.name || 'Producto'} className="w-full object-contain" />
+                  <img src={resolveMediaUrl(item.imgPath)} alt={item.name || 'Producto'} className="w-full object-contain" />
                 </div>
               ) : (
                 <div className="flex h-32 w-full items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground">
