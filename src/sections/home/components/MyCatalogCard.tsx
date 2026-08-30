@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { ChevronRight, PackagePlus, Store, Tag } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ChevronRight, Store, Tag } from 'lucide-react'
 import { CatalogThumb } from '@/components/CatalogImage'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 type Props = {
   catalog: Catalog
@@ -33,7 +33,7 @@ export function MyCatalogCard({ catalog, itemCount }: Props) {
         aria-label={catalog.alias ? `Abrir mi catálogo ${catalog.alias}` : 'Abrir mi catálogo'}
       >
         <CatalogThumb
-          src={catalog.image}
+          src={resolveMediaUrl(catalog.image)}
           size="lg"
           fallback={
             <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground">

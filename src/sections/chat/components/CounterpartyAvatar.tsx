@@ -1,4 +1,5 @@
 import type { UserSummary } from '../types'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 /** Round avatar for a counterparty — photo when available, else initial. */
 export function CounterpartyAvatar({
@@ -14,7 +15,7 @@ export function CounterpartyAvatar({
   if (summary?.avatarUrl) {
     return (
       <img
-        src={summary.avatarUrl}
+        src={resolveMediaUrl(summary.avatarUrl)}
         alt={alias}
         style={dimension}
         className="shrink-0 rounded-full border object-cover"

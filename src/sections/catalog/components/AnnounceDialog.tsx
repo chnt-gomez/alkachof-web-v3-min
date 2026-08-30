@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/useToast'
 import { cn } from '@/lib/utils'
 import { broadcastCatalog } from '../actions/broadcastCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 const MESSAGE_MAX = 280
 
@@ -131,7 +132,7 @@ export function AnnounceDialog({ catalogId, items, onCooldown, onClose }: Props)
                     >
                       {item.imgPath ? (
                         <img
-                          src={item.imgPath}
+                          src={resolveMediaUrl(item.imgPath)}
                           alt={item.name || 'Producto'}
                           className="h-full w-full object-contain bg-muted"
                         />

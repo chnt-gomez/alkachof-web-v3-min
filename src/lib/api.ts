@@ -2,7 +2,7 @@ import { clearTokens, getRefreshToken, getToken, getTokenExpiryMs, setTokens } f
 
 const PROACTIVE_REFRESH_BUFFER_MS = 30_000
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.alkachof.mx'
 
 /** API origin — also the Socket.IO host for the `/live` namespace. */
 export const API_BASE_URL = BASE_URL

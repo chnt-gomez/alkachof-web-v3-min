@@ -15,6 +15,7 @@ import { StatusBadge } from './StatusBadge'
 import { allowedTransitions, TRANSITION_ACTION_LABEL } from './transitions'
 import { ConfirmReceiptDialog } from './ConfirmReceiptDialog'
 import type { TransactionRole, TransactionStatus, TransactionSummary } from '../types'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 type Props = {
   transaction: TransactionSummary
@@ -149,7 +150,7 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
             {data.map((line) => (
               <li key={line.id} className="flex items-start gap-3">
                 <img
-                  src={line.item.imgPath}
+                  src={resolveMediaUrl(line.item.imgPath)}
                   alt={line.item.name}
                   className="w-16 shrink-0 rounded-lg object-contain"
                 />

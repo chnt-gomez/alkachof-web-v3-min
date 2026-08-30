@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Bookmark, ChevronRight, MapPin } from 'lucide-react'
 import { CatalogThumb } from '@/components/CatalogImage'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 type Props = { catalogs: Catalog[] }
 
@@ -29,7 +30,7 @@ export function SavedCatalogList({ catalogs }: Props) {
             aria-label={`Ver catálogo ${catalog.alias}`}
           >
             <CatalogThumb
-              src={catalog.image}
+              src={resolveMediaUrl(catalog.image)}
               fallback={
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
                   <Bookmark size={20} />

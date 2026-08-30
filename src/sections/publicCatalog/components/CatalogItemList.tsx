@@ -6,6 +6,7 @@ import { ItemTypeChip } from '@/components/ItemTypeChip'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
 import { ProductDetailDialog } from './ProductDetailDialog'
 import type { Item } from '../actions/fetchCatalogItems'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 const HIGHLIGHT_MS = 2600
 
@@ -93,7 +94,7 @@ export function CatalogItemList() {
               {item.imgPath ? (
                 <div className="flex w-full items-center justify-center overflow-hidden bg-muted">
                   <img
-                    src={item.imgPath}
+                    src={resolveMediaUrl(item.imgPath)}
                     alt={item.name}
                     className="w-full object-contain"
                   />

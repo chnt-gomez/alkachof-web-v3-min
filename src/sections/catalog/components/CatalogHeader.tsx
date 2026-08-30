@@ -8,6 +8,7 @@ import { useEditCatalog } from '../context/EditCatalogContext'
 import { EditCatalogScreen } from './EditCatalogScreen'
 import { ShareCatalogDialog } from './ShareCatalogDialog'
 import { AnnounceDialog, formatAvailableAt } from './AnnounceDialog'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 export function CatalogHeader() {
   const { catalog, items } = useEditCatalog()
@@ -49,7 +50,7 @@ export function CatalogHeader() {
         )}
 
         <CatalogHeroImage
-          src={catalog.image}
+          src={resolveMediaUrl(catalog.image)}
           alt={catalog.alias}
           hint="Toca el lápiz para agregar una imagen a tu catálogo."
         />

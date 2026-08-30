@@ -12,6 +12,7 @@ import { useCatalogSubscription } from '../hooks/useCatalogSubscription'
 import { useCatalogLocation } from '../hooks/useCatalogLocation'
 import { ShippingInfoDialog } from './ShippingInfoDialog'
 import { CatalogLocationDialog } from './CatalogLocationDialog'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 export function CatalogJumbotron() {
   // Owners can't message or subscribe to themselves; those buttons stay hidden
@@ -97,7 +98,7 @@ export function CatalogJumbotron() {
         <p className="text-sm text-primary-foreground/70">{catalog.description}</p>
       )}
 
-      <CatalogHeroImage src={catalog.image} alt={catalog.alias} />
+      <CatalogHeroImage src={resolveMediaUrl(catalog.image)} alt={catalog.alias} />
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">

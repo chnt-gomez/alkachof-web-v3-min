@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/sections/auth/useAuth'
 import { useNotifications } from '@/sections/notifications/useNotifications'
 import { useChat } from '@/sections/chat/useChat'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 const TABS = [
   { to: '/', label: 'Inicio', icon: Store },
@@ -64,7 +65,7 @@ export function NavShell() {
               <Link to="/profile" aria-label="Mi perfil" className="shrink-0">
                 {profile?.profile_picture_url ? (
                   <img
-                    src={profile.profile_picture_url}
+                    src={resolveMediaUrl(profile.profile_picture_url)}
                     alt={profile.alias ?? 'Perfil'}
                     className="h-9 w-9 rounded-full border object-cover"
                   />

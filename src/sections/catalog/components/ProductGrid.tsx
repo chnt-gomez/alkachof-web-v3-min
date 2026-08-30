@@ -8,6 +8,7 @@ import { useEditCatalog } from '../context/EditCatalogContext'
 import { ItemFormDialog } from './ItemFormDialog'
 import { DeleteItemConfirm } from './DeleteItemConfirm'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 export function ProductGrid() {
   const { catalog, items, createItem, updateItem, deleteItem } = useEditCatalog()
@@ -52,7 +53,7 @@ export function ProductGrid() {
                 {item.imgPath ? (
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
                     <img
-                      src={item.imgPath}
+                      src={resolveMediaUrl(item.imgPath)}
                       alt={item.name || 'Producto'}
                       className="max-h-full w-full object-contain"
                     />

@@ -2,6 +2,7 @@ import { Minus, Plus, Trash2 } from 'lucide-react'
 import { formatPrice } from '@/lib/format'
 import { useCart } from '../context/CartContext'
 import type { CartLine } from '../types'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 type Props = {
   line: CartLine
@@ -20,7 +21,7 @@ export function CartLineItem({ line, catalogId }: Props) {
       <div className="h-24 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
         {line.imgPath ? (
           <img
-            src={line.imgPath}
+            src={resolveMediaUrl(line.imgPath)}
             alt={line.name}
             className="h-full w-full object-contain"
           />

@@ -1,5 +1,6 @@
 import { CatalogHeroImage } from '@/components/CatalogImage'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 /**
  * The gradient is not decoration: `CatalogHeroImage`'s placeholder branch uses
@@ -14,7 +15,7 @@ export function InvitationCard({ catalog }: { catalog: Catalog }) {
           <p className="text-base text-primary-foreground/80">{catalog.welcomeText}</p>
         )}
       </div>
-      <CatalogHeroImage src={catalog.image} alt={catalog.alias} />
+      <CatalogHeroImage src={resolveMediaUrl(catalog.image)} alt={catalog.alias} />
     </div>
   )
 }
