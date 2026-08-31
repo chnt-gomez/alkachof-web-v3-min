@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Store, CircleUserRound, ReceiptText, MessageCircle, Bell } from 'lucide-react'
+import { Store, CircleUserRound, ReceiptText, MessageCircle, Bell, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/BrandMark'
+import { HelpDialog } from '@/components/HelpDialog'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/sections/auth/useAuth'
 import { useNotifications } from '@/sections/notifications/useNotifications'
@@ -46,6 +48,7 @@ export function NavShell() {
   const { isAuthenticated, profile } = useAuth()
   const { unreadCount } = useChat()
   const location = useLocation()
+  const [helpOpen, setHelpOpen] = useState(false)
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -61,6 +64,14 @@ export function NavShell() {
           </Link>
           {isAuthenticated ? (
             <div className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                aria-label="Ayuda"
+                onClick={() => setHelpOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <HelpCircle size={20} />
+              </button>
               <NotificationBell />
               <Link to="/profile" aria-label="Mi perfil" className="shrink-0">
                 {profile?.profile_picture_url ? (
@@ -77,16 +88,28 @@ export function NavShell() {
               </Link>
             </div>
           ) : (
-            <Button variant="ghost" size="sm" asChild>
-              {/* Carry the current page so login returns the visitor to the
-                  catalog they were browsing, not to Inicio. */}
-              <Link to="/login" state={{ from: location.pathname }}>
-                Ingresar
-              </Link>
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                aria-label="Ayuda"
+                onClick={() => setHelpOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <HelpCircle size={20} />
+              </button>
+              <Button variant="ghost" size="sm" asChild>
+                {/* Carry the current page so login returns the visitor to the
+                    catalog they were browsing, not to Inicio. */}
+                <Link to="/login" state={{ from: location.pathname }}>
+                  Ingresar
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </header>
+
+      {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
 
       <main className={cn('flex flex-1 flex-col', isAuthenticated && 'pb-24')}>
         <Outlet />
