@@ -77,4 +77,15 @@ describe('NavShell header', () => {
     expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Ingresar' })).not.toBeInTheDocument()
   })
+
+  it('opens the contact info modal from the help button', async () => {
+    const user = userEvent.setup()
+    renderShell()
+
+    await user.click(screen.getByRole('button', { name: 'Ayuda' }))
+
+    expect(screen.getByRole('dialog', { name: 'Ayuda y contacto' })).toBeInTheDocument()
+    expect(screen.getByText('admin@alkachof.mx')).toBeInTheDocument()
+    expect(screen.getByText('+52 33 2506 4128')).toBeInTheDocument()
+  })
 })
