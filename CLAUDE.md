@@ -124,6 +124,7 @@ Key components and their file paths for quick reference:
 | `PublicCatalogContext` | `src/sections/publicCatalog/context/PublicCatalogContext.tsx` |
 | `CartDrawer` | `src/sections/cart/components/CartDrawer.tsx` |
 | `GuestCheckoutPrompt` | `src/sections/cart/components/GuestCheckoutPrompt.tsx` |
+| `InstagramImportDialog` | `src/sections/catalog/components/InstagramImportDialog.tsx` |
 | `TransactionsPage` | `src/sections/transactions/TransactionsPage.tsx` |
 | `TransactionDetailDialog` | `src/sections/transactions/components/TransactionDetailDialog.tsx` |
 | UI primitives | `src/components/ui/` (`button.tsx`, `card.tsx`) |
@@ -173,6 +174,49 @@ The API leaves **finished** orders (`DELIVERED`/`REJECTED`/`RETURNED` for produc
 **Both halves paginate now.** `/request/all` used to return every request as a bare `{ requests }`; it returns a page envelope (`RequestListResult`) and at most `limit` rows, so nothing may treat that array as complete — read `total`. `useRequests` therefore accumulates pages exactly like `useTransactions`, and `loadMore` asks only the halves that still have rows (asking an exhausted one refetches its last page and duplicates rows). Both hooks dedupe on append via `appendNew`: skip-based paging over a dataset where rows can un-archive mid-session can legitimately hand back a row the client already holds.
 
 The client **never** applies the archive rule itself — the server owns it. The one exception is `src/mocks/ordersArchive.ts`, which mirrors `api/util/orderFeedQuery.js` so the dev stage behaves like production; **keep the two in step** (same arrangement as `imagePresets.ts`). Full contract: `followup.OrdersFeedPagination.md`.
+
+### Instagram import (`src/sections/catalog/`, Phyllo)
+
+"Importar de Instagram" in `ProductGrid` turns a seller's Instagram photos into
+catalog items. Contract: `followup.InstagramImportApi.md`. The whole flow lives
+in `InstagramImportDialog` over `useInstagramImport`, against four `/phyllo/*`
+actions (`createPhylloConnectToken`, `fetchInstagramAccount`,
+`fetchInstagramPosts`, `importInstagramPosts`).
+
+`src/lib/phylloConnect.ts` wraps Phyllo's Connect SDK. There is no npm package
+for the web build, so the script is injected from Phyllo's CDN the first time a
+seller opens the dialog and read off `window.PhylloConnect`. The SDK fires
+`accountConnected` while its iframe is still open, so `exit` is the terminal
+event and whatever was recorded before it decides the outcome. **In dev stage it
+is a no-op that resolves as connected** and loads nothing — same arrangement as
+`liveSocket.ts` — while the mocked REST endpoints carry the state:
+`mockCreatePhylloConnectToken` flips `mockInstagramStore` to CONNECTED, because
+minting a token is the only signal dev stage gets that the seller went through
+the modal.
+
+Rules this screen must keep:
+
+- **`status` drives four screens, not a boolean.** `SESSION_EXPIRED` says
+  *reconnect* — the seller already linked the account once.
+- **`previewUrl` is a signed link that expires within hours.** It goes into an
+  `<img>` and nowhere else: never persisted, never sent back to the API, never
+  stored against an item. The imported product's image is a separate copy in
+  Alkachof's storage.
+- **Only `format === 'IMAGE'` posts are selectable**, and already-imported ones
+  are disabled. Both stay visible but dimmed — hiding them makes the feed look
+  like it lost posts. (The API can import a `VIDEO` through its thumbnail; the
+  client declines to, by product decision.)
+- **201 is not "everything landed".** Every selection comes back in `imported`
+  or `skipped`; the summary shows both, and `skipReasonLabel` translates the
+  API's English reasons. Refetch the feed after any import — that is the fix for
+  every skip reason.
+- **Max 10 per call**, one import at a time (it runs for seconds and shares the
+  upload rate budget).
+- Imports use the API's defaults — name from the caption's first line, price 0 —
+  so a new item is priced afterwards like any other unpriced one.
+- `VITE_PHYLLO_ENV` **must match the API's `PHYLLO_ENV`**; a sandbox client
+  cannot open a token minted for production. `/phyllo/connect-token` does not
+  report it today, but the action honours an `environment` field if it starts to.
 
 ### Notifications section (`src/sections/notifications/`)
 

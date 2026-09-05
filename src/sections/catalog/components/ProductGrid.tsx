@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { Instagram, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatItemPrice } from '@/lib/format'
 import { isService } from '@/lib/item'
@@ -7,34 +7,54 @@ import { ItemTypeChip } from '@/components/ItemTypeChip'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import { ItemFormDialog } from './ItemFormDialog'
 import { DeleteItemConfirm } from './DeleteItemConfirm'
+import { InstagramImportDialog } from './InstagramImportDialog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 export function ProductGrid() {
-  const { catalog, items, createItem, updateItem, deleteItem } = useEditCatalog()
+  const { catalog, items, createItem, updateItem, deleteItem, reloadItems } = useEditCatalog()
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [addingProduct, setAddingProduct] = useState(false)
   const [deletingItem, setDeletingItem] = useState<Item | null>(null)
+  const [importing, setImporting] = useState(false)
+
+  // Wrapped so the import hook, which holds it in a dependency list, is not
+  // rebuilt on every keystroke elsewhere in the provider.
+  const handleImported = useCallback(() => {
+    void reloadItems()
+  }, [reloadItems])
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-muted-foreground">
           {items.length} {items.length === 1 ? 'artículo' : 'artículos'}
         </p>
-        <Button size="sm" onClick={() => setAddingProduct(true)}>
-          <Plus size={14} className="mr-1" />
-          Agregar artículo
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => setImporting(true)}>
+            <Instagram size={14} className="mr-1" />
+            Importar de Instagram
+          </Button>
+          <Button size="sm" onClick={() => setAddingProduct(true)}>
+            <Plus size={14} className="mr-1" />
+            Agregar artículo
+          </Button>
+        </div>
       </div>
 
       {items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center">
           <p className="text-sm text-muted-foreground">Aún no tienes artículos en este catálogo.</p>
-          <Button size="sm" onClick={() => setAddingProduct(true)}>
-            <Plus size={14} className="mr-1" />
-            Agregar primer artículo
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button size="sm" onClick={() => setAddingProduct(true)}>
+              <Plus size={14} className="mr-1" />
+              Agregar primer artículo
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setImporting(true)}>
+              <Instagram size={14} className="mr-1" />
+              Importar de Instagram
+            </Button>
+          </div>
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -107,6 +127,13 @@ export function ProductGrid() {
             createItem({ catalogId: catalog._id, name, description, price, image, type })
           }
           onClose={() => setAddingProduct(false)}
+        />
+      )}
+
+      {importing && (
+        <InstagramImportDialog
+          onImported={handleImported}
+          onClose={() => setImporting(false)}
         />
       )}
 

@@ -23,6 +23,12 @@ type EditCatalogState = {
   updateItem: (itemId: string, patch: Partial<Item>, image?: File | null) => Promise<void>
   createItem: (data: NewItemData) => Promise<void>
   deleteItem: (itemId: string) => Promise<void>
+  /**
+   * Re-reads the item list. For creations this screen did not perform itself —
+   * an Instagram import returns only a summary of each new item, not the full
+   * `Item` rows the grid renders.
+   */
+  reloadItems: () => Promise<void>
 }
 
 const EditCatalogContext = createContext<EditCatalogState | null>(null)
@@ -92,6 +98,11 @@ export function EditCatalogProvider({ children }: { children: React.ReactNode })
     setItems((prev) => prev.filter((it) => it._id !== itemId))
   }
 
+  async function reloadItems() {
+    if (!catalog) return
+    setItems(await fetchCatalogItems(catalog._id))
+  }
+
   return (
     <EditCatalogContext.Provider
       value={{
@@ -105,6 +116,7 @@ export function EditCatalogProvider({ children }: { children: React.ReactNode })
         updateItem,
         createItem,
         deleteItem,
+        reloadItems,
       }}
     >
       {children}
