@@ -122,7 +122,10 @@ describe('ImageUploadField — optimizing phase', () => {
     await pick(user)
 
     await waitFor(() => expect(upload).toHaveBeenCalled())
-    expect(onBusyChange).toHaveBeenLastCalledWith(false)
+    // The unblock lands when the upload settles, which is a tick after it is
+    // called — asserting it straight after the call above is a race that only
+    // passes while the suite is fast enough.
+    await waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(false))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

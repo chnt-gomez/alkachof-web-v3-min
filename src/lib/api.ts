@@ -29,6 +29,20 @@ export type ApiErrorBody = {
   error?: { message?: string }
 }
 
+/**
+ * The moment a 429 says the caller may try again, when the body carries one.
+ *
+ * Both the IP rate limiter and the per-seller Instagram cooldown answer with
+ * this field, so a caller reads one shape rather than two — and since the wait
+ * can be fifteen minutes or seven days, the date is what the UI must show. Null
+ * when the server sent no date; say "más tarde" rather than inventing one.
+ */
+export function availableAtOf(err: unknown): string | null {
+  if (!(err instanceof ApiError)) return null
+  const at = (err.body as ApiErrorBody | undefined)?.availableAt
+  return typeof at === 'string' ? at : null
+}
+
 /** True only when the code was destroyed server-side after too many wrong attempts — key off this flag, never the message string. */
 export function isCodeDestroyedError(err: unknown): boolean {
   return err instanceof ApiError && (err.body as ApiErrorBody | undefined)?.codeDestroyed === true
