@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Home, Megaphone, ShoppingBag, Wifi } from 'lucide-react'
+import { Home, Megaphone, Import, Wifi } from 'lucide-react'
 import { BrandMark } from '@/components/BrandMark'
 import { Button } from '@/components/ui/button'
 import { AboutHighlight } from './components/AboutHighlight'
@@ -100,9 +100,9 @@ const highlights = [
     description: 'Tus clientes están buscándote en línea. Crea tu perfil y empieza a vender hoy mismo.',
   },
   {
-    icon: ShoppingBag,
-    title: 'Anuncia lo que tu quieras',
-    description: 'Eso que tú haces, lo que tú vendes, lo que tú ofreces. Todo tiene un lugar en Alkachof.',
+    icon: Import,
+    title: 'Tráelo desde Instagram',
+    description: 'Autoriza tu cuenta de Instagram y trae tu catálogo de productos.',
   },
   {
     icon: Megaphone,
@@ -147,15 +147,15 @@ export function AboutPage() {
 
         <section className="flex flex-col gap-3">
           <Button asChild size="lg" className="w-full">
-            <Link to="/login">Iniciar sesión</Link>
+            <Link to="/signup">Crear cuenta</Link>
           </Button>
           <p className="text-center text-sm text-muted-foreground">
-            ¿Aún no tienes cuenta?{' '}
+            ¿Ya tienes cuenta?{' '}
             <Link
-              to="/signup"
+              to="/login"
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Crea una
+              Inciar sesión
             </Link>
           </p>
         </section>
