@@ -1,52 +1,72 @@
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, availableAtOf } from '@/lib/api'
 import { IS_DEV_STAGE } from '@/lib/stage'
 import { mockFetchInstagramPosts } from '@/mocks'
 
-export type InstagramPostFormat = 'IMAGE' | 'VIDEO' | 'AUDIO' | 'TEXT' | 'OTHER'
+/** Only IMAGE posts can become products, by product decision. */
+export type InstagramMediaType = 'IMAGE' | 'VIDEO'
 
 export type InstagramPost = {
   /** The only identifying field an import accepts. */
-  contentId: string
-  title: string
-  description: string
-  format: InstagramPostFormat
+  externalPostId: string
+  /** The Instagram caption. Its first line becomes the product name. */
+  caption: string
+  mediaType: InstagramMediaType
   /** Permalink on instagram.com. */
-  url: string
+  permalink: string
   publishedAt: string
   /**
-   * A SIGNED link that expires within hours. Render it in an `<img>` and
-   * nothing else: never persist it, never send it back to the API, never store
-   * it against an item. The product image an import creates is a separate copy
-   * in Alkachof's own storage. Refetching this endpoint mints fresh links.
+   * A CDN link that expires. Render it in an `<img>` and nothing else: never
+   * persist it, never send it back to the API, never store it against an item.
+   * The product image an import creates is a separate copy in Alkachof's own
+   * storage. Refetching this endpoint mints fresh links.
    */
-  previewUrl: string
+  mediaUrl: string
   /** Already a product. Selection is refused server-side a second time. */
-  imported: boolean
-  /** The item it became, when `imported`. */
-  itemId: string | null
+  isConverted: boolean
+  /** The item it became, when `isConverted`. */
+  convertedItemId: string | null
 }
 
 export type InstagramPostsResult =
   | { ok: true; posts: InstagramPost[] }
-  /** 400 — no Instagram account is linked. Send them back to the connect screen. */
-  | { ok: false; reason: 'notConnected' }
-  /** 502 — Phyllo unreachable. Retryable. */
+  /** 400 — no Instagram account is linked yet. */
+  | { ok: false; reason: 'notEnrolled' }
+  /** 502 — the scraper is unreachable. Retryable. */
   | { ok: false; reason: 'unavailable' }
+  /**
+   * 429 — the seller already spent their scraper run for this cooldown. Not
+   * retryable in any useful sense: `availableAt` is days away, so this is a
+   * terminal screen with a date, never a "Reintentar" button.
+   */
+  | { ok: false; reason: 'cooldown'; availableAt: string | null }
   | { ok: false; reason: 'error'; message: string }
 
 /**
- * Refreshes the cached feed from Phyllo and returns it, newest first. One page
- * of up to 50 posts — there is no pagination, so older posts are unreachable.
+ * The seller's feed, newest first.
+ *
+ * Takes no arguments, and that is the point: the account is resolved server-side
+ * from the auth token via `ig_details`. There is no parameter that could point
+ * this at somebody else's profile.
+ *
+ * One bounded page of up to 100 posts. There is no "load more" — the scraper has
+ * no resume cursor into Instagram, so a second page would mean re-scraping from
+ * the top. Calling this again refreshes the whole page.
+ *
+ * **Every call is a billed scraper run**, which is why the API gates it on a
+ * per-seller cooldown and answers 429 once a seller has spent theirs. Check
+ * `fetchInstagramStatus` before offering this, so the seller is not sent to a
+ * refusal they could have been told about on the previous screen.
  */
 export async function fetchInstagramPosts(): Promise<InstagramPostsResult> {
   if (IS_DEV_STAGE) return mockFetchInstagramPosts()
 
   try {
-    const data = await api<{ posts: InstagramPost[] }>('/phyllo/posts')
+    const data = await api<{ posts: InstagramPost[] }>('/instagram/posts')
     return { ok: true, posts: data.posts ?? [] }
   } catch (err) {
     if (err instanceof ApiError) {
-      if (err.status === 400) return { ok: false, reason: 'notConnected' }
+      if (err.status === 400) return { ok: false, reason: 'notEnrolled' }
+      if (err.status === 429) return { ok: false, reason: 'cooldown', availableAt: availableAtOf(err) }
       if (err.status === 502) return { ok: false, reason: 'unavailable' }
     }
     return {

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { openPhylloConnect } from '@/lib/phylloConnect'
-import { createPhylloConnectToken } from '../actions/createPhylloConnectToken'
+import { fetchInstagramStatus } from '../actions/fetchInstagramStatus'
 import {
-  fetchInstagramAccount,
-  type InstagramAccountStatus,
-} from '../actions/fetchInstagramAccount'
+  searchInstagramProfiles,
+  type AttestationCopy,
+  type InstagramProfileCandidate,
+} from '../actions/searchInstagramProfiles'
+import { enrollInstagram } from '../actions/enrollInstagram'
 import { fetchInstagramPosts, type InstagramPost } from '../actions/fetchInstagramPosts'
 import {
   importInstagramPosts,
@@ -13,30 +14,71 @@ import {
 } from '../actions/importInstagramPosts'
 
 /**
- * Phyllo fires `accountConnected` before its own backend has finished writing
- * the account, so the first `/phyllo/account` read after the modal closes can
- * still say NOT_CONNECTED. Poll a few times before believing it.
+ * The screen the dialog is on.
+ *
+ * `searching → picking → attesting` is the enrollment wizard, and it exists only
+ * until the seller links an account. Every step before `browsing` is reversible;
+ * the commit at the end of `attesting` is not, which is why the wizard has
+ * backward edges at every step and a confirmation the seller has to tick.
+ *
+ * `done` is terminal. An import ends the session — the dialog reports what landed
+ * and closes, rather than returning to a feed the seller is finished with.
+ *
+ * `cooldown` is terminal too, and for a harder reason: reading the feed is a
+ * billed scraper run, and the API allows one per seller per cooldown. A seller
+ * who already spent theirs cannot be shown a feed at all, so this phase replaces
+ * the screen rather than disabling a button on it. There is no retry — the wait
+ * is days long, and the only useful thing to show is when it ends.
  */
-const CONNECT_POLL_ATTEMPTS = 6
-const CONNECT_POLL_INTERVAL_MS = 1500
+export type ImportPhase =
+  | 'checking'
+  | 'searching'
+  | 'picking'
+  | 'attesting'
+  | 'browsing'
+  | 'done'
+  | 'cooldown'
 
 export type ImportSummary = {
   importedCount: number
   skipped: SkippedPost[]
+  /**
+   * When the seller may import again, ISO 8601, or null when nothing landed and
+   * so no cooldown started. The success screen needs this: every skip reason is
+   * fixed by refetching the feed, and a successful import is exactly what blocks
+   * that refetch, so telling the seller to "try again" without the date would be
+   * an instruction the API refuses.
+   */
+  nextAvailable: string | null
 }
 
 /** A post is importable only when it is a photo and is not already an item. */
 export function isSelectablePost(post: InstagramPost): boolean {
-  return post.format === 'IMAGE' && !post.imported
+  return post.mediaType === 'IMAGE' && !post.isConverted
+}
+
+/** The attestation with the chosen handle substituted in. */
+export function attestationTextFor(
+  copy: AttestationCopy | null,
+  candidate: InstagramProfileCandidate | null,
+): string {
+  if (!copy || !candidate) return ''
+  return copy.template.split(copy.placeholder).join(`@${candidate.alias}`)
 }
 
 type ImportState = {
-  status: InstagramAccountStatus | null
-  username: string | null
-  /** Reading the account, or polling right after the modal closed. */
-  isLoadingAccount: boolean
-  /** The Connect modal is open, or its token is being minted. */
-  isConnecting: boolean
+  phase: ImportPhase
+  /** The last query, kept so "Buscar de nuevo" returns to an editable box. */
+  query: string
+  candidates: InstagramProfileCandidate[]
+  /** Server-owned copy. The client renders it and never composes its own. */
+  attestation: AttestationCopy | null
+  selectedProfile: InstagramProfileCandidate | null
+  /** The seller ticked the ownership checkbox. Gates the commit button. */
+  attested: boolean
+  /** A search runs a scraper actor and takes seconds. */
+  isSearching: boolean
+  isEnrolling: boolean
   posts: InstagramPost[]
   isLoadingPosts: boolean
   /** In-flight import — blocks a second one and drives the progress bar. */
@@ -44,25 +86,51 @@ type ImportState = {
   selected: string[]
   /** Spanish, user-facing. `retry` says whether "Reintentar" makes sense. */
   error: { message: string; retry: boolean } | null
+  /**
+   * A private account is terminal for that handle: retrying does nothing until
+   * the seller changes something on Instagram, so it gets its own screen rather
+   * than an error with a dead retry button.
+   */
+  privateAlias: string | null
   summary: ImportSummary | null
+  /**
+   * When this seller may next run the scraper, ISO 8601. Set from `/status`, from
+   * a 429, or from the import that started it — always the server's date, never
+   * one computed here.
+   */
+  cooldownUntil: string | null
+  /** The policy length, served by the API so this copy cannot drift from the gate. */
+  cooldownDays: number
+}
+
+/** Replaced by the API's own value on the first `/status` read. */
+const DEFAULT_COOLDOWN_DAYS = 7
+
+const INITIAL: ImportState = {
+  phase: 'checking',
+  query: '',
+  candidates: [],
+  attestation: null,
+  selectedProfile: null,
+  attested: false,
+  isSearching: false,
+  isEnrolling: false,
+  posts: [],
+  isLoadingPosts: false,
+  isImporting: false,
+  selected: [],
+  error: null,
+  privateAlias: null,
+  summary: null,
+  cooldownUntil: null,
+  cooldownDays: DEFAULT_COOLDOWN_DAYS,
 }
 
 export function useInstagramImport(onImported: () => void) {
-  const [state, setState] = useState<ImportState>({
-    status: null,
-    username: null,
-    isLoadingAccount: true,
-    isConnecting: false,
-    posts: [],
-    isLoadingPosts: false,
-    isImporting: false,
-    selected: [],
-    error: null,
-    summary: null,
-  })
+  const [state, setState] = useState<ImportState>(INITIAL)
 
-  // The dialog can close mid-flight (an import runs for seconds); every async
-  // step checks this before writing state back.
+  // The dialog can close mid-flight (a search or an import runs for seconds);
+  // every async step checks this before writing state back.
   const alive = useRef(true)
   useEffect(() => {
     alive.current = true
@@ -79,11 +147,14 @@ export function useInstagramImport(onImported: () => void) {
     patch({ isLoadingPosts: true, error: null })
     const result = await fetchInstagramPosts()
     if (!alive.current) return
+
     if (result.ok) {
       // Drop selections the refreshed feed no longer offers — a post that got
       // imported meanwhile must not ride along into the next import.
       setState((prev) => {
-        const selectable = new Set(result.posts.filter(isSelectablePost).map((p) => p.contentId))
+        const selectable = new Set(
+          result.posts.filter(isSelectablePost).map((p) => p.externalPostId),
+        )
         return {
           ...prev,
           posts: result.posts,
@@ -93,22 +164,27 @@ export function useInstagramImport(onImported: () => void) {
       })
       return
     }
+
     switch (result.reason) {
-      case 'notConnected':
-        patch({
-          isLoadingPosts: false,
-          status: 'NOT_CONNECTED',
-          posts: [],
-          selected: [],
-        })
+      case 'notEnrolled':
+        patch({ isLoadingPosts: false, phase: 'searching', posts: [], selected: [] })
         break
       case 'unavailable':
         patch({
           isLoadingPosts: false,
-          error: {
-            message: 'No pudimos contactar a Instagram en este momento.',
-            retry: true,
-          },
+          error: { message: 'No pudimos contactar a Instagram en este momento.', retry: true },
+        })
+        break
+      // Normally unreachable: `checkEnrollment` reads `/status` first and never
+      // calls this behind the gate. It still has to be handled — the cooldown
+      // can start in another tab between that read and this fetch.
+      case 'cooldown':
+        patch({
+          isLoadingPosts: false,
+          phase: 'cooldown',
+          cooldownUntil: result.availableAt,
+          posts: [],
+          selected: [],
         })
         break
       default:
@@ -116,21 +192,29 @@ export function useInstagramImport(onImported: () => void) {
     }
   }, [patch])
 
-  const loadAccount = useCallback(async () => {
-    patch({ isLoadingAccount: true, error: null })
+  const checkEnrollment = useCallback(async () => {
+    patch({ phase: 'checking', error: null })
     try {
-      const account = await fetchInstagramAccount()
+      const status = await fetchInstagramStatus()
       if (!alive.current) return
-      patch({
-        status: account.status,
-        username: account.platformUsername,
-        isLoadingAccount: false,
-      })
-      if (account.status === 'CONNECTED') await loadPosts()
+      patch({ cooldownDays: status.cooldownDays, cooldownUntil: status.nextAvailable })
+      if (status.enrolled) {
+        // The whole point of reading `/status` first: `loadPosts` is a billed
+        // scraper run, and a seller in cooldown must not spend one to be told
+        // no. The API refuses it anyway — this is what keeps them off it.
+        if (!status.available) {
+          patch({ phase: 'cooldown' })
+          return
+        }
+        patch({ phase: 'browsing' })
+        await loadPosts()
+        return
+      }
+      patch({ phase: 'searching' })
     } catch (err) {
       if (!alive.current) return
       patch({
-        isLoadingAccount: false,
+        phase: 'searching',
         error: {
           message:
             err instanceof Error
@@ -143,98 +227,138 @@ export function useInstagramImport(onImported: () => void) {
   }, [patch, loadPosts])
 
   useEffect(() => {
-    void loadAccount()
-  }, [loadAccount])
+    void checkEnrollment()
+  }, [checkEnrollment])
 
-  /** Opens Phyllo's Connect modal, then polls until the link shows up. */
-  const connect = useCallback(async () => {
-    patch({ isConnecting: true, error: null })
+  /* --- Enrollment: search -------------------------------------------------- */
 
-    const tokenResult = await createPhylloConnectToken()
-    if (!alive.current) return
-    if (!tokenResult.ok) {
-      const message =
-        tokenResult.reason === 'unavailable'
-          ? 'No pudimos conectar con Instagram en este momento.'
-          : tokenResult.reason === 'unauthenticated'
-            ? 'Tu sesión expiró. Inicia sesión de nuevo.'
-            : tokenResult.message
-      patch({
-        isConnecting: false,
-        error: { message, retry: tokenResult.reason !== 'unauthenticated' },
-      })
-      return
-    }
+  const search = useCallback(
+    async (rawQuery: string) => {
+      const query = rawQuery.trim().replace(/^@+/, '')
+      if (!query) return
+      patch({ isSearching: true, error: null, query, privateAlias: null })
 
-    const outcome = await openPhylloConnect({
-      token: tokenResult.token.sdkToken,
-      userId: tokenResult.token.phylloUserId,
-      workPlatformId: tokenResult.token.workPlatformId,
-      environment: tokenResult.token.environment,
-    })
-    if (!alive.current) return
-
-    if (outcome.status !== 'connected') {
-      const message =
-        outcome.status === 'exited'
-          ? 'Cancelaste la conexión con Instagram.'
-          : outcome.status === 'tokenExpired'
-            ? 'La sesión de conexión expiró. Vuelve a intentarlo.'
-            : outcome.status === 'unavailable'
-              ? 'No pudimos abrir la ventana de Instagram. Revisa tu conexión.'
-              : 'Instagram no pudo completar la conexión.'
-      patch({ isConnecting: false, error: { message, retry: true } })
-      return
-    }
-
-    patch({ isLoadingAccount: true })
-    for (let attempt = 0; attempt < CONNECT_POLL_ATTEMPTS; attempt++) {
-      try {
-        const account = await fetchInstagramAccount()
-        if (!alive.current) return
-        if (account.status === 'CONNECTED') {
-          patch({
-            status: account.status,
-            username: account.platformUsername,
-            isConnecting: false,
-            isLoadingAccount: false,
-          })
-          await loadPosts()
-          return
-        }
-      } catch {
-        // Keep polling — a single failed read mid-handshake is not the answer.
-      }
-      await new Promise((resolve) => setTimeout(resolve, CONNECT_POLL_INTERVAL_MS))
+      const result = await searchInstagramProfiles(query)
       if (!alive.current) return
+
+      if (result.ok) {
+        patch({
+          isSearching: false,
+          candidates: result.profiles,
+          attestation: result.attestation,
+          phase: 'picking',
+        })
+        return
+      }
+
+      if (result.reason === 'alreadyEnrolled') {
+        // Enrolled in another tab. The wizard is closed for good; go to the feed.
+        patch({ isSearching: false, phase: 'browsing' })
+        void loadPosts()
+        return
+      }
+
+      const message =
+        result.reason === 'queryRequired'
+          ? 'Escribe el nombre de tu cuenta de Instagram.'
+          : result.reason === 'unavailable'
+            ? 'No pudimos contactar a Instagram en este momento.'
+            : result.message
+      patch({ isSearching: false, error: { message, retry: true } })
+    },
+    [patch, loadPosts],
+  )
+
+  /* --- Enrollment: pick ---------------------------------------------------- */
+
+  const selectProfile = useCallback(
+    (candidate: InstagramProfileCandidate) => {
+      // A private account cannot be read at all, so picking one is a dead end —
+      // explain it rather than letting the seller attest to something that will
+      // be refused at commit.
+      if (candidate.isPrivate) {
+        patch({ privateAlias: candidate.alias })
+        return
+      }
+      patch({ selectedProfile: candidate, attested: false, phase: 'attesting', error: null })
+    },
+    [patch],
+  )
+
+  /** Back to the picker from the attestation, or to the box from the picker. */
+  const backToPicking = useCallback(
+    () => patch({ phase: 'picking', selectedProfile: null, attested: false, error: null }),
+    [patch],
+  )
+  const backToSearch = useCallback(
+    () => patch({ phase: 'searching', candidates: [], selectedProfile: null, attested: false, error: null }),
+    [patch],
+  )
+  const dismissPrivateNotice = useCallback(() => patch({ privateAlias: null }), [patch])
+
+  const setAttested = useCallback((value: boolean) => patch({ attested: value }), [patch])
+
+  /* --- Enrollment: commit -------------------------------------------------- */
+
+  const { selectedProfile, attested, isEnrolling } = state
+
+  /**
+   * Links the account. **Irreversible** — there is no unlink endpoint — so this
+   * refuses to run without an explicit tick, mirroring the API's own check
+   * rather than relying on the button's disabled state alone.
+   */
+  const confirmEnrollment = useCallback(async () => {
+    if (!selectedProfile || !attested || isEnrolling) return
+    patch({ isEnrolling: true, error: null })
+
+    const result = await enrollInstagram(selectedProfile.profileId, selectedProfile.alias)
+    if (!alive.current) return
+
+    if (result.ok || result.reason === 'alreadyEnrolled') {
+      patch({ isEnrolling: false, phase: 'browsing' })
+      await loadPosts()
+      return
     }
 
-    patch({
-      isConnecting: false,
-      isLoadingAccount: false,
-      error: {
-        message: 'Instagram tardó más de lo normal en responder. Vuelve a intentarlo.',
-        retry: true,
-      },
-    })
-  }, [patch, loadPosts])
+    if (result.reason === 'private') {
+      patch({ isEnrolling: false, phase: 'picking', privateAlias: selectedProfile.alias })
+      return
+    }
 
-  const toggle = useCallback((contentId: string) => {
+    const message =
+      result.reason === 'mismatch'
+        ? 'Esa cuenta cambió mientras la seleccionabas. Búscala de nuevo.'
+        : result.reason === 'notFound'
+          ? 'No encontramos esa cuenta de Instagram.'
+          : result.reason === 'attestationRequired'
+            ? 'Debes confirmar que la cuenta es tuya.'
+            : result.reason === 'unavailable'
+              ? 'No pudimos contactar a Instagram en este momento.'
+              : result.message
+    // A mismatch or a vanished profile is fixed by searching again, not by
+    // retrying the same pair.
+    const backToBox = result.reason === 'mismatch' || result.reason === 'notFound'
+    patch({
+      isEnrolling: false,
+      phase: backToBox ? 'searching' : 'attesting',
+      candidates: backToBox ? [] : state.candidates,
+      error: { message, retry: false },
+    })
+  }, [selectedProfile, attested, isEnrolling, patch, loadPosts, state.candidates])
+
+  /* --- Browsing and importing ---------------------------------------------- */
+
+  const toggle = useCallback((externalPostId: string) => {
     setState((prev) => {
-      if (prev.selected.includes(contentId)) {
-        return { ...prev, selected: prev.selected.filter((id) => id !== contentId) }
+      if (prev.selected.includes(externalPostId)) {
+        return { ...prev, selected: prev.selected.filter((id) => id !== externalPostId) }
       }
       if (prev.selected.length >= MAX_POSTS_PER_IMPORT) return prev
-      return { ...prev, selected: [...prev.selected, contentId] }
+      return { ...prev, selected: [...prev.selected, externalPostId] }
     })
   }, [])
 
   const clearSelection = useCallback(() => setState((prev) => ({ ...prev, selected: [] })), [])
-
-  const dismissSummary = useCallback(
-    () => setState((prev) => ({ ...prev, summary: null })),
-    [],
-  )
 
   const { selected, isImporting } = state
 
@@ -245,18 +369,24 @@ export function useInstagramImport(onImported: () => void) {
     if (isImporting || selected.length === 0) return null
     patch({ isImporting: true, error: null, summary: null })
 
-    const result = await importInstagramPosts(selected.map((contentId) => ({ contentId })))
+    const result = await importInstagramPosts(
+      selected.map((externalPostId) => ({ externalPostId })),
+    )
     if (!alive.current) return null
 
     if (!result.ok) {
+      // A 429 is a wait measured in days, not an error with a retry button —
+      // give it the terminal screen that can state the date.
+      if (result.reason === 'cooldown') {
+        patch({ isImporting: false, phase: 'cooldown', cooldownUntil: result.availableAt })
+        return null
+      }
       const message =
         result.reason === 'catalogFull'
           ? 'Tu catálogo llegó al máximo de artículos.'
           : result.reason === 'noCatalog'
             ? 'No encontramos tu catálogo.'
-            : result.reason === 'rateLimited'
-              ? 'Hiciste demasiadas importaciones seguidas. Espera unos minutos.'
-              : result.message
+            : result.message
       patch({ isImporting: false, error: { message, retry: result.reason !== 'noCatalog' } })
       return null
     }
@@ -264,23 +394,41 @@ export function useInstagramImport(onImported: () => void) {
     const summary: ImportSummary = {
       importedCount: result.imported.length,
       skipped: result.skipped,
+      nextAvailable: result.nextAvailable,
     }
-    patch({ isImporting: false, selected: [], summary })
-    // Every skip reason is fixed by re-reading the feed, and a success has to
-    // repaint the "ya importado" badges, so refetch either way.
-    await loadPosts()
+    // The feed is deliberately NOT re-read. Refetching would cost a full metered
+    // scraper run to repaint badges on a screen the seller is leaving — and if
+    // anything landed, the cooldown this import just started would refuse it
+    // anyway. `done` is terminal.
+    patch({
+      isImporting: false,
+      selected: [],
+      summary,
+      phase: 'done',
+      // Non-null only when something landed. Kept so the catalog screen can
+      // disable its button without a second round trip.
+      cooldownUntil: result.nextAvailable ?? state.cooldownUntil,
+    })
     if (result.imported.length > 0) onImported()
     return summary
-  }, [selected, isImporting, patch, loadPosts, onImported])
+  }, [selected, isImporting, patch, onImported, state.cooldownUntil])
 
   return {
     ...state,
-    connect,
-    reload: loadAccount,
-    reloadPosts: loadPosts,
+    search,
+    selectProfile,
+    backToPicking,
+    backToSearch,
+    dismissPrivateNotice,
+    setAttested,
+    confirmEnrollment,
+    reload: checkEnrollment,
+    // `loadPosts` is deliberately NOT exposed. It is the billed scraper run, and
+    // the only thing that may trigger one is opening the dialog — a refresh
+    // control gave the seller a way to spend money on a feed that had not
+    // changed.
     toggle,
     clearSelection,
     runImport,
-    dismissSummary,
   }
 }

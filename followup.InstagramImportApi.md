@@ -1,182 +1,325 @@
-# Instagram Import — API handoff
+# Instagram import — API contract
 
-Backend for turning a seller's Instagram posts into catalog products, via **Phyllo** (the aggregator that owns the Instagram OAuth handshake). Engineering detail lives in `CLAUDE.md` §V; this file is what the web client needs.
+Backend for turning a seller's Instagram photos into catalog products, via
+**Apify's Instagram scraper**. Engineering detail lives in `CLAUDE.md` §V; this
+file is what the web client needs.
 
-Base path `/phyllo`. Every endpoint below needs `Authorization: Bearer <accessToken>`.
+Base path `/instagram`. Every endpoint needs `Authorization: Bearer <accessToken>`.
+
+## Why it works this way
+
+Instagram's Basic Display API was retired in December 2024, and the Graph API
+that remains reads media only for Business/Creator accounts linked to a Facebook
+Page. Alkachof's sellers are on ordinary personal accounts, so the previous
+Phyllo integration could not reach them. The API now reads **public profiles**.
+
+Three properties follow, and the client must be built around all of them:
+
+1. **A private account cannot be read at all.** Enrollment refuses it (422), and
+   the seller has to change a setting on Instagram before anything works.
+2. **Ownership cannot be proven.** No OAuth vouches for anyone. The control is an
+   attestation the seller signs, recorded against their row, plus the fact that
+   **enrollment is permanent**: one account, no switching, no unlink endpoint.
+
+3. **Every read costs money.** Apify bills per actor run, and nothing about a
+   request bounds how often a seller makes one — before the cooldown existed, an
+   enrolled seller could reopen the import dialog and pay for another run
+   immediately, indefinitely. So a **successful import holds the seller's next
+   run for `cooldownDays`** (7), recorded on `ig_details.nextAvailable`. See
+   *The import cooldown* below; it changes what `/status` returns, adds a 429 to
+   two endpoints, and imposes one thing the UI must say.
+
+That permanence is also the security boundary. There is no
+`GET /instagram/posts?profileId=…` and there never may be — the account is
+resolved server-side from the token, so "read someone else's feed" is not a
+request this API can express. `/instagram/search` is the one endpoint that takes
+a handle, and it is refused the moment a seller is enrolled.
+
+## Flow
+
+```
+first time                              already enrolled
+──────────                              ────────────────
+1. GET  /instagram/status  {enrolled:false}   1. GET /instagram/status {enrolled:true}
+2. GET  /instagram/search?q=…  -> candidates  2. GET /instagram/posts
+3. seller picks one, ticks the attestation    3. POST /instagram/convert
+4. POST /instagram/enroll
+5. GET  /instagram/posts
+6. POST /instagram/convert
+```
 
 ---
 
-## The flow
+## `GET /instagram/status`
 
-```
-1. POST /phyllo/connect-token   -> { sdkToken, workPlatformId }
-2. open Phyllo Connect SDK with that token
-3. GET  /phyllo/account         -> poll until status === 'CONNECTED'
-4. GET  /phyllo/posts           -> the seller's feed
-5. POST /phyllo/import          -> products in their catalog
-```
-
----
-
-## `POST /phyllo/connect-token`
-
-Mints the short-lived token the Phyllo Connect SDK needs. Call it each time the seller opens the connect screen — do not cache it.
+Whether this seller has linked an account, and whether they may import now.
 
 ```json
 {
-  "message": "Connect token created",
-  "sdkToken": "eyJ0eXAiOiJKV1Qi…",
-  "phylloUserId": "9546b4fe-cef7-48c4-ab9f-960dd0080728",
-  "expiresAt": "2026-09-11T17:37:27.525002",
-  "workPlatformId": "9bb8913b-ddd9-430b-a66a-d74d846e6c66"
+  "message": "Instagram enrollment status retrieved",
+  "enrolled": true,
+  "available": false,
+  "nextAvailable": "2026-09-13T18:00:00.000Z",
+  "cooldownDays": 7
 }
 ```
 
-`workPlatformId` is Instagram's id — pass it to the SDK so it opens Instagram directly instead of the platform picker. **Do not hardcode it in the client**; it is sent so it lives in one place.
+**This is the whole response**, and the only thing here about the stored row is
+*whether* it exists and *when* the seller may next run the scraper. The linked
+handle and profile id are never returned by any endpoint — `ig_details` is not
+public. A UI cannot show "conectado como @x" and must not try.
 
-| Status | Meaning |
-|---|---|
-| 200 | Token created |
-| 401 | Not authenticated |
-| 502 | Phyllo is unreachable, or the API is missing its Phyllo credentials. Retryable — show "try again", not "something went wrong with your account". |
+`available` is computed server-side; never re-derive it from `nextAvailable`
+against the browser clock. `nextAvailable` is null when nothing is holding the
+seller. `cooldownDays` is the policy — render the warning from it rather than
+hard-coding 7, or the copy drifts from the gate the next time it is tuned.
+
+**This is the only unmetered endpoint here, so call it before offering the
+feature.** It costs one mongo read and saves the seller a screen that could only
+refuse them. It is the courtesy, not the control: the gate is enforced on the two
+endpoints below, and a client that skips this just meets the 429 one screen
+later.
 
 ---
 
-## `GET /phyllo/account`
+## `GET /instagram/search?q=<handle>`
 
-The seller's connection state, read live from Phyllo (not from a cached row), so this is the endpoint to poll after the SDK closes.
+Resolves the seller's account for the enrollment picker, by running Apify's
+**profile scraper**. **Expect seconds, not milliseconds** — show real progress.
+
+**This is an exact-handle lookup, not a search.** The actor takes usernames, not
+search terms, so `profiles` holds **zero or one** entry — a partial or misspelled
+name resolves to nothing. Word the UI accordingly: ask for the username as
+Instagram spells it, and treat an empty list as "no such account", not "no
+matches". The array shape is kept so a by-name lookup could be added later
+without a breaking change.
 
 ```json
 {
-  "message": "Instagram account status retrieved",
-  "connected": true,
-  "status": "CONNECTED",
-  "phylloAccountId": "44554e73-5879-4764-a37c-fa3a47e25c2a",
-  "platformUsername": "la_tienda_de_ana",
-  "lastSyncedAt": "2026-09-04T18:22:10.001Z"
+  "message": "Instagram profiles retrieved",
+  "profiles": [
+    {
+      "profileId": "17841400000001",
+      "alias": "la_tienda_de_ana",
+      "fullName": "La Tienda de Ana",
+      "avatarUrl": "https://…/ana.jpg",
+      "isPrivate": false,
+      "isVerified": false,
+      "postCount": 14
+    }
+  ],
+  "attestation": {
+    "version": "1.0",
+    "template": "Soy el dueño/a o administrador de la cuenta {instagram_account}. …",
+    "placeholder": "{instagram_account}"
+  }
 }
 ```
 
-`status` drives four genuinely different screens — **do not collapse them into a boolean**:
+Profile metadata only — never posts, never media. The actor also returns up to 12
+`latestPosts`; the API does not forward them, because the feed comes from the
+post actor's bounded run.
 
-| status | What to show |
+**`attestation` is the sentence the client must display**, with `placeholder`
+replaced by the chosen `@alias`. Render it; never compose your own. The client
+sends back a boolean, not text — the server stores the wording it served, and
+that record is what a suspension is defended with.
+
+An `isPrivate` result should be shown **disabled with the reason**, not hidden:
+hiding it makes the seller think their account was not found.
+
+| status | meaning |
 |---|---|
-| `PENDING` | "Connect your Instagram" — they have never started |
-| `CONNECTED` | The feed |
-| `NOT_CONNECTED` | They disconnected, or never finished. Same CTA as `PENDING`. |
-| `SESSION_EXPIRED` | **"Reconnect your Instagram"** — the link exists but Instagram's token lapsed. Telling them to *connect* here is confusing; they already did. |
-
-`connected` is a convenience and is `true` only for `CONNECTED`.
+| 400 | empty query |
+| 409 | already enrolled — this endpoint is closed for good. Go to the feed. |
+| 502 | scraper unreachable. Retryable. |
 
 ---
 
-## `GET /phyllo/posts`
+## `POST /instagram/enroll`
 
-Refreshes the cached feed from Phyllo and returns it, newest first. One page of up to 50 posts — there is no pagination yet.
+Links the account. **Irreversible.** There is no endpoint to switch or unlink;
+correcting a mistake needs support.
+
+```json
+{ "profileId": "17841400000001", "alias": "la_tienda_de_ana", "attested": true }
+```
+
+`attested` must be `true` — the server refuses a default. The `{profileId, alias}`
+pair is **re-resolved server-side** rather than trusted, so the attestation cannot
+name one account while the row points at another.
+
+```json
+{ "message": "Instagram account linked successfully", "enrolled": true }
+```
+
+201. Echoes nothing back.
+
+| status | reason | what the client should do |
+|---|---|---|
+| 400 | attestation missing | unreachable from a correct UI — log it |
+| 400 | profile mismatch | send the seller back to search |
+| 404 | handle no longer resolves | back to search |
+| 422 | **account is private** | terminal screen, no retry — explain the Instagram setting |
+| 409 | already enrolled | go to the feed; probably another tab |
+| 502 | scraper unreachable | retryable |
+
+---
+
+## `GET /instagram/posts`
+
+The seller's feed, newest first, from Apify's **post scraper**. **Takes no
+parameters** — the account comes from the token via `ig_details`.
 
 ```json
 {
   "message": "Instagram posts retrieved",
   "posts": [
     {
-      "contentId": "ab5eadc8-e8c2-46f9-b000-f5a70bc0b5a8",
-      "title": "Blusa de lino",
-      "description": "Blusa de lino\nDisponible en 3 colores",
-      "format": "IMAGE",
-      "url": "https://www.instagram.com/p/CWTeRhIvA4X/",
-      "publishedAt": "2026-08-30T00:00:00.000Z",
-      "previewUrl": "https://scontent.cdninstagram.com/v/…",
-      "imported": false,
-      "itemId": null
+      "externalPostId": "3200",
+      "caption": "Blusa de lino\nDisponible en 3 colores",
+      "mediaType": "IMAGE",
+      "permalink": "https://www.instagram.com/p/Cabc123/",
+      "publishedAt": "2026-09-01T10:00:00.000Z",
+      "mediaUrl": "https://scontent.cdninstagram.com/…",
+      "isConverted": false,
+      "convertedItemId": null
     }
   ]
 }
 ```
 
-**`previewUrl` is a signed link that expires within hours.** Render it in an `<img>` and nothing else — never write it to state that outlives the screen, never send it back to the API, never store it against an item. The product image an import creates is a copy in Alkachof's own storage and has nothing to do with this url. A refetch of this endpoint gives fresh links.
+**`mediaUrl` is a CDN link that expires.** Render it in an `<img>` and nowhere
+else — never persist it, never send it back, never store it against an item. The
+imported product's image is a separate copy in Alkachof's storage.
 
-`imported: true` means the post already became a product (`itemId` is that item). Show it as done and disable selection — a second import of the same post is refused.
+One bounded page of up to 100 posts. **There is no pagination.** The scraper has
+no resume cursor into Instagram, so a "next page" would be a second full run
+re-scraping from the top. Calling this again refreshes the whole page.
 
-`format` is `IMAGE` / `VIDEO` / `AUDIO` / `TEXT` / `OTHER`. A `VIDEO` imports through its thumbnail, which is what `previewUrl` already shows.
+**This is the billed call.** One actor run per request, gated on
+`nextAvailable` — the check runs *before* the actor, so a refusal has not already
+paid for the run it refuses.
 
-| Status | Meaning |
+| status | meaning |
 |---|---|
-| 200 | Feed returned (possibly empty) |
-| 400 | `"No Instagram account is connected"` — send them back to the connect screen |
-| 502 | Phyllo unreachable — retryable |
+| 400 | not enrolled — send them to the wizard |
+| 429 | **cooldown** — already imported this period. Terminal, not retryable; body carries `availableAt`. |
+| 502 | scraper unreachable. Retryable. |
 
 ---
 
-## `POST /phyllo/import`
+## `POST /instagram/convert`
 
-Turns selected posts into products. **Max 10 per call.**
+Turns selected posts into products. Max 10 per call; each is a download plus an
+image re-encode, done one at a time, so this runs for seconds.
+
+```json
+{ "posts": [{ "externalPostId": "3200" }] }
+```
+
+`externalPostId` is the only field that decides anything — the image, the account
+and the catalog are all resolved server-side. Optional `name` and `description`
+override the defaults; `price` defaults to 0.
 
 ```json
 {
-  "posts": [
-    { "contentId": "ab5eadc8-…" },
-    { "contentId": "65c3f449-…", "name": "Blusa premium", "description": "Lino 100%", "price": 1999 }
-  ]
+  "message": "Instagram posts converted to products successfully",
+  "imported": [{ "externalPostId": "3200", "item": { "_id": "…", "name": "Blusa de lino", "price": 0, "imgPath": "…" } }],
+  "skipped": [{ "externalPostId": "3201", "reason": "That post has already been imported" }],
+  "nextAvailable": "2026-09-13T18:00:00.000Z"
 }
 ```
 
-- `contentId` is **required and is the only identifying field**. The image, the account and the catalog are all resolved server-side. The API will not accept a media url or an image url, and adding one to the request does nothing.
-- `name` — defaults to the caption's first line, trimmed to 100 characters.
-- `description` — defaults to the full caption.
-- `price` — **integer cents** (`1999` = $19.99). Omitted means `0`; the seller prices it afterwards, same as any unpriced item. A numeric string (`"1999"`) is accepted.
+**201 does not mean everything landed.** Every selection returns in exactly one
+of the two lists. Show both, and translate the reasons — they are English and
+internal.
 
-### The response reports partial success
+**`nextAvailable` is non-null exactly when this import started a cooldown**, i.e.
+when `imported` is non-empty. Refetching the feed used to be the right move after
+every skip reason; it still is, but a successful import is precisely what blocks
+that refetch for a week. So when this field is set, show the date instead of
+inviting a retry the API will refuse. It is returned here so the client need not
+hold its own copy of the cooldown length.
 
-**201 does not mean every post landed.** Each selection appears in exactly one list:
+A post whose image cannot be copied is skipped, never created pointing at the
+remote url: those links expire, so such an item would look right on import and go
+blank later on a public catalog page.
 
-```json
-{
-  "message": "Instagram posts imported",
-  "imported": [ { "contentId": "ab5eadc8-…", "item": { "_id": "…", "name": "Blusa de lino", "price": 0, "imgPath": "https://…/img/…webp" } } ],
-  "skipped":  [ { "contentId": "65c3f449-…", "reason": "That post has no downloadable image" } ]
-}
-```
-
-Show `imported.length` as the success count and list `skipped` with its reasons. Reasons a client should expect:
-
-| reason | Meaning |
+| status | reason |
 |---|---|
-| `That post has already been imported` | Someone (or another tab) got there first — refetch the feed |
-| `That post is not in this seller's imported feed` | Stale client state — refetch the feed |
-| `That post has no downloadable image` | Its media expired or was unreachable; refetch the feed and retry |
-| `Max items reached` | The catalog is full. Everything after it is skipped for the same reason. |
-
-Refetching `/phyllo/posts` after an import is the right move in every skip case.
-
-### Whole-batch rejections
-
-| Status | Meaning |
-|---|---|
-| 400 | `"Select at least one post to import"`, `"Too many posts selected for one import"` (>10), `"Each selected post must carry a contentId"`, or an invalid `price` — **nothing was created** |
-| 403 | `"Max items reached"` — the catalog was already full before anything ran |
-| 404 | `"Catalog not found"` — the seller has no catalog |
-| 429 | Rate limited (this route shares the upload budget: 40 per 15 min) |
-
-An import can take several seconds — each post is a download plus an image re-encode, done one at a time. Show progress and do not let the user fire a second import while one is in flight.
+| 400 | nothing selected, too many, or not enrolled |
+| 403 | catalog full |
+| 404 | no catalog |
+| 429 | **cooldown**, or the shared upload budget (40 per 15 min). Both carry `availableAt`; the date is the only thing worth showing either way, so one handler covers both. |
 
 ---
 
-## `POST /phyllo/webhook`
+---
 
-**Not for clients.** Phyllo calls it; it is authenticated by an HMAC signature, not a JWT, and rejects everything else with 401.
+## The import cooldown
+
+Apify bills per actor run. `/posts` is one run; `/search` is one more. Nothing in
+a request bounds how often a seller triggers them, and before this existed a
+seller could import, reopen the dialog, and pay for another run immediately — an
+unbounded per-seller cost, invisible until the bill arrived.
+
+**A successful import holds the seller's next run for `cooldownDays` (7).**
+`ig_details.nextAvailable` records the date; `/status` reports it; `/posts` and
+`/convert` refuse with 429 until it passes.
+
+Four properties to build against:
+
+- **Only a *successful* import starts it** — one that created at least one item.
+  A run that imported nothing (every post already converted, every media url
+  expired) spent the seller's allowance on our failure, so they keep their next
+  one. `nextAvailable` on the 201 tells you which happened.
+- **It is per seller and week-long, not a rate limiter.** The IP limiters in
+  `middleware/rateLimit.js` are in-memory, reset on restart and do not span
+  instances — right for a burst, useless for a budget. This is a stored date.
+- **`/search` is not gated, and does not need to be.** It is refused the moment a
+  row exists, so it is already once-per-account for life.
+- **The client must say so *before* the seller imports.** This is the one UI
+  requirement the cooldown imposes rather than merely permits. A seller gets one
+  pass per week, so the photos they leave unselected wait a week; telling them
+  that on the screen *after* the choice is telling them too late.
+
+A 429 here is **terminal, not retryable**. The wait is days long, so the screen
+that reports it carries the date from `availableAt` and offers no "Reintentar" —
+a button whose only function is to fail. Same shape as the private-account
+screen, for a different reason.
+
+`nextAvailable` defaults to now, so enrollment never begins with a wait. Rows
+written before the field existed carry no value at all and read as available —
+mongoose defaults apply at creation, not on read — so there is nothing to
+backfill.
 
 ---
 
-## Not built yet
+## Not included
 
-Deliberately out of scope, not oversights — ask before building around them:
+- **A disconnect or switch endpoint.** Deliberate — see permanence above.
+- **Reading the linked handle back.** Deliberate — `ig_details` is not public.
+- **Pagination.** See `/instagram/posts`.
+- **Scheduled re-sync.** The feed refreshes only when `/instagram/posts` is called.
+- **An endpoint to clear a cooldown.** Deliberate. Correcting one is a direct
+  `ig_details` write, the same as correcting a wrong handle.
+- **A gate on feed reads *before* a seller's first import.** Known gap, not an
+  oversight: `nextAvailable` moves only on a successful import, so a seller who
+  never imports can still re-read the feed repeatedly, each read a billed run.
+  The web client removed its refresh button, so the reachable path is now closing
+  and reopening the import dialog — narrower, not closed. Bounding it needs a
+  second rule (a per-seller daily cap on `/posts`, say), which is a separate
+  decision from this one.
 
-- **Feed pagination.** One page of up to 50 posts. Older posts are unreachable.
-- **Scheduled re-sync.** The feed refreshes only when `/phyllo/posts` is called.
-- **Carousels.** A multi-image post imports as one product with one image.
-- **A disconnect endpoint.** The seller disconnects inside Phyllo's SDK; `/phyllo/account` then reports `NOT_CONNECTED`.
-- **Bulk re-import or un-import.** `imported` is one-way; deleting the item does not free the post.
+## Configuration
 
-## Operational note
-
-Set `PHYLLO_CLIENT_ID`, `PHYLLO_CLIENT_SECRET` and `PHYLLO_WEBHOOK_SECRET` before this works in a deployed environment, and register the webhook url in the Phyllo dashboard. `PHYLLO_ENV=production` is required for real accounts — anything else uses the sandbox. Without `PHYLLO_WEBHOOK_SECRET` the webhook rejects everything (by design); the connect flow still works because `/phyllo/account` polls.
+`APIFY_TOKEN` must be set before this works in a deployed environment. Two actors
+do the work, configured separately: `APIFY_PROFILE_ACTOR_ID`
+(`apify/instagram-profile-scraper`) resolves the identity, `APIFY_POST_ACTOR_ID`
+(`apify/instagram-post-scraper`) reads the feed. Without a token the endpoints
+answer 502 and the rest of the API is unaffected. `APIFY_MAX_RESULTS` (default
+100) bounds posts per run — every run is metered, so it bounds cost per seller
+too. The cooldown length is a code constant, not an env var:
+`CONSTANTS.INSTAGRAM.IMPORT_COOLDOWN_DAYS`, served to clients as
+`status.cooldownDays`.

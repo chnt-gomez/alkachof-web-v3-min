@@ -1,13 +1,14 @@
 import { useCallback, useState } from 'react'
 import { Instagram, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { formatItemPrice } from '@/lib/format'
+import { formatDate, formatItemPrice } from '@/lib/format'
 import { isService } from '@/lib/item'
 import { ItemTypeChip } from '@/components/ItemTypeChip'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import { ItemFormDialog } from './ItemFormDialog'
 import { DeleteItemConfirm } from './DeleteItemConfirm'
 import { InstagramImportDialog } from './InstagramImportDialog'
+import { useInstagramAvailability } from '../hooks/useInstagramAvailability'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
 
@@ -18,11 +19,60 @@ export function ProductGrid() {
   const [deletingItem, setDeletingItem] = useState<Item | null>(null)
   const [importing, setImporting] = useState(false)
 
+  /**
+   * Reading the Instagram feed is a billed scraper run, and the API allows one
+   * per seller per cooldown. Asking the (unmetered) status endpoint here means a
+   * seller who has already imported never opens a dialog that could only refuse
+   * them. The API enforces the gate regardless — this is what keeps them off it.
+   */
+  const instagram = useInstagramAvailability()
+  const { refresh: refreshInstagram } = instagram
+
   // Wrapped so the import hook, which holds it in a dependency list, is not
   // rebuilt on every keystroke elsewhere in the provider.
   const handleImported = useCallback(() => {
     void reloadItems()
-  }, [reloadItems])
+    // A successful import is what starts the cooldown, so the button this
+    // screen offers has to go stale the moment the dialog reports back.
+    refreshInstagram()
+  }, [reloadItems, refreshInstagram])
+
+  /** Shared by both entry points — the empty state has its own copy of it. */
+  const importButton = (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => setImporting(true)}
+      disabled={!instagram.available}
+      title={
+        instagram.available
+          ? undefined
+          : instagram.nextAvailable
+            ? `Podrás importar de nuevo el ${formatDate(instagram.nextAvailable)}`
+            : 'Podrás importar de nuevo más adelante'
+      }
+    >
+      <Instagram size={14} className="mr-1" />
+      Importar de Instagram
+    </Button>
+  )
+
+  /**
+   * A disabled button with no explanation reads as a broken one. The date is the
+   * whole message — a seller who knows when they can come back is not blocked,
+   * they are scheduled.
+   *
+   * Takes its alignment from the caller: the header row is right-aligned under
+   * the buttons, the empty state is a centred column.
+   */
+  const cooldownHint = (align: string) =>
+    !instagram.available && (
+      <p className={`w-full text-xs text-muted-foreground ${align}`}>
+        {instagram.nextAvailable
+          ? `Podrás importar de Instagram de nuevo el ${formatDate(instagram.nextAvailable)}.`
+          : 'Podrás importar de Instagram de nuevo más adelante.'}
+      </p>
+    )
 
   return (
     <>
@@ -31,15 +81,13 @@ export function ProductGrid() {
           {items.length} {items.length === 1 ? 'artículo' : 'artículos'}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => setImporting(true)}>
-            <Instagram size={14} className="mr-1" />
-            Importar de Instagram
-          </Button>
+          {importButton}
           <Button size="sm" onClick={() => setAddingProduct(true)}>
             <Plus size={14} className="mr-1" />
             Agregar artículo
           </Button>
         </div>
+        {cooldownHint('text-right')}
       </div>
 
       {items.length === 0 ? (
@@ -50,11 +98,9 @@ export function ProductGrid() {
               <Plus size={14} className="mr-1" />
               Agregar primer artículo
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setImporting(true)}>
-              <Instagram size={14} className="mr-1" />
-              Importar de Instagram
-            </Button>
+            {importButton}
           </div>
+          {cooldownHint('text-center')}
         </div>
       ) : (
         <ul className="flex flex-col gap-2">

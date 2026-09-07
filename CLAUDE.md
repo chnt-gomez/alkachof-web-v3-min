@@ -175,48 +175,135 @@ The API leaves **finished** orders (`DELIVERED`/`REJECTED`/`RETURNED` for produc
 
 The client **never** applies the archive rule itself — the server owns it. The one exception is `src/mocks/ordersArchive.ts`, which mirrors `api/util/orderFeedQuery.js` so the dev stage behaves like production; **keep the two in step** (same arrangement as `imagePresets.ts`). Full contract: `followup.OrdersFeedPagination.md`.
 
-### Instagram import (`src/sections/catalog/`, Phyllo)
+### Instagram import (`src/sections/catalog/`, Apify)
 
 "Importar de Instagram" in `ProductGrid` turns a seller's Instagram photos into
-catalog items. Contract: `followup.InstagramImportApi.md`. The whole flow lives
-in `InstagramImportDialog` over `useInstagramImport`, against four `/phyllo/*`
-actions (`createPhylloConnectToken`, `fetchInstagramAccount`,
-`fetchInstagramPosts`, `importInstagramPosts`).
+catalog items. Contract: `followup.InstagramImportApi.md`. The whole flow lives in
+`InstagramImportDialog` over `useInstagramImport`, against five `/instagram/*`
+actions (`fetchInstagramStatus`, `searchInstagramProfiles`, `enrollInstagram`,
+`fetchInstagramPosts`, `importInstagramPosts`). `ProductGrid` itself calls
+`useInstagramAvailability` to decide whether to offer the button at all.
 
-`src/lib/phylloConnect.ts` wraps Phyllo's Connect SDK. There is no npm package
-for the web build, so the script is injected from Phyllo's CDN the first time a
-seller opens the dialog and read off `window.PhylloConnect`. The SDK fires
-`accountConnected` while its iframe is still open, so `exit` is the terminal
-event and whatever was recorded before it decides the outcome. **In dev stage it
-is a no-op that resolves as connected** and loads nothing — same arrangement as
-`liveSocket.ts` — while the mocked REST endpoints carry the state:
-`mockCreatePhylloConnectToken` flips `mockInstagramStore` to CONNECTED, because
-minting a token is the only signal dev stage gets that the seller went through
-the modal.
+**Why this was rebuilt.** It ran on Phyllo, an aggregator over Instagram's Graph
+API. Instagram retired the Basic Display API in December 2024, and Graph reads
+media only for Business/Creator accounts linked to a Facebook Page — which
+Alkachof's nano/micro sellers do not have. The integration was not degraded for
+them, it was inapplicable. The API now reads **public profiles** through an Apify
+scraper. There is no SDK, no OAuth, and nothing Instagram-related in the browser:
+`src/lib/phylloConnect.ts` is gone and no script is injected.
+
+Three consequences shape the whole screen:
+
+- **A private account cannot be read at all.** Not degraded — unavailable. It has
+  its own terminal screen (`InstagramPrivateNotice`) with no retry button,
+  because retrying does nothing until the seller changes a setting on Instagram.
+- **Ownership cannot be proven.** The control is policy: the seller attests, and
+  importing someone else's content is a terms violation. The engineering guard is
+  that enrollment is **permanent**.
+
+- **Every feed read is billed.** Apify charges per actor run, and nothing about a
+  request bounded how often a seller made one — importing, closing the dialog and
+  reopening it paid for another run immediately, with no ceiling. A **successful**
+  import now holds the seller's next run for `cooldownDays` (7). See *The
+  cooldown* below.
+
+**Enrollment is a three-screen wizard, once per account.** `useInstagramImport`
+is a phase machine — `checking → searching → picking → attesting → browsing` —
+with backward edges at every step, because only the final commit is irreversible.
+An enrolled seller skips all of it and lands on `browsing`.
+
+**The first screen is a lookup, not a search.** The API runs Apify's profile
+scraper, which takes exact usernames — neither actor does fuzzy name matching —
+so `/instagram/search` resolves one handle and returns zero or one candidate.
+`InstagramProfilePicker` is therefore a *confirmation card* rather than a list to
+choose from; it keeps the list shape so a future by-name lookup would not need a
+new component. **Do not word the UI as a name search** — it would promise
+something the actors cannot do.
 
 Rules this screen must keep:
 
-- **`status` drives four screens, not a boolean.** `SESSION_EXPIRED` says
-  *reconnect* — the seller already linked the account once.
-- **`previewUrl` is a signed link that expires within hours.** It goes into an
-  `<img>` and nowhere else: never persisted, never sent back to the API, never
-  stored against an item. The imported product's image is a separate copy in
-  Alkachof's storage.
-- **Only `format === 'IMAGE'` posts are selectable**, and already-imported ones
-  are disabled. Both stay visible but dimmed — hiding them makes the feed look
-  like it lost posts. (The API can import a `VIDEO` through its thumbnail; the
-  client declines to, by product decision.)
-- **201 is not "everything landed".** Every selection comes back in `imported`
-  or `skipped`; the summary shows both, and `skipReasonLabel` translates the
-  API's English reasons. Refetch the feed after any import — that is the fix for
-  every skip reason.
+- **The linked handle is never displayed.** The API does not return it: `/status`
+  answers `{ enrolled }` and nothing more. There is no "conectado como @x" line,
+  and adding one would require an endpoint that does not and must not exist.
+- **`searchInstagramProfiles` is the only action that names an account**, and the
+  API refuses it once a row exists — a seller gets one lookup session in the
+  lifetime of their account. Never add a client-supplied profile to any other
+  call: `fetchInstagramPosts()` takes no arguments **on purpose**.
+- **The attestation checkbox is never pre-ticked**, and the commit stays disabled
+  until it is. The sentence comes from the API (`attestation.template` +
+  `placeholder`) and is rendered, never composed here — what gets stored has to
+  be what was displayed. The client sends `attested: true` and never the text.
+- **Say that enrollment is permanent** where the seller commits. There is no
+  unlink endpoint, and a wrong handle needs support to fix.
+- **Private candidates render but are not selectable** — dimmed, with the reason.
+  Hiding them makes the seller think their account was not found and retype the
+  same handle forever.
+- **`mediaUrl` is a CDN link that expires.** It goes into an `<img>` and nowhere
+  else: never persisted, never sent back to the API, never stored against an
+  item. The imported product's image is a separate copy in Alkachof's storage.
+- **Only `mediaType === 'IMAGE'` posts are selectable**, and already-imported
+  ones are disabled. Both stay visible but dimmed. (The API could import a
+  `VIDEO` through its poster frame; the client declines to, by product decision.)
+- **201 is not "everything landed".** Every selection comes back in `imported` or
+  `skipped`; `InstagramImportSuccess` shows both, and `skipReasonLabel` translates
+  the API's English reasons. Reopening the dialog is the fix for every skip
+  reason — it fetches fresh.
+- **An import ends the session.** `runImport` moves to the terminal `done` phase
+  and **does not re-read the feed**: refetching would spend a metered scraper run
+  repainting badges on a screen the seller is leaving. A clean import closes the
+  dialog itself after `AUTO_CLOSE_MS`; a **partial** one waits for a tap, because
+  the skipped list is the only place those reasons appear and a screen that
+  vanishes mid-read is worse than one extra tap. The success toast is fired
+  before the close so the confirmation outlives the dialog.
 - **Max 10 per call**, one import at a time (it runs for seconds and shares the
   upload rate budget).
 - Imports use the API's defaults — name from the caption's first line, price 0 —
   so a new item is priced afterwards like any other unpriced one.
-- `VITE_PHYLLO_ENV` **must match the API's `PHYLLO_ENV`**; a sandbox client
-  cannot open a token minted for production. `/phyllo/connect-token` does not
-  report it today, but the action honours an `environment` field if it starts to.
+- **One bounded page, no "Cargar más", and no refresh control.** The scraper has
+  no resume cursor into Instagram, so a second page means re-scraping from the
+  top and paying again. There was an "Actualizar" button; it is gone. It was the
+  one gesture on the screen that cost money, and it bought nothing — the feed is
+  fetched fresh on every open, and posts do not change between two taps. **Opening
+  the dialog is the only thing that reads the feed**, which is why `loadPosts` is
+  not exposed by `useInstagramImport`. Do not add a refresh, a poll or a
+  pull-to-refresh here.
+
+**The cooldown.** A successful import (≥1 item created) holds the seller's next
+scraper run for `cooldownDays`, and the API enforces it with a 429 on both
+`/posts` and `/convert`. What the client owes:
+
+- **Ask `/status` before offering the feature.** It is the one unmetered endpoint
+  — `useInstagramAvailability` calls it from `ProductGrid`, disables the button
+  and prints the date. This is the courtesy, not the control; a stale
+  `available: true` just meets the 429 one screen later. It **fails open**: a
+  status read that errors must not remove a working feature.
+- **Say it before the import, not after.** The browsing screen carries *"Solo
+  puedes importar una vez cada N días"* above the grid, because a seller gets one
+  pass and the photos they leave unselected wait a week. Learning that on the
+  success screen is learning it too late. `cooldownDays` comes from the API so
+  this copy cannot drift from the gate.
+- **A 429 is terminal.** `InstagramCooldownNotice`, with the date and no
+  "Reintentar" — same shape as the private-account screen, for a different
+  reason. Never compute the date locally; the client's clock is not what enforces
+  the gate.
+- **`InstagramImportSuccess` may not say "try again" when `summary.nextAvailable`
+  is set.** Every skip reason is fixed by refetching the feed, and a successful
+  import is exactly what blocks that refetch. Show the date instead.
+- **Only a successful import starts it**, so a batch that imported nothing leaves
+  the seller's next run intact — `nextAvailable` on the 201 says which happened.
+- **Known gap:** feed reads *before* a seller's first import are still ungated —
+  `nextAvailable` only moves on a successful import, so closing and reopening the
+  dialog pays for a fresh run each time. Removing the refresh button narrowed
+  this to two taps rather than one; closing it needs a second rule. See *Not
+  included* in the contract.
+
+**In dev stage** `mockInstagramStore` starts *un-enrolled*, so the wizard is what
+you see first; `mockEnrollInstagram` flips it. The store also mirrors
+`nextAvailable`, so importing anything reaches the disabled button and the
+cooldown screen without a backend — both reset on reload. The lookup is **exact-handle only**,
+mirroring the API, so a partial name resolves to nothing there too — type
+`la_tienda_de_ana` for the happy path, or `tienda_ana_privada` to reach the
+private-account screen.
 
 ### Notifications section (`src/sections/notifications/`)
 

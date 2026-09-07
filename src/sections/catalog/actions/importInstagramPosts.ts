@@ -1,4 +1,4 @@
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, availableAtOf } from '@/lib/api'
 import { IS_DEV_STAGE } from '@/lib/stage'
 import { mockImportInstagramPosts } from '@/mocks'
 
@@ -10,12 +10,15 @@ export type ImportSelection = {
    * The only identifying field. The image, the account and the catalog are all
    * resolved server-side — sending a media or image url does nothing.
    */
-  contentId: string
+  externalPostId: string
   /** Defaults to the caption's first line, trimmed to 100 characters. */
   name?: string
   /** Defaults to the full caption. */
   description?: string
-  /** Integer cents. Omitted means 0 and the seller prices it afterwards. */
+  /**
+   * Integer cents. Imports use the API's default of 0 — a freshly imported
+   * product is priced afterwards like any other unpriced item.
+   */
   price?: number
 }
 
@@ -27,31 +30,50 @@ export type ImportedItem = {
   imgPath: string
 }
 
-export type ImportedPost = { contentId: string; item: ImportedItem }
-export type SkippedPost = { contentId: string; reason: string }
+export type ImportedPost = { externalPostId: string; item: ImportedItem }
+export type SkippedPost = { externalPostId: string; reason: string }
 
 export type ImportPostsResult =
   /**
    * 201. Partial success is the normal case — every selection lands in exactly
    * one of the two lists, so `imported.length` is the success count and
-   * `skipped` must be shown with its reasons. Refetching the feed afterwards is
-   * the right move for every skip reason.
+   * `skipped` must be shown with its reasons.
+   *
+   * Refetching the feed used to be the fix for every skip reason. It still is,
+   * but a successful import starts the seller's cooldown, so that refetch is
+   * days away — which is what `nextAvailable` is for. Show the date instead of
+   * inviting a retry the gate will refuse.
    */
-  | { ok: true; imported: ImportedPost[]; skipped: SkippedPost[] }
+  | {
+      ok: true
+      imported: ImportedPost[]
+      skipped: SkippedPost[]
+      /** ISO 8601 when this import started a cooldown; null when nothing landed. */
+      nextAvailable: string | null
+    }
   /** 400 — nothing was created. */
   | { ok: false; reason: 'invalid'; message: string }
   /** 403 — the catalog was already full before anything ran. */
   | { ok: false; reason: 'catalogFull' }
   /** 404 — the seller has no catalog. */
   | { ok: false; reason: 'noCatalog' }
-  /** 429 — shares the upload budget, 40 per 15 min. */
-  | { ok: false; reason: 'rateLimited' }
+  /**
+   * 429 — either the per-seller import cooldown or the shared upload budget (40
+   * per 15 min). Deliberately one case: both answer with `availableAt`, and the
+   * only honest thing to tell the seller in either is the date, so branching on
+   * which limiter spoke would change nothing on screen.
+   */
+  | { ok: false; reason: 'cooldown'; availableAt: string | null }
   | { ok: false; reason: 'error'; message: string }
 
 /**
  * Turns selected posts into catalog products. Each post is a download plus an
  * image re-encode done one at a time, so this can take several seconds — the
  * caller must show progress and block a second import while one is in flight.
+ *
+ * **An import that lands anything starts the seller's cooldown**, which is why
+ * the UI has to say so *before* the seller commits: they get one pass, and the
+ * photos they leave unselected wait until `nextAvailable`.
  */
 export async function importInstagramPosts(
   posts: ImportSelection[],
@@ -59,11 +81,17 @@ export async function importInstagramPosts(
   if (IS_DEV_STAGE) return mockImportInstagramPosts(posts)
 
   try {
-    const data = await api<{ imported: ImportedPost[]; skipped: SkippedPost[] }>(
-      '/phyllo/import',
-      { method: 'POST', body: { posts } },
-    )
-    return { ok: true, imported: data.imported ?? [], skipped: data.skipped ?? [] }
+    const data = await api<{
+      imported: ImportedPost[]
+      skipped: SkippedPost[]
+      nextAvailable?: string | null
+    }>('/instagram/convert', { method: 'POST', body: { posts } })
+    return {
+      ok: true,
+      imported: data.imported ?? [],
+      skipped: data.skipped ?? [],
+      nextAvailable: data.nextAvailable ?? null,
+    }
   } catch (err) {
     if (err instanceof ApiError) {
       switch (err.status) {
@@ -74,7 +102,7 @@ export async function importInstagramPosts(
         case 404:
           return { ok: false, reason: 'noCatalog' }
         case 429:
-          return { ok: false, reason: 'rateLimited' }
+          return { ok: false, reason: 'cooldown', availableAt: availableAtOf(err) }
       }
     }
     return {
