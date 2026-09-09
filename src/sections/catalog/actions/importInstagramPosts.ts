@@ -1,9 +1,19 @@
 import { api, ApiError, availableAtOf } from '@/lib/api'
 import { IS_DEV_STAGE } from '@/lib/stage'
 import { mockImportInstagramPosts } from '@/mocks'
+import { MAX_CATALOG_ITEMS } from '@/lib/catalogLimits'
 
-/** The API refuses more than this in one call. */
-export const MAX_POSTS_PER_IMPORT = 10
+/**
+ * The API refuses more than this in one call (`INSTAGRAM.MAX_CONVERT_BATCH`).
+ *
+ * It is the catalog's own item cap, not a number of its own: a seller gets one
+ * metered scraper run per cooldown, so a batch smaller than what their catalog
+ * can hold would refuse photos there was room for and make them wait a week for
+ * the rest. **The number that actually bounds a seller's selection is how many
+ * slots their catalog has left** — see `remainingCatalogSlots`; this is only the
+ * ceiling that remainder can never exceed.
+ */
+export const MAX_POSTS_PER_IMPORT = MAX_CATALOG_ITEMS
 
 export type ImportSelection = {
   /**

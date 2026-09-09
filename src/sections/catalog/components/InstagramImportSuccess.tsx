@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
+import { MAX_CATALOG_ITEMS } from '@/lib/catalogLimits'
 import type { ImportSummary } from '../hooks/useInstagramImport'
 
 type Props = {
@@ -108,7 +109,7 @@ export function skipReasonLabel(reason: string): string {
     case 'That post has no downloadable image':
       return 'No pudimos descargar su imagen. Ábrelo de nuevo y vuelve a intentarlo.'
     case 'Max items reached':
-      return 'Tu catálogo llegó al máximo de artículos.'
+      return `Tu catálogo llegó al máximo de ${MAX_CATALOG_ITEMS} artículos.`
     default:
       return reason
   }

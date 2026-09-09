@@ -255,8 +255,23 @@ Rules this screen must keep:
   the skipped list is the only place those reasons appear and a screen that
   vanishes mid-read is worse than one extra tap. The success toast is fired
   before the close so the confirmation outlives the dialog.
-- **Max 10 per call**, one import at a time (it runs for seconds and shares the
-  upload rate budget).
+- **The cap is the catalog's remaining space, never a number of its own.** A
+  seller may select every photo that still fits — `MAX_CATALOG_ITEMS` (25) minus
+  the items they already have — and the copy says both numbers when it is short,
+  because "elige hasta 22" with no reason reads as an arbitrary Instagram rule.
+  `remainingCatalogSlots` is the source; `ProductGrid` passes `itemCount` and
+  `useInstagramImport` clamps it against `MAX_POSTS_PER_IMPORT`, which *is* the
+  same 25 (the API's `INSTAGRAM.MAX_CONVERT_BATCH`). A smaller batch would refuse
+  photos the catalog had room for and make the seller wait a cooldown for the
+  rest, which is the one thing this screen must not do. One import at a time (it
+  runs for seconds and shares the upload rate budget).
+- **A full catalog closes the entry point.** `ProductGrid` disables "Importar de
+  Instagram" at 25 items and says why — opening the dialog is what spends the
+  billed scraper run, and a seller with nowhere to put an item can only reach a
+  screen with nothing selectable on it.
+- **`src/lib/catalogLimits.ts` mirrors the API's `CONSTANTS.CATALOG.MAX_ITEMS`**
+  (hoisted there as `MAX_CATALOG_ITEMS`, because the import batch is sized from
+  it). Keep the two in step — same arrangement as `imagePresets.ts`.
 - Imports use the API's defaults — name from the caption's first line, price 0 —
   so a new item is priced afterwards like any other unpriced one.
 - **One bounded page, no "Cargar más", and no refresh control.** The scraper has

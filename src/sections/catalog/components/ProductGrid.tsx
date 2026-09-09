@@ -9,6 +9,7 @@ import { ItemFormDialog } from './ItemFormDialog'
 import { DeleteItemConfirm } from './DeleteItemConfirm'
 import { InstagramImportDialog } from './InstagramImportDialog'
 import { useInstagramAvailability } from '../hooks/useInstagramAvailability'
+import { MAX_CATALOG_ITEMS, remainingCatalogSlots } from '@/lib/catalogLimits'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
 
@@ -28,6 +29,16 @@ export function ProductGrid() {
   const instagram = useInstagramAvailability()
   const { refresh: refreshInstagram } = instagram
 
+  /**
+   * What is left of the catalog's item cap. It is also the import's size: a
+   * seller gets one metered scraper run per cooldown, so they may take every
+   * photo that still fits rather than a fixed handful. At zero the entry point
+   * is closed entirely — opening the dialog would spend a billed run to reach a
+   * screen with nothing selectable on it.
+   */
+  const remainingSlots = remainingCatalogSlots(items.length)
+  const catalogFull = remainingSlots === 0
+
   // Wrapped so the import hook, which holds it in a dependency list, is not
   // rebuilt on every keystroke elsewhere in the provider.
   const handleImported = useCallback(() => {
@@ -43,13 +54,15 @@ export function ProductGrid() {
       size="sm"
       variant="outline"
       onClick={() => setImporting(true)}
-      disabled={!instagram.available}
+      disabled={!instagram.available || catalogFull}
       title={
-        instagram.available
-          ? undefined
-          : instagram.nextAvailable
-            ? `Podrás importar de nuevo el ${formatDate(instagram.nextAvailable)}`
-            : 'Podrás importar de nuevo más adelante'
+        catalogFull
+          ? `Tu catálogo está lleno (${MAX_CATALOG_ITEMS} artículos)`
+          : instagram.available
+            ? undefined
+            : instagram.nextAvailable
+              ? `Podrás importar de nuevo el ${formatDate(instagram.nextAvailable)}`
+              : 'Podrás importar de nuevo más adelante'
       }
     >
       <Instagram size={14} className="mr-1" />
@@ -65,14 +78,28 @@ export function ProductGrid() {
    * Takes its alignment from the caller: the header row is right-aligned under
    * the buttons, the empty state is a centred column.
    */
-  const cooldownHint = (align: string) =>
-    !instagram.available && (
-      <p className={`w-full text-xs text-muted-foreground ${align}`}>
-        {instagram.nextAvailable
-          ? `Podrás importar de Instagram de nuevo el ${formatDate(instagram.nextAvailable)}.`
-          : 'Podrás importar de Instagram de nuevo más adelante.'}
-      </p>
+  const cooldownHint = (align: string) => {
+    // A full catalog is the harder stop of the two — a cooldown ends by itself,
+    // this one only ends if the seller deletes something — so it is the one to
+    // name when both are true.
+    if (catalogFull) {
+      return (
+        <p className={`w-full text-xs text-muted-foreground ${align}`}>
+          Tu catálogo llegó al máximo de {MAX_CATALOG_ITEMS} artículos. Elimina alguno para agregar
+          o importar más.
+        </p>
+      )
+    }
+    return (
+      !instagram.available && (
+        <p className={`w-full text-xs text-muted-foreground ${align}`}>
+          {instagram.nextAvailable
+            ? `Podrás importar de Instagram de nuevo el ${formatDate(instagram.nextAvailable)}.`
+            : 'Podrás importar de Instagram de nuevo más adelante.'}
+        </p>
+      )
     )
+  }
 
   return (
     <>
@@ -176,8 +203,9 @@ export function ProductGrid() {
         />
       )}
 
-      {importing && (
+      {importing && !catalogFull && (
         <InstagramImportDialog
+          itemCount={items.length}
           onImported={handleImported}
           onClose={() => setImporting(false)}
         />

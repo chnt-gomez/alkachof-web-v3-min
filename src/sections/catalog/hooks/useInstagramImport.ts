@@ -12,6 +12,7 @@ import {
   MAX_POSTS_PER_IMPORT,
   type SkippedPost,
 } from '../actions/importInstagramPosts'
+import { MAX_CATALOG_ITEMS } from '@/lib/catalogLimits'
 
 /**
  * The screen the dialog is on.
@@ -126,8 +127,15 @@ const INITIAL: ImportState = {
   cooldownDays: DEFAULT_COOLDOWN_DAYS,
 }
 
-export function useInstagramImport(onImported: () => void) {
+/**
+ * @param selectionLimit How many photos this seller may pick — the slots their
+ * catalog has left, not a constant. Clamped to `MAX_POSTS_PER_IMPORT`, which is
+ * the API's per-call ceiling and the same catalog cap, so a caller that passes
+ * something larger cannot build a batch the API would refuse with a 400.
+ */
+export function useInstagramImport(onImported: () => void, selectionLimit: number) {
   const [state, setState] = useState<ImportState>(INITIAL)
+  const maxSelectable = Math.max(0, Math.min(selectionLimit, MAX_POSTS_PER_IMPORT))
 
   // The dialog can close mid-flight (a search or an import runs for seconds);
   // every async step checks this before writing state back.
@@ -348,15 +356,22 @@ export function useInstagramImport(onImported: () => void) {
 
   /* --- Browsing and importing ---------------------------------------------- */
 
-  const toggle = useCallback((externalPostId: string) => {
-    setState((prev) => {
-      if (prev.selected.includes(externalPostId)) {
-        return { ...prev, selected: prev.selected.filter((id) => id !== externalPostId) }
-      }
-      if (prev.selected.length >= MAX_POSTS_PER_IMPORT) return prev
-      return { ...prev, selected: [...prev.selected, externalPostId] }
-    })
-  }, [])
+  const toggle = useCallback(
+    (externalPostId: string) => {
+      setState((prev) => {
+        if (prev.selected.includes(externalPostId)) {
+          return { ...prev, selected: prev.selected.filter((id) => id !== externalPostId) }
+        }
+        // Deselecting always works; selecting stops at what the catalog can
+        // still hold. The API enforces the same bound twice — the batch size on
+        // entry, and `Max items reached` per item — so this only spares the
+        // seller a refusal they could not have predicted from the screen.
+        if (prev.selected.length >= maxSelectable) return prev
+        return { ...prev, selected: [...prev.selected, externalPostId] }
+      })
+    },
+    [maxSelectable],
+  )
 
   const clearSelection = useCallback(() => setState((prev) => ({ ...prev, selected: [] })), [])
 
@@ -383,7 +398,7 @@ export function useInstagramImport(onImported: () => void) {
       }
       const message =
         result.reason === 'catalogFull'
-          ? 'Tu catálogo llegó al máximo de artículos.'
+          ? `Tu catálogo llegó al máximo de ${MAX_CATALOG_ITEMS} artículos. Elimina alguno para importar más.`
           : result.reason === 'noCatalog'
             ? 'No encontramos tu catálogo.'
             : result.message
@@ -415,6 +430,8 @@ export function useInstagramImport(onImported: () => void) {
 
   return {
     ...state,
+    /** The cap the toggle actually enforces — what the copy must quote. */
+    maxSelectable,
     search,
     selectProfile,
     backToPicking,
