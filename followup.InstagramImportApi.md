@@ -211,8 +211,12 @@ paid for the run it refuses.
 
 ## `POST /instagram/convert`
 
-Turns selected posts into products. Max 10 per call; each is a download plus an
-image re-encode, done one at a time, so this runs for seconds.
+Turns selected posts into products. **Max `CATALOG.MAX_ITEMS` (25) per call** —
+the batch is the catalog's own item cap, not a separate quota, because a seller
+gets one metered run per cooldown and a smaller batch would strand photos the
+catalog had room for. Each is a download plus an image re-encode, done one at a
+time, so a full batch runs for tens of seconds; a client must show progress and
+block a second import while one is in flight.
 
 ```json
 { "posts": [{ "externalPostId": "3200" }] }

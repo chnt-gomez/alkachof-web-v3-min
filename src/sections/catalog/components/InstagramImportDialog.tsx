@@ -8,7 +8,7 @@ import {
   isSelectablePost,
   attestationTextFor,
 } from '../hooks/useInstagramImport'
-import { MAX_POSTS_PER_IMPORT } from '../actions/importInstagramPosts'
+import { MAX_CATALOG_ITEMS, remainingCatalogSlots } from '@/lib/catalogLimits'
 import { InstagramPostGrid } from './InstagramPostGrid'
 import { InstagramSearchForm } from './InstagramSearchForm'
 import { InstagramProfilePicker } from './InstagramProfilePicker'
@@ -18,6 +18,13 @@ import { InstagramImportSuccess } from './InstagramImportSuccess'
 import { InstagramCooldownNotice } from './InstagramCooldownNotice'
 
 type Props = {
+  /**
+   * How many items the catalog already holds. It is what bounds the selection:
+   * a seller may import every photo that still fits, up to the catalog's cap of
+   * `MAX_CATALOG_ITEMS` — never a smaller number of its own, because they get
+   * one metered run per cooldown and anything left behind waits a week.
+   */
+  itemCount: number
   /** Reload the catalog's items so the freshly created products appear. */
   onImported: () => void
   onClose: () => void
@@ -39,8 +46,9 @@ type Props = {
 /** Long enough to read one line, short enough not to feel stuck. */
 const AUTO_CLOSE_MS = 2200
 
-export function InstagramImportDialog({ onImported, onClose }: Props) {
+export function InstagramImportDialog({ itemCount, onImported, onClose }: Props) {
   const toast = useToast()
+  const remaining = remainingCatalogSlots(itemCount)
   const {
     phase,
     query,
@@ -70,10 +78,13 @@ export function InstagramImportDialog({ onImported, onClose }: Props) {
     toggle,
     clearSelection,
     runImport,
-  } = useInstagramImport(onImported)
+    maxSelectable,
+  } = useInstagramImport(onImported, remaining)
 
   const importable = posts.filter(isSelectablePost)
-  const atLimit = selected.length >= MAX_POSTS_PER_IMPORT
+  const atLimit = selected.length >= maxSelectable
+  /** True only when the catalog itself is what shortens the selection. */
+  const boundedByCatalog = maxSelectable < MAX_CATALOG_ITEMS
   const busy = isImporting || isEnrolling
 
   /**
@@ -194,15 +205,44 @@ export function InstagramImportDialog({ onImported, onClose }: Props) {
               <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
                 No encontramos publicaciones en tu Instagram.
               </p>
+            ) : maxSelectable === 0 ? (
+              /*
+                Unreachable from the catalog screen, which disables the entry
+                point when the catalog is full — kept so a full catalog can never
+                render a feed offering "0 de 0 seleccionadas".
+              */
+              <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Tu catálogo está lleno: {MAX_CATALOG_ITEMS} artículos es el máximo. Elimina alguno
+                para importar más fotos.
+              </p>
             ) : importable.length === 0 ? (
               <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
                 Ya importaste todas las fotos de tu Instagram. Publica algo nuevo y vuelve aquí.
               </p>
             ) : (
               <>
+                {/*
+                  The number quoted here is the seller's remaining catalog
+                  space, not a per-import quota — they may take everything that
+                  still fits. Saying *why* it is short matters: a seller told
+                  "elige hasta 22" with no reason reads it as an arbitrary
+                  Instagram rule and goes looking for a way around it, when the
+                  fix is on this side (delete an item, or price the ones already
+                  there).
+                */}
                 <p className="text-sm text-muted-foreground">
-                  Elige hasta {MAX_POSTS_PER_IMPORT} fotos. Cada una se convierte en un artículo de
-                  tu catálogo, sin precio — se lo pones después.
+                  {boundedByCatalog ? (
+                    <>
+                      Puedes importar {maxSelectable} {maxSelectable === 1 ? 'foto' : 'fotos'}: tu
+                      catálogo admite {MAX_CATALOG_ITEMS} artículos y ya tienes {itemCount}. Cada una
+                      se convierte en un artículo, sin precio — se lo pones después.
+                    </>
+                  ) : (
+                    <>
+                      Elige hasta {MAX_CATALOG_ITEMS} fotos. Cada una se convierte en un artículo de
+                      tu catálogo, sin precio — se lo pones después.
+                    </>
+                  )}
                 </p>
                 {/*
                   Stated before the seller commits, not after. Reading the feed
@@ -218,8 +258,8 @@ export function InstagramImportDialog({ onImported, onClose }: Props) {
                   <strong className="font-semibold text-foreground">
                     Solo puedes importar una vez cada {cooldownDays} días.
                   </strong>{' '}
-                  Elige ahora todas las fotos que quieras — las que dejes fuera tendrán que esperar
-                  hasta tu próxima importación.
+                  Elige ahora todas las que quepan en tu catálogo — las que dejes fuera tendrán
+                  que esperar hasta tu próxima importación.
                 </p>
                 <InstagramPostGrid
                   posts={posts}
@@ -244,11 +284,11 @@ export function InstagramImportDialog({ onImported, onClose }: Props) {
         )}
       </div>
 
-      {phase === 'browsing' && !privateAlias && importable.length > 0 && (
+      {phase === 'browsing' && !privateAlias && importable.length > 0 && maxSelectable > 0 && (
         <div className="sticky bottom-0 flex flex-col gap-2 border-t bg-background px-5 py-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
-              {selected.length} de {MAX_POSTS_PER_IMPORT} seleccionadas
+              {selected.length} de {maxSelectable} seleccionadas
             </span>
             {selected.length > 0 && !isImporting && (
               <button type="button" onClick={clearSelection} className="underline">
@@ -258,7 +298,9 @@ export function InstagramImportDialog({ onImported, onClose }: Props) {
           </div>
           {atLimit && !isImporting && (
             <p className="text-xs text-muted-foreground">
-              Llegaste al máximo de {MAX_POSTS_PER_IMPORT} por importación.
+              {boundedByCatalog
+                ? `Es todo lo que le queda a tu catálogo: ${MAX_CATALOG_ITEMS} artículos como máximo, y ya tienes ${itemCount}.`
+                : `Llegaste al máximo de ${MAX_CATALOG_ITEMS} fotos por importación.`}
             </p>
           )}
           <div className="flex gap-2">

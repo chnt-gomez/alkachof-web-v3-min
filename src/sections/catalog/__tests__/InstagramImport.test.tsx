@@ -8,6 +8,7 @@ import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalo
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import type { InstagramPost } from '../actions/fetchInstagramPosts'
 import type { InstagramStatus } from '../actions/fetchInstagramStatus'
+import { MAX_CATALOG_ITEMS } from '@/lib/catalogLimits'
 
 vi.mock('@/sections/catalogs/actions/fetchMyCatalog')
 vi.mock('../actions/fetchCatalogItems')
@@ -325,7 +326,59 @@ describe('Instagram import', () => {
 
     await user.click(photo)
     expect(photo).toHaveAttribute('aria-pressed', 'true')
-    expect(within(dialog).getByText('1 de 10 seleccionadas')).toBeInTheDocument()
+    // The cap is the catalog's remaining space, not a per-import quota: one
+    // item exists, so 24 of the 25 slots are still open.
+    expect(
+      within(dialog).getByText(`1 de ${MAX_CATALOG_ITEMS - mockItems.length} seleccionadas`),
+    ).toBeInTheDocument()
+  })
+
+  /**
+   * The import is bounded by the catalog, not by a quota of its own. A seller
+   * gets one metered scraper run per cooldown, so anything they cannot select
+   * now waits a week — the only defensible cap is "everything that still fits".
+   */
+  describe('catalog space', () => {
+    /** `n` items, enough to fill any part of the catalog a test needs. */
+    const filledWith = (n: number): Item[] =>
+      Array.from({ length: n }, (_, i) => ({ ...mockItems[0], _id: `item${i}`, name: `Artículo ${i}` }))
+
+    it('caps the selection at the slots left and says why it is short', async () => {
+      const user = userEvent.setup()
+      vi.mocked(fetchCatalogItems).mockResolvedValue(filledWith(MAX_CATALOG_ITEMS - 1))
+
+      const dialog = await openImportDialog(user)
+
+      expect(
+        await within(dialog).findByText(
+          new RegExp(`Puedes importar 1 foto: tu catálogo admite ${MAX_CATALOG_ITEMS} artículos`),
+        ),
+      ).toBeInTheDocument()
+
+      await user.click(within(dialog).getByRole('button', { name: 'Blusa de lino' }))
+
+      // The one remaining slot is spoken for, so the other photo stops taking
+      // taps — the seller learns the bound here rather than from a 403.
+      expect(within(dialog).getByRole('button', { name: 'Aretes de latón' })).toBeDisabled()
+      expect(within(dialog).getByText('1 de 1 seleccionadas')).toBeInTheDocument()
+    })
+
+    // Opening the dialog is what spends the billed scraper run, so a catalog
+    // with nowhere to put an item must not be able to open it at all.
+    it('closes the entry point when the catalog is full', async () => {
+      vi.mocked(fetchCatalogItems).mockResolvedValue(filledWith(MAX_CATALOG_ITEMS))
+
+      renderPage()
+
+      const openButton = await screen.findByRole('button', { name: 'Importar de Instagram' })
+      expect(openButton).toBeDisabled()
+      expect(
+        screen.getByText(
+          `Tu catálogo llegó al máximo de ${MAX_CATALOG_ITEMS} artículos. Elimina alguno para agregar o importar más.`,
+        ),
+      ).toBeInTheDocument()
+      expect(fetchInstagramPosts).not.toHaveBeenCalled()
+    })
   })
 
   it('imports the selection by externalPostId alone and refreshes the catalog items', async () => {
@@ -439,7 +492,9 @@ describe('Instagram import', () => {
     await user.click(within(dialog).getByRole('button', { name: /^Importar 1$/ }))
 
     const alert = await within(dialog).findByRole('alert')
-    expect(alert).toHaveTextContent('Tu catálogo llegó al máximo de artículos.')
+    expect(alert).toHaveTextContent(
+      `Tu catálogo llegó al máximo de ${MAX_CATALOG_ITEMS} artículos.`,
+    )
   })
 
   /* --- The import cooldown ------------------------------------------------ */
