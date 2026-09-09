@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/queryKeys'
 import { HelpCircle, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -111,28 +113,37 @@ function QuestionCard({ question }: { question: Question }) {
 export function CatalogFaq() {
   const { catalog, isOwner } = usePublicCatalog()
   const { isAuthenticated } = useAuth()
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   const catalogId = catalog?._id
 
-  useEffect(() => {
-    if (!catalogId) return
-    setIsLoading(true)
-    setError(null)
-    fetchCatalogQuestions(catalogId)
-      .then(setQuestions)
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setIsLoading(false))
-  }, [catalogId])
+  // The third of the three payloads the freshness stamp covers, so it shares
+  // their key prefix and is invalidated with them by `usePublicCatalogFreshness`.
+  const questionsQuery = useQuery({
+    queryKey: queryKeys.publicCatalogQuestions(catalogId ?? ''),
+    queryFn: () => fetchCatalogQuestions(catalogId as string),
+    enabled: Boolean(catalogId),
+    staleTime: Infinity,
+    refetchOnMount: false,
+  })
+
+  const questions = questionsQuery.data ?? []
+  const isLoading = questionsQuery.isLoading
+  const error = questionsQuery.error?.message ?? null
 
   if (!catalog) return null
 
   async function handleAsk(text: string) {
     if (!catalogId) return
     const created = await askQuestion(catalogId, text)
-    setQuestions((prev) => [created, ...prev])
+    // The API's own answer, written straight in — no refetch to learn what we
+    // were just told. Asking does move the server's stamp, so the next freshness
+    // check will re-sync the whole subtree; that is correct, and costs one
+    // refetch we could not have avoided without knowing the new stamp value.
+    queryClient.setQueryData<Question[]>(queryKeys.publicCatalogQuestions(catalogId), (prev) => [
+      created,
+      ...(prev ?? []),
+    ])
   }
 
   const visibleQuestions = isOwner

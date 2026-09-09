@@ -77,6 +77,160 @@ sections/<name>/
 
 CSS custom properties are defined in `src/index.css` using Tailwind v4's `@theme {}` block (e.g. `--color-primary`, `--color-muted-foreground`). Components reference these via Tailwind utilities like `bg-primary`, `text-muted-foreground`. Do not add a `tailwind.config.js` — extend the theme in `index.css` instead.
 
+### Caching (TanStack Query)
+
+Reads that **the owner also writes** go through `@tanstack/react-query`. Blueprint:
+`blueprint.LocalCaching.md`.
+
+- **`src/lib/queryKeys.ts` is the closed list of cache keys.** If a query is not in
+  that file, it is not cached. Anything *another user* writes — the public catalog,
+  questions, Pedidos, chat, notifications — is deliberately absent: those rows have
+  a different staleness contract and must not inherit the defaults below.
+- **`src/lib/queryClient.ts` inverts every library default** — `staleTime: Infinity`,
+  no refetch on focus / reconnect / mount, `retry: 1`. This app runs on a phone on
+  mobile data, and the cached rows change only through mutations this client
+  performs. Do not re-enable a refetch trigger without a reason in the PR. `gcTime`
+  must stay longer than a session: with `refetchOnMount: false`, a collected entry
+  refetches on the next mount and silently undoes the cache.
+- **A mutation writes its response into the cache; it does not invalidate.** The
+  mutations already return the updated row — put it in the cache with
+  `setQueryData`. An invalidation is an admission that the server changed something
+  we cannot reconstruct; today that is exactly one path (the Instagram import
+  creating items, via `reloadItems`), and it should stay countable.
+- **Logout clears the cache** (`resetAppCache`, called from `logout` and from the
+  401 give-up path in `api.ts`). Security, not housekeeping: the client is
+  module-scope, so it outlives the React tree, and two users on one phone is an
+  ordinary case for this product.
+- **`IS_DEV_STAGE` still branches inside the action.** Queries call actions, so the
+  mocks are unaffected and **a query needs no new mock file**.
+- **Tests build their own client per test** — `src/test/renderWithProviders.tsx`.
+  Never share one: an entry written by an earlier test would satisfy a later one's
+  query and the test would pass for the wrong reason.
+
+**Shipped:** `/profile`, the owner's catalog and its items, and `/instagram/status`,
+plus persistence across reloads. See `blueprint.LocalCaching.md` and
+`blueprint.CachePersistence.md`.
+
+`AuthProvider` backs `profile` with a query but its `AuthState` is unchanged, so
+`useAuth()` consumers see nothing new. Two rules it encodes:
+
+- **`logout` clears the client it was injected with**, not `resetAppCache()`. In
+  the app they are the same instance; under a test that mounts its own provider
+  the singleton is the wrong client. `resetAppCache()` is for `api.ts`, which has
+  no context to read from.
+- **Whether a session exists is React state, not a render-time `getToken()`.**
+  Clearing the cache while an observer still reads `enabled: true` is a reason for
+  it to refetch — a `/profile` call for a session that just ended.
+
+#### The owner catalog entries
+
+`src/sections/catalogs/hooks/useOwnerCatalog.ts` owns the pair. Home's "Mi
+catálogo" tile and the catalog editor read the **same** two keys, so moving
+between Inicio and Catálogo costs nothing and the editor's second visit skips its
+spinner entirely.
+
+- `EditCatalogProvider` is an adapter over those entries, not a store. Its
+  exported `EditCatalogState` is unchanged, so its six consumers were untouched.
+- **Every mutation there writes the API's response with `setQueryData`** —
+  create, update and delete included. `reloadItems` is the app's only
+  `invalidateQueries`, and it earns it: an Instagram import creates rows the 201
+  describes only in summary.
+- `useCatalogItems` is a dependent query — disabled until `useMyCatalog` yields
+  an id. It reads the **authenticated** `/catalog/:id/items`; the public visitor
+  view uses a different action and is not cached. Do not point it at this key.
+
+#### The Instagram status entry
+
+`useInstagramStatus.ts` owns the shared `/instagram/status` read. `ProductGrid`
+(via `useInstagramAvailability`) and the import dialog (via
+`useInstagramImport`) read the same entry, so the screen costs one status request
+instead of three.
+
+- **Freshness is the cooldown itself**: the entry stays fresh until
+  `nextAvailable` passes. The client's clock decides only when to re-read an
+  *unmetered* endpoint — it never decides whether the seller may import. The date
+  shown is still the server's string and the gate is still the API's 429.
+- **Every server answer about the gate is written into the cache** —
+  `enrollInstagram` ok/409, a 201 carrying `nextAvailable`, and a 429 from either
+  metered route. That is why `ProductGrid` no longer refreshes the status after an
+  import: the button is already disabled by the time the dialog reports back.
+- **`/instagram/posts` is never cached.** It is the billed scraper run, and
+  opening the dialog stays the only thing that reads it.
+
+#### Persistence (`src/lib/queryPersist.tsx`)
+
+The profile and the Instagram status survive a reload; nothing else does.
+
+- **`PERSISTED_KEYS` is an allowlist, never "everything that succeeded".** Adding a
+  key is a decision about staleness, not a performance tweak. The **owner's own**
+  catalog and items are held back: nothing gates them, so a product deleted on
+  another device would render here forever. Never persist Pedidos, chat,
+  notifications, the catalog's **location** (editing it does not move the freshness
+  stamp), an Instagram `mediaUrl`, or `/instagram/posts`.
+- **A *public* catalog persists only while the viewer subscribes to it** — see the
+  freshness section below. Subscription is the bound on blob size; persisting every
+  shop a visitor opens would need an LRU.
+- **The `buster` is `__CACHE_BUSTER__`, injected per build by `vite.config.ts`.**
+  Nothing validates a rehydrated row's shape, so a cached type that gains a field
+  would surface as a runtime error on the boot path. A hand-maintained version
+  constant only works if every author remembers to bump it; deriving it from the
+  build makes that impossible to forget. Do not replace it with a literal.
+- **Restore is synchronous and hand-rolled on purpose.**
+  `PersistQueryClientProvider` restores through a promise, and for that tick the
+  profile query has no data — which `ProtectedRoute` reads as "not authenticated"
+  and bounces a signed-in user to /login. `restoreFromDisk()` runs in a `useState`
+  initialiser, before children render. The *write* half is still
+  `persistQueryClientSubscribe`, so throttling and dehydration stay library-owned.
+- **Persistence is off in dev stage**, and not as a preference: the dev mocks keep
+  their state in module variables that reset on reload, so a persisted
+  `/instagram/status` would contradict `mockInstagramStore` and pin the session to
+  the cooldown screen.
+- **The blob is dropped on every session end** — `logout`, the 401 give-up path in
+  `api.ts`, and a `storage` event from another tab. That last one is not optional:
+  without it this tab re-persists the previous user's rows after a logout elsewhere.
+
+#### Public catalog freshness (`GET /updated/:catalogId`)
+
+Contract: `followup.LocalCacheApi.md`. Every catalog has one timestamp that moves
+whenever anything a visitor can see about it changes — metadata, image, items, and
+any question asked or answered. Reading it is ~80 bytes and needs no auth, which is
+what makes someone else's shop cacheable at all.
+
+`usePublicCatalogFreshness` owns the gate; `PublicCatalogContext` and `CatalogFaq`
+hold the three payloads it covers, under the `queryKeys.publicCatalog(id)` prefix.
+
+- **Compare for inequality, never ordering.** `!==`, not `>`. The stamp is the
+  server's wall clock; if it ever steps backward, `>` pins the client to stale data
+  permanently while `!==` self-heals on the next write.
+- **`catalogSynced` records which stamp the cached payload matches, and is
+  persisted with it.** A `useRef` would do within one mount but dies on reload, and
+  a restored payload with no recorded stamp cannot be checked — the first change
+  after a cold start would be missed entirely.
+- **The *live* stamp (`catalogStamp`) is never persisted.** Restored, it would equal
+  `catalogSynced`, the gate would see no change, and the server would never be
+  asked. It must come from the network on every cold start.
+- **`refetchOnMount: true` and `refetchOnWindowFocus: true` override the app
+  defaults, and both are load-bearing.** With the app's `refetchOnMount: false` the
+  entry would still be in memory from the last visit and nothing would ever ask the
+  server again. **No interval poll** — a backgrounded tab polling a shop nobody is
+  reading is the waste this feature removes.
+- **There is no error case.** An unknown, deleted or never-edited catalog all answer
+  `200` with the epoch; that is an ordinary comparison token, not "not found"
+  (`GET /catalog/:id`'s 404 owns that). On a network failure keep serving the cache
+  — a failed check is not evidence anything changed.
+- **One stamp covers metadata, items and questions together.** Any change refetches
+  all three; per-item stamps do not exist.
+- **The catalog's location is not covered by the stamp**, so it is bounded by
+  *time* instead: `staleTime` of 5 minutes in `useCatalogLocation`, and **never
+  persisted** (`queryPersist` allows only the `public` and `synced` scopes), so the
+  window cannot span a reload. A stale address is the one staleness here with a
+  cost in the physical world. The gate does invalidate it when the stamp moves for
+  another reason — belt and braces, not a guarantee. `followup.CatalogLocationStamp.md`
+  is the ask to fix this properly; when it lands, delete `LOCATION_STALE_MS`, move
+  the key under the `publicCatalog` prefix and allow the `location` scope on disk.
+- In dev stage `mockCatalogStampStore` mirrors the server's stamp and every mutating
+  mock bumps it, so the invalidation path is exercised by hand rather than frozen.
+
 ### Path alias
 
 `@/` maps to `src/` (configured in both `vite.config.ts` and `tsconfig.app.json`).

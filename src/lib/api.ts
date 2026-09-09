@@ -1,4 +1,5 @@
 import { clearTokens, getRefreshToken, getToken, getTokenExpiryMs, setTokens } from './auth'
+import { resetAppCache } from './queryClient'
 
 const PROACTIVE_REFRESH_BUFFER_MS = 30_000
 
@@ -109,6 +110,9 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     const newToken = await refreshAccessToken()
     if (!newToken) {
       clearTokens()
+      // The session is over, and the cached rows belong to it — see
+      // `resetAppCache`. This is the other end of `logout`.
+      resetAppCache()
       throw new ApiError('Sesión expirada', 401)
     }
     res = await send(newToken)

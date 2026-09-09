@@ -1,4 +1,5 @@
-const TOKEN_KEY = 'alk.token'
+/** Exported so the cross-tab session listener can watch it. */
+export const TOKEN_KEY = 'alk.token'
 const REFRESH_KEY = 'alk.refreshToken'
 
 export function getToken(): string | null {

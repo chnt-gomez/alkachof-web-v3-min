@@ -155,7 +155,7 @@ export function AboutPage() {
               to="/login"
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Inciar sesión
+              Iniciar sesión
             </Link>
           </p>
         </section>

@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
-import { fetchCatalogItems } from '@/sections/catalog/actions/fetchCatalogItems'
+import { useCatalogItems, useMyCatalog } from '@/sections/catalogs/hooks/useOwnerCatalog'
 import { useNotifications } from '@/sections/notifications/useNotifications'
 import { fetchSavedCatalogs } from './actions/fetchSavedCatalogs'
 import { fetchNews } from './actions/fetchNews'
-import { useAsyncSection } from './hooks/useAsyncSection'
+import { useAsyncSection, type SectionStatus } from './hooks/useAsyncSection'
 import { readTab, type HomeTab } from './homeTabs'
 import { HomeTabs } from './components/HomeTabs'
 import { MisCosasPanel } from './components/MisCosasPanel'
@@ -29,13 +28,40 @@ export function HomePage() {
     setOpened((prev) => (prev[tab] ? prev : { ...prev, [tab]: true }))
   }, [tab])
 
-  const loadMyCatalog = useCallback(async () => {
-    const catalog = await fetchMyCatalog()
-    const items = await fetchCatalogItems(catalog._id)
-    return { catalog, itemCount: items.length }
-  }, [])
+  /*
+    The catalog tile reads the *shared* cache entries rather than fetching for
+    itself, so it costs nothing once the catalog editor has been open — and vice
+    versa. It used to load both resources independently, which is why bouncing
+    between Inicio and Catálogo re-read a catalog that had not changed.
 
-  const myCatalog = useAsyncSection(loadMyCatalog, opened['mis-cosas'])
+    `opened` still gates it: a tab the user has never opened fetches nothing.
+  */
+  const misCosasOpen = opened['mis-cosas']
+  const catalogQuery = useMyCatalog(misCosasOpen)
+  const itemsQuery = useCatalogItems(catalogQuery.data?._id, misCosasOpen)
+
+  const myCatalog = useMemo(() => {
+    const data =
+      catalogQuery.data && itemsQuery.data
+        ? { catalog: catalogQuery.data, itemCount: itemsQuery.data.length }
+        : null
+    // An unopened tab is `idle`, not `loading` — it has not been asked for.
+    const status: SectionStatus = !misCosasOpen
+      ? 'idle'
+      : catalogQuery.isError || itemsQuery.isError
+        ? 'error'
+        : data
+          ? 'ready'
+          : 'loading'
+    return {
+      status,
+      data,
+      reload: () => {
+        void catalogQuery.refetch()
+        void itemsQuery.refetch()
+      },
+    }
+  }, [misCosasOpen, catalogQuery, itemsQuery])
   // Notifications come from the app-wide provider so live socket pushes show
   // up here without a refetch — it loads on login regardless of the active tab.
   const notifications = useNotifications()

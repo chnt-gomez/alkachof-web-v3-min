@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
-import { fetchCatalogItems } from '../actions/fetchCatalogItems'
+import { createContext, useContext } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/queryKeys'
+import { useCatalogItems, useMyCatalog } from '@/sections/catalogs/hooks/useOwnerCatalog'
 import { updateCatalog as updateCatalogAction } from '../actions/updateCatalog'
 import { updateItem as updateItemAction } from '../actions/updateItem'
 import { createItem as createItemAction } from '../actions/createItem'
@@ -33,36 +34,46 @@ type EditCatalogState = {
 
 const EditCatalogContext = createContext<EditCatalogState | null>(null)
 
+/**
+ * The catalog editor's state.
+ *
+ * It is an **adapter over the shared cache**, not a store: the catalog and its
+ * items live under the keys in `queryKeys`, which Home reads too, so leaving this
+ * screen and coming back costs nothing. What this provider owns is the *write*
+ * side — every mutation here puts the row the API returned straight into the
+ * cache rather than re-reading it.
+ *
+ * The one exception is `reloadItems`, and it is the only invalidation in the app.
+ * See `CLAUDE.md` → Caching.
+ */
 export function EditCatalogProvider({ children }: { children: React.ReactNode }) {
-  const [catalog, setCatalog] = useState<Catalog | null>(null)
-  const [items, setItems] = useState<Item[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    setIsLoading(true)
-    setError(null)
-    // The owner's catalog is resolved from the auth token, then its items are
-    // loaded with the id the backend returns.
-    fetchMyCatalog()
-      .then(async (catalogData) => {
-        const itemsData = await fetchCatalogItems(catalogData._id)
-        setCatalog(catalogData)
-        setItems(itemsData)
-      })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setIsLoading(false))
-  }, [])
+  const catalogQuery = useMyCatalog()
+  const itemsQuery = useCatalogItems(catalogQuery.data?._id)
+
+  const catalog = catalogQuery.data ?? null
+  const items = itemsQuery.data ?? []
+  // The items query is disabled — and so reports `isLoading: false` — until the
+  // catalog resolves, so this is true for exactly one continuous stretch rather
+  // than flickering between the two reads. On a second visit both answer from
+  // cache and it is never true at all, which is the whole point.
+  const isLoading = catalogQuery.isLoading || itemsQuery.isLoading
+  const error = (catalogQuery.error ?? itemsQuery.error)?.message ?? null
+
+  const itemsKey = (catalogId: string) => queryKeys.catalogItems(catalogId)
 
   async function updateCatalog(patch: Partial<Catalog>) {
-    const previous = catalog
+    // Read the cache rather than the render, so a save that races a refetch
+    // still restores the row that was actually current when it started.
+    const previous = queryClient.getQueryData<Catalog>(queryKeys.myCatalog())
     if (!previous) return
-    setCatalog({ ...previous, ...patch })
+    queryClient.setQueryData<Catalog>(queryKeys.myCatalog(), { ...previous, ...patch })
     try {
       const updated = await updateCatalogAction(previous._id, patch)
-      setCatalog(updated)
+      queryClient.setQueryData<Catalog>(queryKeys.myCatalog(), updated)
     } catch (err) {
-      setCatalog(previous)
+      queryClient.setQueryData<Catalog>(queryKeys.myCatalog(), previous)
       throw err
     }
   }
@@ -73,34 +84,47 @@ export function EditCatalogProvider({ children }: { children: React.ReactNode })
   async function uploadCatalogImage(file: File): Promise<string> {
     if (!catalog) return ''
     const updated = await uploadCatalogImageAction(catalog._id, file)
-    setCatalog(updated)
+    queryClient.setQueryData<Catalog>(queryKeys.myCatalog(), updated)
     return updated.image ?? ''
   }
 
   async function deleteCatalogImage(): Promise<void> {
     if (!catalog) return
     const updated = await deleteCatalogImageAction(catalog._id)
-    setCatalog(updated)
+    queryClient.setQueryData<Catalog>(queryKeys.myCatalog(), updated)
   }
 
   async function updateItem(itemId: string, patch: Partial<Item>, image?: File | null) {
     const updated = await updateItemAction(itemId, patch, image)
-    setItems((prev) => prev.map((it) => (it._id === itemId ? updated : it)))
+    if (!catalog) return
+    queryClient.setQueryData<Item[]>(itemsKey(catalog._id), (prev) =>
+      (prev ?? []).map((it) => (it._id === itemId ? updated : it)),
+    )
   }
 
   async function createItem(data: NewItemData) {
     const created = await createItemAction(data)
-    setItems((prev) => [...prev, created])
+    // `data.catalogId` rather than the loaded catalog: it is what the row was
+    // actually created under, so the write cannot land on the wrong key.
+    queryClient.setQueryData<Item[]>(itemsKey(data.catalogId), (prev) => [...(prev ?? []), created])
   }
 
   async function deleteItem(itemId: string) {
     await deleteItemAction(itemId)
-    setItems((prev) => prev.filter((it) => it._id !== itemId))
+    if (!catalog) return
+    queryClient.setQueryData<Item[]>(itemsKey(catalog._id), (prev) =>
+      (prev ?? []).filter((it) => it._id !== itemId),
+    )
   }
 
+  /**
+   * The app's only invalidation, and it earns it: an Instagram import creates
+   * items server-side that the 201 describes only in summary, so there is no row
+   * to write. Everything else here holds the API's own response already.
+   */
   async function reloadItems() {
     if (!catalog) return
-    setItems(await fetchCatalogItems(catalog._id))
+    await queryClient.invalidateQueries({ queryKey: itemsKey(catalog._id) })
   }
 
   return (

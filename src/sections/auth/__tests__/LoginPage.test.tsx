@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LoginPage } from '../LoginPage'
 import { AuthProvider } from '../AuthContext'
 import { ToastProvider } from '@/components/ui/toast'
+import { withQueryClient } from '@/test/renderWithProviders'
 
 vi.mock('../actions/login')
 vi.mock('../actions/fetchProfile')
@@ -13,17 +14,21 @@ import { login } from '../actions/login'
 import { fetchProfile } from '../actions/fetchProfile'
 
 function renderPage() {
+  // A fresh QueryClient per render: AuthProvider reads the profile through
+  // the cache, and a shared client would leak one test's session into another.
   return render(
-    <MemoryRouter initialEntries={['/login']}>
-      <ToastProvider>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<div>Inicio</div>} />
-          </Routes>
-        </AuthProvider>
-      </ToastProvider>
-    </MemoryRouter>,
+    withQueryClient(
+      <MemoryRouter initialEntries={['/login']}>
+        <ToastProvider>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<div>Inicio</div>} />
+            </Routes>
+          </AuthProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    ),
   )
 }
 

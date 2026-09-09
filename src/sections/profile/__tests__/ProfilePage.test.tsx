@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProfilePage } from '../ProfilePage'
 import { AuthProvider } from '@/sections/auth/AuthContext'
+import { withQueryClient } from '@/test/renderWithProviders'
 import type { Profile } from '@/sections/auth/types'
 
 vi.mock('@/sections/auth/actions/fetchProfile')
@@ -23,12 +24,16 @@ const sampleProfile = (overrides: Partial<Profile> = {}): Profile => ({
 })
 
 function renderPage() {
+  // A fresh QueryClient per render: AuthProvider reads the profile through
+  // the cache, and a shared client would leak one test's session into another.
   return render(
-    <MemoryRouter>
-      <AuthProvider>
-        <ProfilePage />
-      </AuthProvider>
-    </MemoryRouter>
+    withQueryClient(
+      <MemoryRouter>
+        <AuthProvider>
+          <ProfilePage />
+        </AuthProvider>
+      </MemoryRouter>,
+    ),
   )
 }
 

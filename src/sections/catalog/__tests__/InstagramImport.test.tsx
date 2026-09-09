@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { CatalogPage } from '../CatalogPage'
 import { ToastProvider } from '@/components/ui/toast'
+import { withQueryClient } from '@/test/renderWithProviders'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import type { InstagramPost } from '../actions/fetchInstagramPosts'
@@ -120,14 +121,18 @@ const attestationCopy = {
 }
 
 function renderPage() {
+  // A fresh client per render: the Instagram status is cached, and a client
+  // shared across tests would answer one test's query from another's write.
   return render(
-    <ToastProvider>
-      <MemoryRouter initialEntries={['/catalog']}>
-        <Routes>
-          <Route path="/catalog" element={<CatalogPage />} />
-        </Routes>
-      </MemoryRouter>
-    </ToastProvider>,
+    withQueryClient(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/catalog']}>
+          <Routes>
+            <Route path="/catalog" element={<CatalogPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    ),
   )
 }
 
@@ -549,6 +554,86 @@ describe('Instagram import', () => {
       ).toBeInTheDocument()
       expect(within(dialog).getByText(/una vez cada 7 días/)).toBeInTheDocument()
       expect(within(dialog).queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
+    })
+  })
+
+  /* --- The cached status entry -------------------------------------------- */
+
+  /**
+   * `/instagram/status` is unmetered, but it was read three times per visit to
+   * this screen: once by the grid, once more when the dialog opened, and once
+   * again after an import. The grid and the dialog now share one cache entry,
+   * and every server answer about the gate is written into it — so nothing
+   * re-reads it to learn what it was just told.
+   *
+   * The gate itself is unchanged: it is still the API's 429 on the metered
+   * routes. These only assert that the client stops asking twice.
+   */
+  describe('status caching', () => {
+    it('reads the status once for the grid and the dialog together', async () => {
+      const user = userEvent.setup()
+      const dialog = await openImportDialog(user)
+
+      await within(dialog).findByRole('button', { name: 'Blusa de lino' })
+      expect(fetchInstagramStatus).toHaveBeenCalledTimes(1)
+    })
+
+    // The 201 carries `nextAvailable`. Asking /status afterwards would spend a
+    // request to be told the date we are already holding.
+    it("disables the catalog button from the import's own answer, with no second status read", async () => {
+      const user = userEvent.setup()
+      vi.mocked(importInstagramPosts).mockResolvedValue({
+        ok: true,
+        imported: [
+          {
+            externalPostId: 'c1',
+            item: { _id: 'item_new', name: 'Blusa de lino', price: 0, imgPath: 'https://cdn/x.webp' },
+          },
+        ],
+        // A skip keeps the dialog open, so the grid behind it can be inspected
+        // without racing the clean-import auto-close.
+        skipped: [{ externalPostId: 'c2', reason: 'Already imported' }],
+        nextAvailable: COOLDOWN_UNTIL,
+      })
+
+      const dialog = await openImportDialog(user)
+      await user.click(await within(dialog).findByRole('button', { name: 'Blusa de lino' }))
+      await user.click(within(dialog).getByRole('button', { name: /^Importar 1$/ }))
+
+      await within(dialog).findByText('Se agregó 1 artículo a tu catálogo.')
+
+      const openButton = screen.getByRole('button', { name: 'Importar de Instagram' })
+      await waitFor(() => expect(openButton).toBeDisabled())
+      expect(fetchInstagramStatus).toHaveBeenCalledTimes(1)
+    })
+
+    // A cooldown that started in another tab arrives as a 429 on the feed. That
+    // is news the button behind the dialog needs, and it needs it for free.
+    it('records a 429 from the feed so the button behind the dialog goes stale', async () => {
+      const user = userEvent.setup()
+      vi.mocked(fetchInstagramPosts).mockResolvedValue({
+        ok: false, reason: 'cooldown', availableAt: COOLDOWN_UNTIL,
+      })
+
+      const dialog = await openImportDialog(user)
+      await within(dialog).findByText('Ya importaste de Instagram esta semana.')
+      await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }))
+
+      const openButton = screen.getByRole('button', { name: 'Importar de Instagram' })
+      await waitFor(() => expect(openButton).toBeDisabled())
+      expect(screen.getByText(/Podrás importar de Instagram de nuevo el/)).toBeInTheDocument()
+      expect(fetchInstagramStatus).toHaveBeenCalledTimes(1)
+    })
+
+    // Caching must not turn a courtesy read into a gate. A status read that
+    // fails leaves the feature working — the API refuses if it must.
+    it('leaves the feature enabled when the status read fails', async () => {
+      vi.mocked(fetchInstagramStatus).mockRejectedValue(new Error('Red no disponible'))
+      renderPage()
+
+      const openButton = await screen.findByRole('button', { name: 'Importar de Instagram' })
+      await waitFor(() => expect(fetchInstagramStatus).toHaveBeenCalled())
+      expect(openButton).toBeEnabled()
     })
   })
 

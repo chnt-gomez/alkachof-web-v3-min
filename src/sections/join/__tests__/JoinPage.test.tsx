@@ -6,6 +6,7 @@ import { JoinPage } from '../JoinPage'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import { ApiError } from '@/lib/api'
 import { ToastProvider } from '@/components/ui/toast'
+import { withQueryClient } from '@/test/renderWithProviders'
 
 vi.mock('@/sections/publicCatalog/actions/fetchPublicCatalog')
 vi.mock('@/sections/publicCatalog/actions/fetchUserSubscriptions')
@@ -45,15 +46,20 @@ const mockCatalog: Catalog = {
 }
 
 function renderPage(query = '?catalogId=abc123') {
+  // A fresh QueryClient per render: the public catalog and the viewer's
+  // subscriptions are cached, and a shared client would let one test read
+  // another's rows.
   return render(
-    <MemoryRouter initialEntries={[`/join${query}`]}>
-      <ToastProvider>
-        <Routes>
-          <Route path="/join" element={<JoinPage />} />
-          <Route path="/catalog/:catalogId" element={<div>Catálogo público</div>} />
-        </Routes>
-      </ToastProvider>
-    </MemoryRouter>,
+    withQueryClient(
+      <MemoryRouter initialEntries={[`/join${query}`]}>
+        <ToastProvider>
+          <Routes>
+            <Route path="/join" element={<JoinPage />} />
+            <Route path="/catalog/:catalogId" element={<div>Catálogo público</div>} />
+          </Routes>
+        </ToastProvider>
+      </MemoryRouter>,
+    ),
   )
 }
 

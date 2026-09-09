@@ -1,8 +1,10 @@
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import type { NewItemData } from '@/sections/catalog/actions/createItem'
 import { randomId } from './random'
+import { bumpCatalogStamp } from './mockCatalogStampStore'
 
 export function mockCreateItem(data: NewItemData): Promise<Item> {
+  bumpCatalogStamp(data.catalogId)
   const { image, ...fields } = data
   const item: Item = {
     _id: `item_${randomId()}`,

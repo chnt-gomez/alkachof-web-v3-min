@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchInstagramStatus } from '../actions/fetchInstagramStatus'
+import { useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { DEFAULT_COOLDOWN_DAYS } from '../actions/fetchInstagramStatus'
+import { instagramStatusQueryOptions } from './useInstagramStatus'
 
 export type InstagramAvailability = {
   /** False while a cooldown is running. Optimistic `true` until the read lands. */
@@ -19,41 +21,29 @@ export type InstagramAvailability = {
  * the gate is enforced on the API's metered routes, and a stale `available: true`
  * here just means the seller meets the same refusal one screen later.
  *
- * It fails open. A status read that errors must not remove a working feature —
- * the API is still the thing that decides, and it will refuse if it must.
+ * It reads the shared cache entry rather than fetching for itself, so the grid
+ * and the import dialog cost one request between them instead of one each, and
+ * a cooldown the dialog just learned about lands on this button with no round
+ * trip at all (see `useInstagramStatusCache`).
+ *
+ * It fails open, and now structurally: an errored or still-loading query has no
+ * data, and no data reads as available. A status read that fails must not remove
+ * a working feature — the API is still the thing that decides, and it will
+ * refuse if it must.
  */
 export function useInstagramAvailability(): InstagramAvailability {
-  const [state, setState] = useState<Omit<InstagramAvailability, 'refresh'>>({
-    available: true,
-    nextAvailable: null,
-    cooldownDays: 7,
-  })
-
-  const alive = useRef(true)
-  useEffect(() => {
-    alive.current = true
-    return () => {
-      alive.current = false
-    }
-  }, [])
+  const { data, refetch } = useQuery(instagramStatusQueryOptions())
 
   const refresh = useCallback(() => {
-    void fetchInstagramStatus()
-      .then((status) => {
-        if (!alive.current) return
-        setState({
-          // An un-enrolled seller has nothing to wait for — the wizard is what
-          // they get, and it is gated by enrollment being permanent instead.
-          available: !status.enrolled || status.available,
-          nextAvailable: status.nextAvailable,
-          cooldownDays: status.cooldownDays,
-        })
-      })
-      // Fail open, deliberately: see above.
-      .catch(() => {})
-  }, [])
+    void refetch()
+  }, [refetch])
 
-  useEffect(() => refresh(), [refresh])
-
-  return { ...state, refresh }
+  return {
+    // An un-enrolled seller has nothing to wait for — the wizard is what they
+    // get, and it is gated by enrollment being permanent instead.
+    available: !data || !data.enrolled || data.available,
+    nextAvailable: data?.nextAvailable ?? null,
+    cooldownDays: data?.cooldownDays ?? DEFAULT_COOLDOWN_DAYS,
+    refresh,
+  }
 }

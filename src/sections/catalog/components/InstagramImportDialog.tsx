@@ -233,11 +233,14 @@ export function InstagramImportDialog({ itemCount, onImported, onClose }: Props)
                 <p className="text-sm text-muted-foreground">
                   {boundedByCatalog ? (
                     <>
-                      Puedes importar hasta {maxSelectable} artículos.
+                      Puedes importar {maxSelectable} {maxSelectable === 1 ? 'foto' : 'fotos'}: tu
+                      catálogo admite {MAX_CATALOG_ITEMS} artículos y ya tienes {itemCount}. Cada una
+                      se convierte en un artículo, sin precio — se lo pones después.
                     </>
                   ) : (
                     <>
-                      Elige hasta {maxSelectable} fotos.
+                      Elige hasta {MAX_CATALOG_ITEMS} fotos. Cada una se convierte en un artículo de
+                      tu catálogo, sin precio — se lo pones después.
                     </>
                   )}
                 </p>

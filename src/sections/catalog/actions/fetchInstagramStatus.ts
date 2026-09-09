@@ -2,8 +2,14 @@ import { api } from '@/lib/api'
 import { IS_DEV_STAGE } from '@/lib/stage'
 import { mockFetchInstagramStatus } from '@/mocks'
 
-/** Falls back to the API's own value if the field is ever missing. */
-const DEFAULT_COOLDOWN_DAYS = 7
+/**
+ * Falls back to the API's own value if the field is ever missing.
+ *
+ * Exported because three callers need a number to show before the first read
+ * lands — the availability hook, the import wizard and the status cache — and
+ * three copies of `7` is three places for the policy to drift.
+ */
+export const DEFAULT_COOLDOWN_DAYS = 7
 
 /**
  * Whether this seller has linked an Instagram account, and whether they may

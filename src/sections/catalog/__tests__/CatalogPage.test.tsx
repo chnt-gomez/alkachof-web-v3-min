@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { CatalogPage } from '../CatalogPage'
 import { ToastProvider } from '@/components/ui/toast'
+import { withQueryClient } from '@/test/renderWithProviders'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import { resizeImage } from '@/lib/resizeImage'
@@ -76,15 +77,19 @@ const mockItems: Item[] = [
 ]
 
 function renderPage() {
+  // A fresh client per render: the Instagram status is cached, and a client
+  // shared across tests would answer one test's query from another's write.
   return render(
-    <ToastProvider>
-      <MemoryRouter initialEntries={['/catalog']}>
-        <Routes>
-          <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/catalog/:catalogId" element={<div>Vista pública</div>} />
-        </Routes>
-      </MemoryRouter>
-    </ToastProvider>,
+    withQueryClient(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/catalog']}>
+          <Routes>
+            <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/catalog/:catalogId" element={<div>Vista pública</div>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    ),
   )
 }
 

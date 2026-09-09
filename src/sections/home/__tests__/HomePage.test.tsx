@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HomePage } from '../HomePage'
 import { ToastProvider } from '@/components/ui/toast'
+import { withQueryClient } from '@/test/renderWithProviders'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { NotificationsProvider } from '@/sections/notifications/context/NotificationsContext'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
@@ -82,20 +83,24 @@ const sampleNotification = (overrides: Partial<Notification> = {}): Notification
 // login — so the page renders inside real providers with an authenticated
 // session (seeded token + mocked fetchProfile), never a mocked context.
 function renderPage(initialEntry = '/') {
+  // A fresh client per render: the catalog and its items are cached, and a
+  // client shared across tests would answer one test's query from another's.
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <ToastProvider>
-        <AuthProvider>
-          <NotificationsProvider>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/catalog" element={<div>Catálogo edit</div>} />
-              <Route path="/catalog/:catalogId" element={<div>Catálogo público</div>} />
-            </Routes>
-          </NotificationsProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </MemoryRouter>,
+    withQueryClient(
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <ToastProvider>
+          <AuthProvider>
+            <NotificationsProvider>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/catalog" element={<div>Catálogo edit</div>} />
+                <Route path="/catalog/:catalogId" element={<div>Catálogo público</div>} />
+              </Routes>
+            </NotificationsProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    ),
   )
 }
 

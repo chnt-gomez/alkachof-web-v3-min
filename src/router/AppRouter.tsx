@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { AppQueryProvider } from '@/lib/queryPersist'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { ToastProvider } from '@/components/ui/toast'
@@ -35,48 +36,50 @@ export function AppRouter() {
     <BrowserRouter>
       <ErrorBoundary>
         <ToastProvider>
-          <AuthProvider>
-            <NotificationsProvider>
-              <ChatProvider>
-                <CartProvider>
-                  <Routes>
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/join" element={<JoinPage />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/signup" element={<SignupPage />} />
-                  <Route path="/recover" element={<RecoverPage />} />
-                  <Route path="/reset" element={<ResetPasswordPage />} />
-                  <Route path="/verify" element={<VerifyPhonePage />} />
-                  <Route element={<NavShell />}>
-                    {/* Public: the visitor view of a catalog shares the app header
-                        (guest variant) but is not behind ProtectedRoute. */}
-                    <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
-                    <Route element={<ProtectedRoute />}>
-                      <Route path="/" element={<HomePage />} />
-                      <Route path="/product/:id" element={<ProductPage />} />
-                      <Route path="/catalog" element={<CatalogPage />} />
-                      <Route path="/profile" element={<ProfilePage />} />
-                      <Route path="/transactions" element={<TransactionsPage />} />
-                      {/* Notifications stored before 2026-08-25 point service
-                          requests at a "/requests" page that never shipped —
-                          requests live in Pedidos. Alias it so those keep working. */}
-                      <Route path="/requests" element={<RequestsRedirect />} />
-                      <Route path="/chats" element={<ChatListPage />} />
+          <AppQueryProvider>
+            <AuthProvider>
+              <NotificationsProvider>
+                <ChatProvider>
+                  <CartProvider>
+                    <Routes>
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/join" element={<JoinPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignupPage />} />
+                    <Route path="/recover" element={<RecoverPage />} />
+                    <Route path="/reset" element={<ResetPasswordPage />} />
+                    <Route path="/verify" element={<VerifyPhonePage />} />
+                    <Route element={<NavShell />}>
+                      {/* Public: the visitor view of a catalog shares the app header
+                          (guest variant) but is not behind ProtectedRoute. */}
+                      <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
+                      <Route element={<ProtectedRoute />}>
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/product/:id" element={<ProductPage />} />
+                        <Route path="/catalog" element={<CatalogPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/transactions" element={<TransactionsPage />} />
+                        {/* Notifications stored before 2026-08-25 point service
+                            requests at a "/requests" page that never shipped —
+                            requests live in Pedidos. Alias it so those keep working. */}
+                        <Route path="/requests" element={<RequestsRedirect />} />
+                        <Route path="/chats" element={<ChatListPage />} />
+                      </Route>
                     </Route>
-                  </Route>
-                  {/* Full-screen conversation view — outside NavShell (no bottom tabs).
-                      `/chats/new` is the unsaved draft; the static segment wins over
-                      the `:chatId` param so a real chat id never collides with it. */}
-                  <Route element={<ProtectedRoute />}>
-                    <Route path="/chats/new" element={<ChatThreadPage />} />
-                    <Route path="/chats/:chatId" element={<ChatThreadPage />} />
-                  </Route>
-                  <Route path="*" element={<NotFoundPage />} />
-                  </Routes>
-                </CartProvider>
-              </ChatProvider>
-            </NotificationsProvider>
-          </AuthProvider>
+                    {/* Full-screen conversation view — outside NavShell (no bottom tabs).
+                        `/chats/new` is the unsaved draft; the static segment wins over
+                        the `:chatId` param so a real chat id never collides with it. */}
+                    <Route element={<ProtectedRoute />}>
+                      <Route path="/chats/new" element={<ChatThreadPage />} />
+                      <Route path="/chats/:chatId" element={<ChatThreadPage />} />
+                    </Route>
+                    <Route path="*" element={<NotFoundPage />} />
+                    </Routes>
+                  </CartProvider>
+                </ChatProvider>
+              </NotificationsProvider>
+            </AuthProvider>
+          </AppQueryProvider>
         </ToastProvider>
       </ErrorBoundary>
     </BrowserRouter>
