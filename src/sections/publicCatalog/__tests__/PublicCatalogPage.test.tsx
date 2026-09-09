@@ -61,6 +61,7 @@ import { unsubscribe } from '../actions/unsubscribe'
 import { checkoutCart, ServiceInCartError } from '@/sections/cart/actions/checkoutCart'
 import { createRequest } from '@/sections/requests/actions/createRequest'
 import { ToastProvider } from '@/components/ui/toast'
+import { withQueryClient } from '@/test/renderWithProviders'
 import { CartProvider } from '@/sections/cart/context/CartContext'
 
 // Non-idempotent actions are held for MIN_PENDING_MS while the button fills, so
@@ -119,18 +120,23 @@ const mockService: Item = {
 }
 
 function renderPage(catalogId = 'abc123') {
+  // A fresh QueryClient per render: the public catalog and the viewer's
+  // subscriptions are cached, and a shared client would let one test read
+  // another's rows.
   return render(
-    <MemoryRouter initialEntries={[`/public/catalog/${catalogId}`]}>
-      <ToastProvider>
-        <CartProvider>
-          <Routes>
-            <Route path="/public/catalog/:catalogId" element={<PublicCatalogPage />} />
-            <Route path="/chats/new" element={<div>Nueva conversación</div>} />
-            <Route path="/transactions" element={<div>Mis solicitudes</div>} />
-          </Routes>
-        </CartProvider>
-      </ToastProvider>
-    </MemoryRouter>,
+    withQueryClient(
+      <MemoryRouter initialEntries={[`/public/catalog/${catalogId}`]}>
+        <ToastProvider>
+          <CartProvider>
+            <Routes>
+              <Route path="/public/catalog/:catalogId" element={<PublicCatalogPage />} />
+              <Route path="/chats/new" element={<div>Nueva conversación</div>} />
+              <Route path="/transactions" element={<div>Mis solicitudes</div>} />
+            </Routes>
+          </CartProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    ),
   )
 }
 

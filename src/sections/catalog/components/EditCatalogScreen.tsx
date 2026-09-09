@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { MapPin, Pencil, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ImageUploadField } from '@/components/ImageUploadField'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import { LocationEditDialog } from './LocationEditDialog'
-import { fetchCatalogLocation, type CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
+import type { CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
+import { useCatalogLocationQuery } from '@/sections/publicCatalog/hooks/useCatalogLocation'
+import { queryKeys } from '@/lib/queryKeys'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import { DELIVERY_OPTIONS } from '@/components/CatalogOptionChips'
 
@@ -39,23 +42,20 @@ export function EditCatalogScreen({ onClose }: Props) {
   const [payOptions, setPayOptions] = useState<Catalog['payOptions']>(catalog?.payOptions ?? [])
   const [deliveryType, setDeliveryType] = useState<Catalog['deliveryType']>(catalog?.deliveryType ?? [])
 
-  const [location, setLocation] = useState<CatalogLocation | null>(null)
+  const queryClient = useQueryClient()
   const [editingLocation, setEditingLocation] = useState(false)
 
-  useEffect(() => {
+  // The same cache entry the public catalog reads, so a seller who has just
+  // looked at their own shop does not pay for it twice. Raw rather than
+  // coordinate-validated: a row with unusable coordinates still exists, and
+  // hiding it would have the seller create a second one instead of fixing it.
+  const { data: location = null } = useCatalogLocationQuery(catalog?._id)
+
+  /** The API's own answer, written straight in — no refetch to confirm a save. */
+  function handleLocationSaved(saved: CatalogLocation) {
     if (!catalog) return
-    let active = true
-    fetchCatalogLocation(catalog._id)
-      .then((loc) => {
-        if (active) setLocation(loc)
-      })
-      .catch(() => {
-        // A missing location just means the "add location" affordance is shown.
-      })
-    return () => {
-      active = false
-    }
-  }, [catalog])
+    queryClient.setQueryData(queryKeys.catalogLocation(catalog._id), saved)
+  }
 
   function togglePay(val: Catalog['payOptions'][number]) {
     setPayOptions((prev) => (prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]))
@@ -228,7 +228,7 @@ export function EditCatalogScreen({ onClose }: Props) {
         <LocationEditDialog
           catalogId={catalog._id}
           location={location}
-          onSaved={setLocation}
+          onSaved={handleLocationSaved}
           onClose={() => setEditingLocation(false)}
         />
       )}

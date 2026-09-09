@@ -1,10 +1,12 @@
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
+import { bumpAllCatalogStamps } from './mockCatalogStampStore'
 
 export function mockUpdateItem(
   itemId: string,
   patch: Partial<Item>,
   image?: File | null,
 ): Promise<Item> {
+  bumpAllCatalogStamps()
   const updated: Item = {
     _id: itemId,
     catalogId: patch.catalogId ?? '',

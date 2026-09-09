@@ -1,7 +1,9 @@
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import { __mockCatalogsCache } from './mockFetchMyCatalogs'
+import { bumpCatalogStamp } from './mockCatalogStampStore'
 
 export function mockUpdateCatalog(catalogId: string, patch: Partial<Catalog>): Promise<Catalog> {
+  bumpCatalogStamp(catalogId)
   const cache = __mockCatalogsCache()
   const cached = cache.find((c) => c._id === catalogId)
 

@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '@/sections/auth/AuthContext'
+import { withQueryClient } from '@/test/renderWithProviders'
 import { emitLiveEvent, type LiveChatMessage } from '@/lib/liveEvents'
 import { ChatProvider } from '../context/ChatContext'
 import { useChat } from '../useChat'
@@ -57,12 +58,16 @@ function Probe() {
 }
 
 function renderProvider() {
+  // A fresh QueryClient per render: AuthProvider reads the profile through
+  // the cache, and a shared client would leak one test's session into another.
   return render(
-    <AuthProvider>
-      <ChatProvider>
-        <Probe />
-      </ChatProvider>
-    </AuthProvider>,
+    withQueryClient(
+      <AuthProvider>
+        <ChatProvider>
+          <Probe />
+        </ChatProvider>
+      </AuthProvider>,
+    ),
   )
 }
 

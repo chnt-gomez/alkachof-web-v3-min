@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
+import { withQueryClient } from '@/test/renderWithProviders'
 import { ApiError } from '@/lib/api'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { NavShell } from '@/components/NavShell'
@@ -69,22 +70,26 @@ function Probe() {
 
 // NavShell rides along to cover the bell badge, which reads the same provider.
 function renderWithProviders() {
+  // A fresh QueryClient per render: AuthProvider reads the profile through
+  // the cache, and a shared client would leak one test's session into another.
   return render(
-    <MemoryRouter initialEntries={['/']}>
-      <ToastProvider>
-        <AuthProvider>
-          <NotificationsProvider>
-            <ChatProvider>
-              <Routes>
-                <Route element={<NavShell />}>
-                  <Route path="/" element={<Probe />} />
-                </Route>
-              </Routes>
-            </ChatProvider>
-          </NotificationsProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </MemoryRouter>,
+    withQueryClient(
+      <MemoryRouter initialEntries={['/']}>
+        <ToastProvider>
+          <AuthProvider>
+            <NotificationsProvider>
+              <ChatProvider>
+                <Routes>
+                  <Route element={<NavShell />}>
+                    <Route path="/" element={<Probe />} />
+                  </Route>
+                </Routes>
+              </ChatProvider>
+            </NotificationsProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    ),
   )
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchInstagramStatus } from '../actions/fetchInstagramStatus'
+import { DEFAULT_COOLDOWN_DAYS } from '../actions/fetchInstagramStatus'
+import { useInstagramStatusCache } from './useInstagramStatus'
 import {
   searchInstagramProfiles,
   type AttestationCopy,
@@ -104,9 +105,6 @@ type ImportState = {
   cooldownDays: number
 }
 
-/** Replaced by the API's own value on the first `/status` read. */
-const DEFAULT_COOLDOWN_DAYS = 7
-
 const INITIAL: ImportState = {
   phase: 'checking',
   query: '',
@@ -136,6 +134,12 @@ const INITIAL: ImportState = {
 export function useInstagramImport(onImported: () => void, selectionLimit: number) {
   const [state, setState] = useState<ImportState>(INITIAL)
   const maxSelectable = Math.max(0, Math.min(selectionLimit, MAX_POSTS_PER_IMPORT))
+
+  // The shared `/status` entry. Read through it so opening this dialog straight
+  // after the catalog grid mounted costs nothing, and write every server answer
+  // about the gate back into it so the button behind the dialog goes stale
+  // without a second round trip.
+  const statusCache = useInstagramStatusCache()
 
   // The dialog can close mid-flight (a search or an import runs for seconds);
   // every async step checks this before writing state back.
@@ -187,6 +191,7 @@ export function useInstagramImport(onImported: () => void, selectionLimit: numbe
       // calls this behind the gate. It still has to be handled — the cooldown
       // can start in another tab between that read and this fetch.
       case 'cooldown':
+        statusCache.markCooldown(result.availableAt)
         patch({
           isLoadingPosts: false,
           phase: 'cooldown',
@@ -198,12 +203,14 @@ export function useInstagramImport(onImported: () => void, selectionLimit: numbe
       default:
         patch({ isLoadingPosts: false, error: { message: result.message, retry: true } })
     }
-  }, [patch])
+  }, [patch, statusCache])
 
   const checkEnrollment = useCallback(async () => {
     patch({ phase: 'checking', error: null })
     try {
-      const status = await fetchInstagramStatus()
+      // Cached when fresh, fetched when not. The grid's own read a moment ago
+      // is normally what answers this.
+      const status = await statusCache.ensure()
       if (!alive.current) return
       patch({ cooldownDays: status.cooldownDays, cooldownUntil: status.nextAvailable })
       if (status.enrolled) {
@@ -232,7 +239,7 @@ export function useInstagramImport(onImported: () => void, selectionLimit: numbe
         },
       })
     }
-  }, [patch, loadPosts])
+  }, [patch, loadPosts, statusCache])
 
   useEffect(() => {
     void checkEnrollment()
@@ -323,6 +330,9 @@ export function useInstagramImport(onImported: () => void, selectionLimit: numbe
     if (!alive.current) return
 
     if (result.ok || result.reason === 'alreadyEnrolled') {
+      // Either way the API has just confirmed a row exists. 409 is not a
+      // failure here, it is the same fact arriving from another tab.
+      statusCache.markEnrolled()
       patch({ isEnrolling: false, phase: 'browsing' })
       await loadPosts()
       return
@@ -352,7 +362,7 @@ export function useInstagramImport(onImported: () => void, selectionLimit: numbe
       candidates: backToBox ? [] : state.candidates,
       error: { message, retry: false },
     })
-  }, [selectedProfile, attested, isEnrolling, patch, loadPosts, state.candidates])
+  }, [selectedProfile, attested, isEnrolling, patch, loadPosts, state.candidates, statusCache])
 
   /* --- Browsing and importing ---------------------------------------------- */
 
@@ -393,6 +403,7 @@ export function useInstagramImport(onImported: () => void, selectionLimit: numbe
       // A 429 is a wait measured in days, not an error with a retry button —
       // give it the terminal screen that can state the date.
       if (result.reason === 'cooldown') {
+        statusCache.markCooldown(result.availableAt)
         patch({ isImporting: false, phase: 'cooldown', cooldownUntil: result.availableAt })
         return null
       }
@@ -411,6 +422,10 @@ export function useInstagramImport(onImported: () => void, selectionLimit: numbe
       skipped: result.skipped,
       nextAvailable: result.nextAvailable,
     }
+    // Only a successful import starts a cooldown, and the 201 says which
+    // happened. A batch that landed nothing leaves the seller's next run intact,
+    // so there is nothing to record.
+    if (result.nextAvailable) statusCache.markCooldown(result.nextAvailable)
     // The feed is deliberately NOT re-read. Refetching would cost a full metered
     // scraper run to repaint badges on a screen the seller is leaving — and if
     // anything landed, the cooldown this import just started would refuse it
@@ -426,7 +441,7 @@ export function useInstagramImport(onImported: () => void, selectionLimit: numbe
     })
     if (result.imported.length > 0) onImported()
     return summary
-  }, [selected, isImporting, patch, onImported, state.cooldownUntil])
+  }, [selected, isImporting, patch, onImported, state.cooldownUntil, statusCache])
 
   return {
     ...state,

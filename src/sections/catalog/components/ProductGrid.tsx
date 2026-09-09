@@ -27,7 +27,6 @@ export function ProductGrid() {
    * them. The API enforces the gate regardless — this is what keeps them off it.
    */
   const instagram = useInstagramAvailability()
-  const { refresh: refreshInstagram } = instagram
 
   /**
    * What is left of the catalog's item cap. It is also the import's size: a
@@ -41,12 +40,15 @@ export function ProductGrid() {
 
   // Wrapped so the import hook, which holds it in a dependency list, is not
   // rebuilt on every keystroke elsewhere in the provider.
+  //
+  // A successful import is what starts the cooldown, and this button has to go
+  // stale the moment the dialog reports back — but it re-reads nothing to do it.
+  // The import wrote the date the 201 carried into the shared `/status` entry
+  // this hook reads, so the button is already disabled by the time we get here.
+  // Re-asking would spend a request to be told what we were just told.
   const handleImported = useCallback(() => {
     void reloadItems()
-    // A successful import is what starts the cooldown, so the button this
-    // screen offers has to go stale the moment the dialog reports back.
-    refreshInstagram()
-  }, [reloadItems, refreshInstagram])
+  }, [reloadItems])
 
   /** Shared by both entry points — the empty state has its own copy of it. */
   const importButton = (
