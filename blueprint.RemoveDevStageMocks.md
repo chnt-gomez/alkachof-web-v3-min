@@ -520,7 +520,7 @@ Two things surfaced during execution that §3 and §7.1 did not tag:
    §4.5.
 
 Both are the same lesson: a grep for the flag finds the branches, not the
-sentences describing them. The final sweep (§8.4) is what caught them.
+sentences describing them. The final grep sweep in §8 is what caught them.
 
 ### Deliberately left alone
 
