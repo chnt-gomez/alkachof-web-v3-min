@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockDeleteNotification, mockFetchNotifications, mockMarkNotificationSeen } from '@/mocks'
 
 export type NotificationMetadata = {
   /**
@@ -53,14 +51,12 @@ export function unreadCount(notifications: Notification[]): number {
 
 /** Notifications from the last 30 days for the logged-in user, newest-first. */
 export async function fetchNotifications(): Promise<Notification[]> {
-  if (IS_DEV_STAGE) return sortByCreatedDesc(await mockFetchNotifications())
   const data = await api<{ notifications: Notification[] }>('/notification/recent')
   return sortByCreatedDesc(data.notifications)
 }
 
 /** Full notification history for the logged-in user, newest-first. */
 export async function fetchAllNotifications(): Promise<Notification[]> {
-  if (IS_DEV_STAGE) return sortByCreatedDesc(await mockFetchNotifications())
   const data = await api<{ notifications: Notification[] }>('/notification/all')
   return sortByCreatedDesc(data.notifications)
 }
@@ -70,7 +66,6 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
  * updated notification (`seenOn: true`). Only the owner may mark their own.
  */
 export async function markNotificationSeen(id: string): Promise<Notification> {
-  if (IS_DEV_STAGE) return mockMarkNotificationSeen(id)
   const data = await api<{ notification: Notification }>(`/notification/${id}/seen`, {
     method: 'POST',
   })
@@ -83,6 +78,5 @@ export async function markNotificationSeen(id: string): Promise<Notification> {
  * gone answers 404, which the caller can treat as success.
  */
 export async function deleteNotification(id: string): Promise<void> {
-  if (IS_DEV_STAGE) return mockDeleteNotification(id)
   await api<{ message: string }>(`/notification/${id}/delete`, { method: 'POST' })
 }

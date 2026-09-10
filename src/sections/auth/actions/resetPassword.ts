@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockResetPassword } from '@/mocks'
 
 export type ResetPasswordRequest = {
   email: string
@@ -14,7 +12,6 @@ export type ResetPasswordResult = {
 }
 
 export async function resetPassword(data: ResetPasswordRequest): Promise<ResetPasswordResult> {
-  if (IS_DEV_STAGE) return mockResetPassword(data)
   return api<ResetPasswordResult>('/reset', {
     method: 'POST',
     authenticated: false,

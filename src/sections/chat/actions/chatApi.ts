@@ -1,23 +1,14 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import {
-  mockCreateChat,
-  mockFetchChatMessages,
-  mockFetchRecentChats,
-  mockSendChatMessage,
-} from '@/mocks'
 import type { Chat, ChatMessage } from '../types'
 
 /** List all of the caller's chats (no pagination — the API returns them all). */
 export async function fetchRecentChats(): Promise<Chat[]> {
-  if (IS_DEV_STAGE) return mockFetchRecentChats()
   const data = await api<{ chats: Chat[] }>('/chat/recent')
   return data.chats
 }
 
 /** Message history for a chat, ordered oldest-first (render top-to-bottom). */
 export async function fetchChatMessages(chatId: string): Promise<ChatMessage[]> {
-  if (IS_DEV_STAGE) return mockFetchChatMessages(chatId)
   const data = await api<{ messages: ChatMessage[] }>(`/chat/${chatId}/messages`)
   return data.messages
 }
@@ -28,7 +19,6 @@ export async function fetchChatMessages(chatId: string): Promise<ChatMessage[]> 
  * later `chat:message` socket echo carries the same `_id` — dedupe on it.
  */
 export async function sendChatMessage(chatId: string, message: string): Promise<ChatMessage> {
-  if (IS_DEV_STAGE) return mockSendChatMessage(chatId, message)
   const data = await api<{ chatMessage: Omit<ChatMessage, 'type'> }>(`/chat/${chatId}/message`, {
     method: 'POST',
     body: { message },
@@ -42,7 +32,6 @@ export async function sendChatMessage(chatId: string, message: string): Promise<
  * user opens a conversation with someone.
  */
 export async function createChat(to: string): Promise<Chat> {
-  if (IS_DEV_STAGE) return mockCreateChat(to)
   const data = await api<{ chat: Chat }>('/chat/create', {
     method: 'POST',
     body: { to },

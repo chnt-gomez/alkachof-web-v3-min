@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockUpdateProfile } from '@/mocks'
 import type { Profile } from '../types'
 
 /**
@@ -14,7 +12,6 @@ export async function updateProfile(
   profileId: string,
   patch: Partial<ProfileFields>
 ): Promise<Profile> {
-  if (IS_DEV_STAGE) return mockUpdateProfile(profileId, patch)
   const data = await api<{ profile: Profile }>(`/profile/${profileId}/update`, {
     method: 'POST',
     body: patch,

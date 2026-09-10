@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchNews } from '@/mocks'
 
 /**
  * An admin announcement ("news"). Every logged-in user sees the same feed —
@@ -51,7 +49,6 @@ export type News = {
  * long after the server stopped serving it.
  */
 export async function fetchNews(): Promise<News[]> {
-  if (IS_DEV_STAGE) return mockFetchNews()
   const data = await api<{ news: News[] }>('/news')
   return data.news
 }

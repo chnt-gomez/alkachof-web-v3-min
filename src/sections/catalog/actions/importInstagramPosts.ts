@@ -1,6 +1,4 @@
 import { api, ApiError, availableAtOf } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockImportInstagramPosts } from '@/mocks'
 import { MAX_CATALOG_ITEMS } from '@/lib/catalogLimits'
 
 /**
@@ -88,8 +86,6 @@ export type ImportPostsResult =
 export async function importInstagramPosts(
   posts: ImportSelection[],
 ): Promise<ImportPostsResult> {
-  if (IS_DEV_STAGE) return mockImportInstagramPosts(posts)
-
   try {
     const data = await api<{
       imported: ImportedPost[]

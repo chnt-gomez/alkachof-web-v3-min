@@ -1,6 +1,4 @@
 import { api, ApiError } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockSearchInstagramProfiles } from '@/mocks'
 
 /** One row in the enrollment picker. Profile metadata only — never posts. */
 export type InstagramProfileCandidate = {
@@ -46,8 +44,6 @@ export type SearchProfilesResult =
  * their account. It runs a scraper actor and takes seconds; show real progress.
  */
 export async function searchInstagramProfiles(query: string): Promise<SearchProfilesResult> {
-  if (IS_DEV_STAGE) return mockSearchInstagramProfiles(query)
-
   try {
     const data = await api<{ profiles: InstagramProfileCandidate[]; attestation: AttestationCopy }>(
       `/instagram/search?q=${encodeURIComponent(query)}`,
