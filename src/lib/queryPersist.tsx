@@ -42,6 +42,13 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000
  * the freshness stamp, so nothing would catch a stale one); anything derived from
  * an Instagram `mediaUrl` (the CDN links expire); `/instagram/posts` (the billed
  * feed — on disk it would make a stale feed importable); tokens (own keys).
+ *
+ * **Never persist the news feed either**, and it is the sharpest version of the
+ * owner-catalog problem: announcements expire on a server clock nobody here can
+ * see, and `deleted: true` is how an admin pulls one that should not have gone
+ * out. A persisted copy would keep showing a retracted announcement across
+ * sessions, to exactly the people it was pulled from. News has no `GET /updated/:id`
+ * equivalent to gate it with — `followup.NewsCacheStamp.md` is the ask for one.
  */
 const PERSISTED_KEYS: readonly QueryKey[] = [
   queryKeys.profile(),

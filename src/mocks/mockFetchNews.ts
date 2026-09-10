@@ -1,4 +1,4 @@
-import type { AdminMessage } from '@/sections/home/actions/fetchNews'
+import type { News } from '@/sections/home/actions/fetchNews'
 import { randomId, randomInt } from './random'
 
 const ANNOUNCEMENTS: { title: string; message: string }[] = [
@@ -24,10 +24,19 @@ const ANNOUNCEMENTS: { title: string; message: string }[] = [
   },
 ]
 
-/** Newest first, matching the server's `date` desc ordering. */
-export function mockFetchNews(): Promise<AdminMessage[]> {
+/**
+ * Newest first, matching the server's `date` desc ordering.
+ *
+ * The count varies per call on purpose: server-side each announcement carries a
+ * `duration` and drops out of the feed when it runs out, so the real list
+ * shrinks between two fetches with nothing having failed. Slicing from the top
+ * mirrors that — the oldest rows are the ones that go — and `0` is a legitimate
+ * answer (an empty feed is a 200, not an error). Nothing about the window is
+ * computed here: `duration` is never sent to the client.
+ */
+export function mockFetchNews(): Promise<News[]> {
   const count = randomInt(0, ANNOUNCEMENTS.length)
-  const news: AdminMessage[] = ANNOUNCEMENTS.slice(0, count).map((announcement, index) => ({
+  const news: News[] = ANNOUNCEMENTS.slice(0, count).map((announcement, index) => ({
     _id: randomId(),
     date: new Date(Date.now() - (index * 48 + randomInt(1, 24)) * 3_600_000).toISOString(),
     ...announcement,

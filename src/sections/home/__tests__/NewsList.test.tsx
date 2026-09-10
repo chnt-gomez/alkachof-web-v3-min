@@ -2,9 +2,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { NewsList } from '../components/NewsList'
-import type { AdminMessage } from '../actions/fetchNews'
+import type { News } from '../actions/fetchNews'
 
-const sample = (overrides: Partial<AdminMessage> = {}): AdminMessage => ({
+const sample = (overrides: Partial<News> = {}): News => ({
   _id: 'a1',
   date: new Date().toISOString(),
   title: 'Mantenimiento programado',

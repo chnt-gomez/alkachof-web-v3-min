@@ -480,6 +480,41 @@ App-wide live notifications (contract: `followup.LiveNotificationsApi.md`). `Not
 
 Consumers: `useNotifications()` → `{ notifications, status, unseen, reload, markSeen }`. The `NavShell` header bell shows the `unseen` badge; `HomePage` renders the list via the presentational `NotificationList` (in `src/sections/home/components/`). The `Notification` type and `notificationLink()` (metadata → route) live in `actions/fetchNotifications.ts`. **In dev stage the socket is a no-op** — only the mocked REST fetch runs, so live pushes never arrive; `liveSocket.ts` guards on `IS_DEV_STAGE` itself and has no mock file (it makes no HTTP calls).
 
+### News feed (announcements)
+
+Admin announcements, rendered on the dashboard by `NewsList` (in `src/sections/home/components/`).
+Contract: `followup.NewsApi.md`. **Read-only, pull-only, and not a notification** despite looking
+like one: no socket push, no `navigationUrl`, no seen state, and no delete affordance —
+`NewsList.test.tsx:26` pins the absence, because an announcement is one global row and a trash
+button here would either lie or remove it for every user.
+
+`HomePage` loads it with `useAsyncSection(() => fetchNews(), opened['mis-cosas'])` — component
+state, one fetch per mount, on first open of *Mis cosas*. The `News` type and the fetch live in
+`sections/home/actions/fetchNews.ts`; the response envelope is `{ news }`.
+
+**Announcements expire server-side** (each carries a `duration` in whole days that is never sent to
+the client), so the feed shrinks on its own — a row present on one fetch may be gone from the next,
+and that is not an error. The server is the only thing that decides what is live: never re-implement
+the window here, and **never persist the feed**. It is deliberately absent from `PERSISTED_KEYS`,
+and unlike a subscribed catalog it has no `GET /updated/:id` stamp to gate a stored copy with, so a
+persisted feed would render expired — or admin-retracted — announcements indefinitely. Moving it
+onto React Query needs an explicit `staleTime`; the `Infinity` default would hold an expired row for
+a day.
+
+**News is meant to join the cache system, but not yet.** `followup.NewsCacheStamp.md` asks the API
+for a `GET /news/updated` stamp — the news equivalent of `GET /updated/:catalogId` — because a
+retraction is precisely what a stamp-less cache would defeat. Until it ships the feed stays on
+component state; the TODOs in `fetchNews.ts` and `src/lib/queryKeys.ts` (where the absence is
+recorded) point at that document, and the plan for the day it lands is written down there.
+
+There are **no news mutations** — `/news/create`, `/news/:id/update` and `/news/:id/delete` were
+removed from the API and answer 404. `GET /news/:id` exists and has **no caller**: the list payload
+already carries the full `message`, so `NewsDetailDialog` opens from data in hand. Unused is not
+dead — do not delete it from the contract, and do not start calling it.
+
+There is **no admin composer and never will be** — the API's write endpoints were removed
+deliberately (an announcement reaches every user at once). Do not scaffold one.
+
 ### Development stage
 
 The UI supports a **development stage** that bypasses the backend entirely. This is the default when running `npm run dev`.

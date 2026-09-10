@@ -74,4 +74,23 @@ export const queryKeys = {
    * cost, and a reload must always re-read it. See `useCatalogLocation`.
    */
   catalogLocation: (catalogId: string) => ['catalog', 'location', catalogId] as const,
+
+  /* --- Deliberately absent: the news feed ---------------------------------
+   *
+   * TODO(cache): admin announcements stay on component state (`useAsyncSection`
+   * in `HomePage`) until the API grows a freshness endpoint for them —
+   * `followup.NewsCacheStamp.md` is the ask.
+   *
+   * They cannot use the defaults in `queryClient.ts`. News changes on a clock
+   * this client cannot see: an announcement expires when its server-side
+   * `duration` runs out, or the moment an admin retracts it, and neither event
+   * is anything the user did here. With `staleTime: Infinity` a retracted
+   * announcement would keep rendering for a whole `gcTime`; on disk it would
+   * render forever. One fetch per mount is not an oversight — it is what makes
+   * an expiry observable at all.
+   *
+   * Adding a key here therefore means picking a real `staleTime` and writing
+   * down why, the way `queryClient.ts` asks — or better, waiting for the stamp
+   * and gating it the way `publicCatalog` is gated.
+   */
 }
