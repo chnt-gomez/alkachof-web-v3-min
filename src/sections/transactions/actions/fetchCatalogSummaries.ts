@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchCatalogSummaries } from '@/mocks'
 
 /** Public shop summary as returned by `GET /catalog/summaries`. */
 export type CatalogSummary = {
@@ -25,8 +23,6 @@ const MAX_BATCH = 100
 export async function fetchCatalogSummaries(
   catalogIds: string[],
 ): Promise<Record<string, CatalogSummary>> {
-  if (IS_DEV_STAGE) return mockFetchCatalogSummaries(catalogIds)
-
   const ids = Array.from(new Set(catalogIds.map((id) => id.trim()).filter(Boolean)))
   if (ids.length === 0) return {}
 

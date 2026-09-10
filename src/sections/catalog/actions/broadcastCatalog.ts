@@ -1,6 +1,4 @@
 import { api, ApiError } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockBroadcastCatalog } from '@/mocks'
 
 /**
  * Result of sending a catalog "Call to Action" announcement.
@@ -30,8 +28,6 @@ export async function broadcastCatalog(
   message: string,
   itemId?: string | null,
 ): Promise<BroadcastResult> {
-  if (IS_DEV_STAGE) return mockBroadcastCatalog(catalogId, message)
-
   try {
     await api<{ message: string }>(`/catalog/${catalogId}/broadcast`, {
       method: 'POST',

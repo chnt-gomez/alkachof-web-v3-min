@@ -17,21 +17,22 @@ npm run test:watch
 
 ## Environment
 
-The dev server reads `.env.development`. The two flags that matter:
+The dev server reads `.env.development`. The two vars that matter:
 
 | Var | Default (`.env.development`) | Purpose |
 |-----|------------------------------|---------|
 | `VITE_API_BASE_URL` | `http://localhost:3001` | Base URL the `api()` wrapper in `src/lib/api.ts` prepends to every request. |
-| `VITE_DEV_STAGE` | `true` | When `true`, every action short-circuits through a paired mock in `src/mocks/` instead of hitting the network — see `src/lib/stage.ts`. Set to `false` to exercise the real backend. |
+| `VITE_PUBLIC_APP_URL` | `http://localhost:5134` | Public app root used to build shareable catalog and product links (`src/lib/shareUrl.ts`). |
 
-`VITE_DEV_STAGE=true` is the local default so you can run the UI without the
-backend. Flip it off (or override the env var inline) when you need to smoke
-test against a real `localhost:3001`.
+**The dev server needs a reachable API.** There is no mock layer and no offline
+mode — run `alkachof-api` on `localhost:3001` before `npm run dev`. (The client
+used to ship a `VITE_DEV_STAGE` flag that served every action from `src/mocks/`;
+it was removed — see `blueprint.RemoveDevStageMocks.md`.)
 
 ## Seeded data
 
-When running against the real backend (`VITE_DEV_STAGE=false`), the following
-test fixtures are provisioned (also documented in `CLAUDE.md`):
+The following test fixtures are provisioned on the backend (also documented in
+`CLAUDE.md`):
 
 - Public catalogs: `6a0365fdf74fdcb617a8a5b6`, `6a0365fdf74fdcb617a8a5c3`, `6a0365fdf74fdcb617a8a5d0`
 - Users: `user@admin.com`, `user2@admin.com`, `user3@admin.com` — password `admin`

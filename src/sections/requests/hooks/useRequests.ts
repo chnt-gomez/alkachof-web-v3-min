@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { serviceNameFor } from '@/mocks'
 import { fetchItem } from '@/sections/catalog/actions/fetchItem'
 // Batch alias lookup, owned by the transactions section (which resolves buyer
 // names on its own rows the same way). Shared rather than duplicated.
@@ -85,17 +83,6 @@ export function useRequests({
     )
     if (ids.length === 0) return
     ids.forEach((id) => inFlight.current.add(id))
-
-    // While requests are mocked, names come from the seeded store — the mocked
-    // items endpoint would invent an unrelated name for these ids.
-    if (IS_DEV_STAGE) {
-      setServiceNames((prev) => {
-        const next = { ...prev }
-        for (const id of ids) next[id] = serviceNameFor(id) ?? SERVICE_FALLBACK
-        return next
-      })
-      return
-    }
 
     // N+1 against GET /item/{id} — the list endpoint does not carry the service
     // name yet (asked for in blueprint §7). Best-effort and per-id so one

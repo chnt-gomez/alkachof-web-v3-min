@@ -1,5 +1,3 @@
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockUpdateItem } from '@/mocks'
 import { api } from '@/lib/api'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 
@@ -15,7 +13,6 @@ export async function updateItem(
   patch: Partial<Item>,
   image?: File | null,
 ): Promise<Item> {
-  if (IS_DEV_STAGE) return mockUpdateItem(itemId, patch, image)
   const path = `/item/${itemId}/update`
   // An item's type is immutable — the backend answers 400 to any update that
   // changes it. Callers hand over the whole form payload, so drop the field

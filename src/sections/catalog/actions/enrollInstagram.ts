@@ -1,6 +1,4 @@
 import { api, ApiError } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockEnrollInstagram } from '@/mocks'
 
 export type EnrollResult =
   | { ok: true }
@@ -34,8 +32,6 @@ export async function enrollInstagram(
   profileId: string,
   alias: string,
 ): Promise<EnrollResult> {
-  if (IS_DEV_STAGE) return mockEnrollInstagram(profileId, alias)
-
   try {
     await api('/instagram/enroll', {
       method: 'POST',

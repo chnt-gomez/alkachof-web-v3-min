@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchRequests } from '@/mocks'
 import type { OrdersScope } from '@/sections/transactions/types'
 import type { RequestRole, RequestStatus, ServiceRequest } from '../types'
 
@@ -40,8 +38,6 @@ export type RequestListResult = {
 export async function fetchRequests(
   params: FetchRequestsParams,
 ): Promise<RequestListResult> {
-  if (IS_DEV_STAGE) return mockFetchRequests(params)
-
   const search = new URLSearchParams({ role: params.role })
   if (params.status) search.set('status', params.status)
   search.set('limit', String(params.limit ?? 20))

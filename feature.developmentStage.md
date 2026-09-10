@@ -1,3 +1,9 @@
+> **Superseded — 2026-09-09.** The dev-stage mock layer described here was removed:
+> `src/mocks/`, `src/lib/stage.ts` and `VITE_DEV_STAGE` no longer exist, and every
+> environment runs against a real API. See `blueprint.RemoveDevStageMocks.md`.
+> Kept as a record of how the client worked before that change — **not** as
+> guidance for new work.
+
 ### ALK-2105: Development stage for UI
 
 ## Current state

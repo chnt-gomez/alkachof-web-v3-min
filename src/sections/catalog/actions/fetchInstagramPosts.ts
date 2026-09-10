@@ -1,6 +1,4 @@
 import { api, ApiError, availableAtOf } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchInstagramPosts } from '@/mocks'
 
 /** Only IMAGE posts can become products, by product decision. */
 export type InstagramMediaType = 'IMAGE' | 'VIDEO'
@@ -58,8 +56,6 @@ export type InstagramPostsResult =
  * refusal they could have been told about on the previous screen.
  */
 export async function fetchInstagramPosts(): Promise<InstagramPostsResult> {
-  if (IS_DEV_STAGE) return mockFetchInstagramPosts()
-
   try {
     const data = await api<{ posts: InstagramPost[] }>('/instagram/posts')
     return { ok: true, posts: data.posts ?? [] }

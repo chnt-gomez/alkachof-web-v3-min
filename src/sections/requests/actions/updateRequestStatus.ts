@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockUpdateRequestStatus } from '@/mocks'
 import type { RequestStatus, ServiceRequest } from '../types'
 
 /**
@@ -22,7 +20,6 @@ export async function updateRequestStatus(
   finalPrice?: number,
   customerNote?: string,
 ): Promise<ServiceRequest> {
-  if (IS_DEV_STAGE) return mockUpdateRequestStatus(requestId, status, finalPrice, customerNote)
   const data = await api<{ message: string; request: ServiceRequest }>(
     `/request/${requestId}/status`,
     {

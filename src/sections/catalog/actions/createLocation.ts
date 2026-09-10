@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockCreateLocation } from '@/mocks'
 import type { CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
 
 /**
@@ -24,7 +22,6 @@ export async function createLocation(
   catalogId: string,
   input: LocationInput,
 ): Promise<CatalogLocation> {
-  if (IS_DEV_STAGE) return mockCreateLocation(catalogId, input)
   const data = await api<{ location: CatalogLocation }>(`/location/catalog/${catalogId}`, {
     method: 'POST',
     body: input,

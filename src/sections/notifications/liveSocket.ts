@@ -1,7 +1,6 @@
 import { io, type Socket } from 'socket.io-client'
 import { API_BASE_URL, refreshAccessToken } from '@/lib/api'
 import { getToken } from '@/lib/auth'
-import { IS_DEV_STAGE } from '@/lib/stage'
 import { emitLiveEvent, type LiveChatMessage } from '@/lib/liveEvents'
 import type { Notification } from './actions/fetchNotifications'
 
@@ -22,12 +21,11 @@ export type LiveSocketHandlers = {
  * Server → client only; there are no client-emitted events.
  *
  * Returns a cleanup function that disconnects the socket (call on logout).
- * In dev stage there is no server, so this is a no-op — live pushes simply
- * never arrive and the UI runs on the mocked REST fetch alone.
+ * Connecting is best-effort by design: with no reachable API the socket retries
+ * in the background and the UI runs on the REST fetch alone, which is the source
+ * of truth either way.
  */
 export function connectLiveSocket({ onConnect, onNotification }: LiveSocketHandlers): () => void {
-  if (IS_DEV_STAGE) return () => {}
-
   const socket: Socket = io(`${API_BASE_URL}/live`, {
     auth: { token: getToken() ?? '' },
   })

@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockCreateRequest } from '@/mocks'
 import type { ServiceRequest } from '../types'
 
 /**
@@ -16,7 +14,6 @@ export async function createRequest(
   serviceId: string,
   customerNote: string,
 ): Promise<ServiceRequest> {
-  if (IS_DEV_STAGE) return mockCreateRequest(serviceId, customerNote)
   const data = await api<{ message: string; request: ServiceRequest }>(
     '/request/create',
     { method: 'POST', body: { serviceId, customerNote } },

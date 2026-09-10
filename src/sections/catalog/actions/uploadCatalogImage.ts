@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockUploadCatalogImage } from '@/mocks'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 
 /**
@@ -11,7 +9,6 @@ import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalo
  * the new url carries a timestamp, so never append a cache-busting param.
  */
 export async function uploadCatalogImage(catalogId: string, file: File): Promise<Catalog> {
-  if (IS_DEV_STAGE) return mockUploadCatalogImage(catalogId, file)
   // `api()` omits Content-Type for FormData so the browser sets the multipart
   // boundary — a hand-rolled fetch loses it and the server sees no file.
   const form = new FormData()

@@ -83,7 +83,7 @@ These pieces ship inside Week 1 but are listed once for visibility:
 - `src/lib/api.ts` — fetch wrapper: base URL, `Authorization` header injection, JSON parsing, error normalization, 401 → `/refresh` retry once.
 - `src/lib/auth.ts` — token read/write/clear against `localStorage`. Single source of truth.
 - `VITE_API_BASE_URL` env var; `.env.development` points at `http://localhost:3001`.
-- `IS_DEV_STAGE` continues to gate mocks per `src/lib/stage.ts`. **Every new action ships with a paired mock** under `src/mocks/`, per the rules in `CLAUDE.md`.
+- ~~`IS_DEV_STAGE` continues to gate mocks per `src/lib/stage.ts`. **Every new action ships with a paired mock** under `src/mocks/`, per the rules in `CLAUDE.md`.~~ **No longer true** — the mock layer was removed (`blueprint.RemoveDevStageMocks.md`). A new action is just its `api()` call.
 
 ---
 
