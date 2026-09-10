@@ -1,7 +1,7 @@
 import type { NotificationsState } from '@/sections/notifications/notificationsContextValue'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { SectionStatus } from '../hooks/useAsyncSection'
-import type { AdminMessage } from '../actions/fetchNews'
+import type { News } from '../actions/fetchNews'
 import { MyCatalogCard } from './MyCatalogCard'
 import { NotificationList } from './NotificationList'
 import { NewsList } from './NewsList'
@@ -17,7 +17,7 @@ type Section<T> = {
 type Props = {
   myCatalog: Section<{ catalog: Catalog; itemCount: number }>
   notifications: NotificationsState
-  news: Section<AdminMessage[]>
+  news: Section<News[]>
 }
 
 /** The seller's own half of Home: their catalog, their notifications, the news. */
