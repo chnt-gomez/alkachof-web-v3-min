@@ -7,7 +7,6 @@ import {
 } from '@tanstack/react-query'
 import { persistQueryClientSubscribe } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
-import { IS_DEV_STAGE } from './stage'
 import { queryClient } from './queryClient'
 import { queryKeys } from './queryKeys'
 import { QUERY_STORAGE_KEY, clearPersistedCache } from './queryStorage'
@@ -170,22 +169,19 @@ function restoreFromDisk(): boolean {
 /**
  * The app's query provider.
  *
- * **Persistence is off in dev stage, and not as a preference.** The dev-stage
- * mocks keep their state in module-level variables that reset on reload —
- * `mockInstagramStore` starts un-enrolled every time, which is the documented way
- * to replay the enrollment wizard. A persisted `/instagram/status` would survive
- * that reload and contradict the store, pinning the dev session to the cooldown
- * screen with no way out but clearing site data.
+ * Persistence behaves identically in every environment. It used to be disabled
+ * when the client ran on mocks — module-level mock stores reset on reload and a
+ * persisted `/instagram/status` would have contradicted them — but there are no
+ * mocks any more, and a dev session that skipped persistence would never
+ * exercise the boot path that depends on it.
  */
 export function AppQueryProvider({ children }: { children: ReactNode }) {
   // A `useState` initialiser runs once, synchronously, before children render —
   // which is the whole point: the cache has to be warm by the time
   // `ProtectedRoute` first asks whether there is a session.
-  const [restored] = useState(() => (IS_DEV_STAGE ? false : restoreFromDisk()))
+  const [restored] = useState(() => restoreFromDisk())
 
   useEffect(() => {
-    if (IS_DEV_STAGE) return
-
     const unsubscribe = persistQueryClientSubscribe({
       queryClient,
       persister,

@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/api')
-// The dev stage short-circuits to mocks; these tests are about the real calls.
-vi.mock('@/lib/stage', () => ({ IS_DEV_STAGE: false }))
 
 import { api } from '@/lib/api'
 import { fetchTransactions } from '../actions/fetchTransactions'
