@@ -469,7 +469,42 @@ reviewable diff into a debugging session.
 - [x] Step 3 — `CLAUDE.md`, `README.md`, retired `feature.developmentStage.md`
 - [x] Step 4 — `tsc --noEmit` clean, lint 0 errors / 7 pre-existing warnings, **405 tests / 36 files**, `npm run build` succeeds
 - [x] Step 4 — no `IS_DEV_STAGE` / `@/mocks` / `VITE_DEV_STAGE` anywhere in `src/`
-- [ ] Manual pass against a running `alkachof-api` (§8.1) — **still owed**; file any breakage as separate bugs
+- [x] Automated pass against a running `alkachof-api` (§8.1) — see below
+- [ ] Visual click-through — **still owed**, needs a human at the browser
+
+### §8.1 — what the automated pass covered (2026-09-09)
+
+Against `alkachof-api` on `localhost:3001` (mongo 7.0 via its `docker-compose`)
+and the Vite dev server on `:5173`:
+
+- **Route reconciliation, no server needed.** All **51** `api()` call sites in
+  `src/` were parsed and matched against the **76** routes the API registers
+  through `app.js`. Every client path resolves. This is the check that directly
+  addresses the risk "an endpoint was renamed while a dead guard hid it" — it
+  finds nothing.
+- **20 read endpoints returned 200** with the expected response envelope, using
+  a real JWT for `user@admin.com`: profile, owner catalog + items + questions,
+  saved catalogs, `/updated/:id`, location, news, both notification feeds, all
+  four transaction/request feed combinations, chat, `/instagram/status`,
+  subscriptions and `/profile/summaries`.
+- **All 53 changed modules transform cleanly through Vite**, so no edit left a
+  broken import behind.
+
+Two findings, neither a defect in this work:
+
+1. **The three seeded catalog ids in `CLAUDE.md` and `README.md` 404 against the
+   local database** (`6a0365fdf74fdcb617a8a5b6`, `…5c3`, `…5d0`). The local dev
+   volume is seeded differently from whatever produced those ids. Documentation
+   staleness, unrelated to the mock removal — but it means "open a public
+   catalog" cannot be tested locally with the documented ids.
+2. `GET /catalog/:id/items` answers **200 with `{items: []}` for a catalog that
+   does not exist**, while `GET /catalog/:id` correctly 404s. Server-side
+   inconsistency, worth a bug on the API if anyone cares; the client is
+   unaffected because it fetches the catalog first.
+
+Mutating endpoints (create/update/delete, checkout, import) were **not** exercised
+— they write to a real database, and a smoke test is not the place to do that.
+Those are what the visual click-through still owes.
 
 ### What the plan missed
 
