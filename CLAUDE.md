@@ -231,6 +231,46 @@ hold the three payloads it covers, under the `queryKeys.publicCatalog(id)` prefi
 - In dev stage `mockCatalogStampStore` mirrors the server's stamp and every mutating
   mock bumps it, so the invalidation path is exercised by hand rather than frozen.
 
+### Versioning
+
+Every build says what it is, on two surfaces that can be read **without opening
+the app** — `vite.config.ts`'s `alkachof-version` plugin owns both:
+
+- **`<meta>` tags in `index.html`** — `app-version`, `build-sha`, `build-time`.
+  View-source on app.alkachof.mx and the answer is there.
+- **`/version.json`** — the same four fields, machine-readable, for a deploy
+  check or an uptime probe. Emitted unhashed on purpose: a fingerprinted name
+  would be unfindable.
+
+The facts come from two clocks, and both halves are needed. `version` is
+`package.json`'s, **owned by a human** and bumped with `npm version` — it is what
+a release is called out loud. `sha` and `builtAt` are **derived from the build**
+and so cannot be forgotten, which is what makes them trustworthy when it matters:
+"0.4.0" covers every deploy made under it, and the sha names exactly one commit.
+A build from a dirty tree is marked `-dirty`, because it corresponds to no commit
+at all.
+
+Rules:
+
+- **nginx must not cache `/version.json` or `index.html`.** A confidently wrong
+  answer from a week-old cache is worse than no endpoint. `Cache-Control:
+  no-cache` on both; the hashed assets under `/assets/` stay immutable.
+- **`__CACHE_BUSTER__` is now the build id** (`version+sha.timestamp`), so the
+  persisted-cache buster and the version are the same fact. The timestamp is
+  load-bearing — rebuilding one commit is ordinary, and the buster must differ on
+  every build. Do not reduce it to the sha.
+- **A build with no `.git` reports `sha: "unknown"` rather than failing.** The
+  build may legitimately run from a tarball or a Docker context that excluded it.
+- **Read the injected globals through `src/lib/version.ts`**, never directly —
+  they are undefined under any runner that does not replicate the `define` block.
+  `vitest.config.ts` pins all four to fixed strings so no assertion depends on
+  the machine's git state.
+- `logVersion()` prints one line at boot. It stays: view-source is not available
+  on the phones this app runs on, and a remote-inspected console is how a build
+  gets identified when a seller reports something.
+- Nothing is shown to end users. If an "Acerca de" line ever wants it,
+  `VERSION_LABEL` (`v0.1.0 (a1b2c3d)`) is the string.
+
 ### Path alias
 
 `@/` maps to `src/` (configured in both `vite.config.ts` and `tsconfig.app.json`).
