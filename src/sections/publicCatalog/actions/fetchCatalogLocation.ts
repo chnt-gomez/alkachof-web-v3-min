@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchCatalogLocation } from '@/mocks'
 
 /**
  * A catalog's structured location. It is a separate backend resource linked to a
@@ -27,7 +25,6 @@ export type CatalogLocation = {
 
 /** Reads a catalog's location. Public endpoint; returns `null` when unset. */
 export async function fetchCatalogLocation(catalogId: string): Promise<CatalogLocation | null> {
-  if (IS_DEV_STAGE) return mockFetchCatalogLocation(catalogId)
   const data = await api<{ location: CatalogLocation | null }>(`/location/catalog/${catalogId}`, {
     authenticated: false,
   })

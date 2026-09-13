@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchInstagramStatus } from '@/mocks'
 
 /**
  * Falls back to the API's own value if the field is ever missing.
@@ -38,7 +36,6 @@ export type InstagramStatus = {
  * read is the courtesy, not the control.
  */
 export async function fetchInstagramStatus(): Promise<InstagramStatus> {
-  if (IS_DEV_STAGE) return mockFetchInstagramStatus()
   const data = await api<Partial<InstagramStatus> & { message: string }>('/instagram/status')
   return {
     enrolled: Boolean(data.enrolled),

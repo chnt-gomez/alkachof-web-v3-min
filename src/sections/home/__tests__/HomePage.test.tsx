@@ -32,7 +32,7 @@ import { fetchProfile } from '@/sections/auth/actions/fetchProfile'
 import { fetchNotifications } from '@/sections/notifications/actions/fetchNotifications'
 import { fetchSavedCatalogs } from '../actions/fetchSavedCatalogs'
 import { fetchNews } from '../actions/fetchNews'
-import type { AdminMessage } from '../actions/fetchNews'
+import type { News } from '../actions/fetchNews'
 
 const sampleCatalog = (overrides: Partial<Catalog> = {}): Catalog => ({
   _id: 'cat1',
@@ -61,7 +61,7 @@ const sampleItem = (overrides: Partial<Item> = {}): Item => ({
   ...overrides,
 })
 
-const sampleNews = (overrides: Partial<AdminMessage> = {}): AdminMessage => ({
+const sampleNews = (overrides: Partial<News> = {}): News => ({
   _id: 'news1',
   date: new Date().toISOString(),
   title: 'Nuevas opciones de pago',

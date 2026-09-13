@@ -7,7 +7,6 @@ import {
 } from '@tanstack/react-query'
 import { persistQueryClientSubscribe } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
-import { IS_DEV_STAGE } from './stage'
 import { queryClient } from './queryClient'
 import { queryKeys } from './queryKeys'
 import { QUERY_STORAGE_KEY, clearPersistedCache } from './queryStorage'
@@ -42,6 +41,13 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000
  * the freshness stamp, so nothing would catch a stale one); anything derived from
  * an Instagram `mediaUrl` (the CDN links expire); `/instagram/posts` (the billed
  * feed — on disk it would make a stale feed importable); tokens (own keys).
+ *
+ * **Never persist the news feed either**, and it is the sharpest version of the
+ * owner-catalog problem: announcements expire on a server clock nobody here can
+ * see, and `deleted: true` is how an admin pulls one that should not have gone
+ * out. A persisted copy would keep showing a retracted announcement across
+ * sessions, to exactly the people it was pulled from. News has no `GET /updated/:id`
+ * equivalent to gate it with — `followup.NewsCacheStamp.md` is the ask for one.
  */
 const PERSISTED_KEYS: readonly QueryKey[] = [
   queryKeys.profile(),
@@ -163,22 +169,19 @@ function restoreFromDisk(): boolean {
 /**
  * The app's query provider.
  *
- * **Persistence is off in dev stage, and not as a preference.** The dev-stage
- * mocks keep their state in module-level variables that reset on reload —
- * `mockInstagramStore` starts un-enrolled every time, which is the documented way
- * to replay the enrollment wizard. A persisted `/instagram/status` would survive
- * that reload and contradict the store, pinning the dev session to the cooldown
- * screen with no way out but clearing site data.
+ * Persistence behaves identically in every environment. It used to be disabled
+ * when the client ran on mocks — module-level mock stores reset on reload and a
+ * persisted `/instagram/status` would have contradicted them — but there are no
+ * mocks any more, and a dev session that skipped persistence would never
+ * exercise the boot path that depends on it.
  */
 export function AppQueryProvider({ children }: { children: ReactNode }) {
   // A `useState` initialiser runs once, synchronously, before children render —
   // which is the whole point: the cache has to be warm by the time
   // `ProtectedRoute` first asks whether there is a session.
-  const [restored] = useState(() => (IS_DEV_STAGE ? false : restoreFromDisk()))
+  const [restored] = useState(() => restoreFromDisk())
 
   useEffect(() => {
-    if (IS_DEV_STAGE) return
-
     const unsubscribe = persistQueryClientSubscribe({
       queryClient,
       persister,

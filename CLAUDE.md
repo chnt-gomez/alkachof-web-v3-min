@@ -101,8 +101,6 @@ Reads that **the owner also writes** go through `@tanstack/react-query`. Bluepri
   401 give-up path in `api.ts`). Security, not housekeeping: the client is
   module-scope, so it outlives the React tree, and two users on one phone is an
   ordinary case for this product.
-- **`IS_DEV_STAGE` still branches inside the action.** Queries call actions, so the
-  mocks are unaffected and **a query needs no new mock file**.
 - **Tests build their own client per test** — `src/test/renderWithProviders.tsx`.
   Never share one: an entry written by an earlier test would satisfy a later one's
   query and the test would pass for the wrong reason.
@@ -181,10 +179,6 @@ The profile and the Instagram status survive a reload; nothing else does.
   and bounces a signed-in user to /login. `restoreFromDisk()` runs in a `useState`
   initialiser, before children render. The *write* half is still
   `persistQueryClientSubscribe`, so throttling and dehydration stay library-owned.
-- **Persistence is off in dev stage**, and not as a preference: the dev mocks keep
-  their state in module variables that reset on reload, so a persisted
-  `/instagram/status` would contradict `mockInstagramStore` and pin the session to
-  the cooldown screen.
 - **The blob is dropped on every session end** — `logout`, the 401 give-up path in
   `api.ts`, and a `storage` event from another tab. That last one is not optional:
   without it this tab re-persists the previous user's rows after a logout elsewhere.
@@ -228,8 +222,6 @@ hold the three payloads it covers, under the `queryKeys.publicCatalog(id)` prefi
   another reason — belt and braces, not a guarantee. `followup.CatalogLocationStamp.md`
   is the ask to fix this properly; when it lands, delete `LOCATION_STALE_MS`, move
   the key under the `publicCatalog` prefix and allow the `location` scope on disk.
-- In dev stage `mockCatalogStampStore` mirrors the server's stamp and every mutating
-  mock bumps it, so the invalidation path is exercised by hand rather than frozen.
 
 ### Versioning
 
@@ -357,7 +349,7 @@ The public catalog (`/catalog/:catalogId`) is reachable without logging in. `Pub
 
 The "Pedidos" page (4th `NavShell` tab) lists the user's transactions split by role — **Compras** (buyer) and **Ventas** (seller) — with status-chip filtering, "Cargar más" pagination, and a per-transaction detail dialog. State lives in the `useTransactions` hook (role/filter/skip pagination, accumulates pages); no Context — it's a read-mostly page. `Transaction` is a domain type owned here (`types.ts`) and re-exported from `src/sections/cart/types.ts`.
 
-It talks to these backend endpoints (all mocked in dev stage per the mock rules): `GET /transaction/all?role&status&limit&skip` and `GET /transaction/history?…` (both → `TransactionListResult`), plus `GET /transaction/:id/purchases` (→ `PurchaseLine[]`). Money is cents everywhere; format with `formatPrice`. Deferred (Phase 2): action buttons in the detail dialog wired to the existing `/transaction/:id` status/code/confirm endpoints.
+It talks to these backend endpoints: `GET /transaction/all?role&status&limit&skip` and `GET /transaction/history?…` (both → `TransactionListResult`), plus `GET /transaction/:id/purchases` (→ `PurchaseLine[]`). Money is cents everywhere; format with `formatPrice`. Deferred (Phase 2): action buttons in the detail dialog wired to the existing `/transaction/:id` status/code/confirm endpoints.
 
 #### The feed is filtered: active vs history (`OrdersScope`)
 
@@ -367,7 +359,7 @@ The API leaves **finished** orders (`DELIVERED`/`REJECTED`/`RETURNED` for produc
 
 **Both halves paginate now.** `/request/all` used to return every request as a bare `{ requests }`; it returns a page envelope (`RequestListResult`) and at most `limit` rows, so nothing may treat that array as complete — read `total`. `useRequests` therefore accumulates pages exactly like `useTransactions`, and `loadMore` asks only the halves that still have rows (asking an exhausted one refetches its last page and duplicates rows). Both hooks dedupe on append via `appendNew`: skip-based paging over a dataset where rows can un-archive mid-session can legitimately hand back a row the client already holds.
 
-The client **never** applies the archive rule itself — the server owns it. The one exception is `src/mocks/ordersArchive.ts`, which mirrors `api/util/orderFeedQuery.js` so the dev stage behaves like production; **keep the two in step** (same arrangement as `imagePresets.ts`). Full contract: `followup.OrdersFeedPagination.md`.
+The client **never** applies the archive rule itself — the server owns it, in `api/util/orderFeedQuery.js`. The client used to keep a mirror of that rule (`src/mocks/ordersArchive.ts`) so the mocked dev stage behaved like production; with the mocks gone there is no copy of it here, and there should not be one — read the API if you need to know what counts as archived. Full contract: `followup.OrdersFeedPagination.md`.
 
 ### Instagram import (`src/sections/catalog/`, Apify)
 
@@ -506,54 +498,72 @@ scraper run for `cooldownDays`, and the API enforces it with a 429 on both
   this to two taps rather than one; closing it needs a second rule. See *Not
   included* in the contract.
 
-**In dev stage** `mockInstagramStore` starts *un-enrolled*, so the wizard is what
-you see first; `mockEnrollInstagram` flips it. The store also mirrors
-`nextAvailable`, so importing anything reaches the disabled button and the
-cooldown screen without a backend — both reset on reload. The lookup is **exact-handle only**,
-mirroring the API, so a partial name resolves to nothing there too — type
-`la_tienda_de_ana` for the happy path, or `tienda_ana_privada` to reach the
-private-account screen.
+The lookup is **exact-handle only**, so a partial name resolves to nothing —
+testing the wizard needs a real un-enrolled account and a real handle, and
+enrollment is permanent, so an account spent on a test is spent for good.
 
 ### Notifications section (`src/sections/notifications/`)
 
 App-wide live notifications (contract: `followup.LiveNotificationsApi.md`). `NotificationsProvider` (mounted in `AppRouter` inside `AuthProvider`) owns the list: on login it fetches `GET /notification/recent` (REST is the source of truth) and opens a best-effort **Socket.IO v4** connection to the `/live` namespace on the API origin (`connectLiveSocket` in `liveSocket.ts`, JWT via `auth.token`). `notification:new` prepends + toasts; every socket `connect` re-syncs from REST (missed events are not replayed); `connect_error: Unauthorized` refreshes the token and reconnects; logout disconnects. `markSeen` is optimistic (`POST /notification/:id/seen`, 404 drops the row).
 
-Consumers: `useNotifications()` → `{ notifications, status, unseen, reload, markSeen }`. The `NavShell` header bell shows the `unseen` badge; `HomePage` renders the list via the presentational `NotificationList` (in `src/sections/home/components/`). The `Notification` type and `notificationLink()` (metadata → route) live in `actions/fetchNotifications.ts`. **In dev stage the socket is a no-op** — only the mocked REST fetch runs, so live pushes never arrive; `liveSocket.ts` guards on `IS_DEV_STAGE` itself and has no mock file (it makes no HTTP calls).
+Consumers: `useNotifications()` → `{ notifications, status, unseen, reload, markSeen }`. The `NavShell` header bell shows the `unseen` badge; `HomePage` renders the list via the presentational `NotificationList` (in `src/sections/home/components/`). The `Notification` type and `notificationLink()` (metadata → route) live in `actions/fetchNotifications.ts`. `liveSocket.ts` always attempts the connection: with no reachable API it retries in the background and the UI runs on the REST fetch alone, which is the source of truth either way.
 
-### Development stage
+### News feed (announcements)
 
-The UI supports a **development stage** that bypasses the backend entirely. This is the default when running `npm run dev`.
+Admin announcements, rendered on the dashboard by `NewsList` (in `src/sections/home/components/`).
+Contract: `followup.NewsApi.md`. **Read-only, pull-only, and not a notification** despite looking
+like one: no socket push, no `navigationUrl`, no seen state, and no delete affordance —
+`NewsList.test.tsx:26` pins the absence, because an announcement is one global row and a trash
+button here would either lie or remove it for every user.
 
-**How it works:** `src/lib/stage.ts` exports `IS_DEV_STAGE`, which reads the `VITE_DEV_STAGE` env var. When `true`, every action returns mock data instead of making HTTP calls. `.env.development` sets `VITE_DEV_STAGE=true`, so the dev server always runs in dev stage automatically.
+`HomePage` loads it with `useAsyncSection(() => fetchNews(), opened['mis-cosas'])` — component
+state, one fetch per mount, on first open of *Mis cosas*. The `News` type and the fetch live in
+`sections/home/actions/fetchNews.ts`; the response envelope is `{ news }`.
 
-**Mock structure:**
+**Announcements expire server-side** (each carries a `duration` in whole days that is never sent to
+the client), so the feed shrinks on its own — a row present on one fetch may be gone from the next,
+and that is not an error. The server is the only thing that decides what is live: never re-implement
+the window here, and **never persist the feed**. It is deliberately absent from `PERSISTED_KEYS`,
+and unlike a subscribed catalog it has no `GET /updated/:id` stamp to gate a stored copy with, so a
+persisted feed would render expired — or admin-retracted — announcements indefinitely. Moving it
+onto React Query needs an explicit `staleTime`; the `Infinity` default would hold an expired row for
+a day.
 
-```
-src/mocks/
-├── index.ts                        # re-exports all mock generators
-├── random.ts                       # shared helpers: pick(), randomInt(), randomId()
-├── mock<ActionName>.ts             # one file per action
-└── ...
-```
+**News is meant to join the cache system, but not yet.** `followup.NewsCacheStamp.md` asks the API
+for a `GET /news/updated` stamp — the news equivalent of `GET /updated/:catalogId` — because a
+retraction is precisely what a stamp-less cache would defeat. Until it ships the feed stays on
+component state; the TODOs in `fetchNews.ts` and `src/lib/queryKeys.ts` (where the absence is
+recorded) point at that document, and the plan for the day it lands is written down there.
 
-**Rules for every new action:**
+There are **no news mutations** — `/news/create`, `/news/:id/update` and `/news/:id/delete` were
+removed from the API and answer 404. `GET /news/:id` exists and has **no caller**: the list payload
+already carries the full `message`, so `NewsDetailDialog` opens from data in hand. Unused is not
+dead — do not delete it from the contract, and do not start calling it.
 
-1. **Every action that makes an HTTP call must have a paired mock generator** in `src/mocks/mock<ActionName>.ts`.
-2. **The mock must import and return the same type** as the real action — never redefine the type.
-3. **Branch at the top of the action function** with a two-line guard:
-   ```ts
-   import { IS_DEV_STAGE } from '@/lib/stage'
-   import { mockFetchMyThing } from '@/mocks'
+There is **no admin composer and never will be** — the API's write endpoints were removed
+deliberately (an announcement reaches every user at once). Do not scaffold one.
 
-   export async function fetchMyThing(id: string): Promise<MyThing> {
-     if (IS_DEV_STAGE) return mockFetchMyThing(id)
-     // ... real fetch
-   }
-   ```
-4. **Mock generators return `Promise.resolve(data)` — no `setTimeout`, no real server, no network.** Data is created inline using helpers from `random.ts`.
-5. **User-visible strings in mocks must be in Spanish (es-MX)** — names, descriptions, locations, etc. Identifiers and file names stay in English.
-6. **Re-export the new mock from `src/mocks/index.ts`** so callers import from `@/mocks` only.
-7. **Tests are not affected.** Tests `vi.mock` the action module directly, which replaces it entirely before the `IS_DEV_STAGE` branch is ever reached. Never change tests to accommodate mock files.
+### Environment
+
+There is no mock layer. Every environment — dev included — runs against a real
+API, and `npm run dev` needs one reachable at `VITE_API_BASE_URL`
+(`.env.development` points at `http://localhost:3001`; see the `alkachof-api`
+repo). There is no offline mode: without a backend the app does not work.
+
+**Adding a new action is therefore one step:** write the `api()` call. There is
+no paired file to create, no flag to branch on, and nothing to register in a
+barrel.
+
+The client once shipped a "development stage" — `VITE_DEV_STAGE` and
+`src/lib/stage.ts` gated 56 `IS_DEV_STAGE` branches that returned data from 67
+generators in `src/mocks/`. All of it is deleted; see
+`blueprint.RemoveDevStageMocks.md` for what was removed and why. **Do not
+reintroduce a mock layer** — if offline development is wanted again, it belongs
+at the network boundary (MSW), as its own decision with its own blueprint, not
+as a branch inside every action.
+
+Tests are unaffected by any of this: they `vi.mock` the action module directly,
+which replaces it before any network call is reached.
 
 ## Golden rules
 

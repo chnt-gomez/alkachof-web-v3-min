@@ -1,9 +1,9 @@
 import { Dialog } from '@/components/ui/dialog'
 import { formatDate } from '@/lib/format'
-import type { AdminMessage } from '../actions/fetchNews'
+import type { News } from '../actions/fetchNews'
 
 type Props = {
-  news: AdminMessage
+  news: News
   onClose: () => void
 }
 

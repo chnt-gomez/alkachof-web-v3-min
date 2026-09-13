@@ -58,8 +58,8 @@ be cached hard.
 
 ## Seeded data
 
-When running against the real backend (`VITE_DEV_STAGE=false`), the following
-test fixtures are provisioned (also documented in `CLAUDE.md`):
+The following test fixtures are provisioned on the backend (also documented in
+`CLAUDE.md`):
 
 - Public catalogs: `6a0365fdf74fdcb617a8a5b6`, `6a0365fdf74fdcb617a8a5c3`, `6a0365fdf74fdcb617a8a5d0`
 - Users: `user@admin.com`, `user2@admin.com`, `user3@admin.com` — password `admin`

@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchTransactions } from '@/mocks'
 import type {
   OrdersScope,
   TransactionRole,
@@ -35,8 +33,6 @@ export type TransactionListResult = {
 export async function fetchTransactions(
   params: FetchTransactionsParams,
 ): Promise<TransactionListResult> {
-  if (IS_DEV_STAGE) return mockFetchTransactions(params)
-
   const search = new URLSearchParams({ role: params.role })
   if (params.status) search.set('status', params.status)
   search.set('limit', String(params.limit ?? 20))

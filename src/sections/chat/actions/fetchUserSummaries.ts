@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchUserSummaries } from '@/mocks'
 import type { UserSummary } from '../types'
 
 /** Public display summary as returned by `GET /profile/summaries`. */
@@ -13,17 +11,15 @@ type ProfileSummary = {
 /**
  * Resolve display info (name, avatar) for a set of user ids, keyed by id.
  *
- * Real branch calls `GET /profile/summaries` (batch, public alias + picture);
- * dev stage returns friendly seeded names. Users the server does not know, or
- * who have not set an alias, fall back to a neutral 'Usuario' so the UI never
- * shows a raw id or a blank title — but a party who set their alias is shown it,
- * which is what drives the chat title (each side sees the counterparty's name).
+ * Calls `GET /profile/summaries` (batch, public alias + picture). Users the
+ * server does not know, or who have not set an alias, fall back to a neutral
+ * 'Usuario' so the UI never shows a raw id or a blank title — but a party who
+ * set their alias is shown it, which is what drives the chat title (each side
+ * sees the counterparty's name).
  */
 export async function fetchUserSummaries(
   userIds: string[],
 ): Promise<Record<string, UserSummary>> {
-  if (IS_DEV_STAGE) return mockFetchUserSummaries(userIds)
-
   const ids = Array.from(new Set(userIds.map((id) => id.trim()).filter(Boolean)))
   if (ids.length === 0) return {}
 

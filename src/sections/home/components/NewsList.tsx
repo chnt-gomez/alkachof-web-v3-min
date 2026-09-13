@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Newspaper } from 'lucide-react'
 import { formatRelative } from '@/lib/format'
-import type { AdminMessage } from '../actions/fetchNews'
+import type { News } from '../actions/fetchNews'
 import { NewsDetailDialog } from './NewsDetailDialog'
 
 type Props = {
-  news: AdminMessage[]
+  news: News[]
 }
 
 /**
@@ -16,13 +16,17 @@ type Props = {
  * **Deliberately no delete button, despite looking like a deletable
  * notification.** An announcement is a single global row every user reads —
  * there is no per-user copy — so "delete" here would not hide it for one
- * person, it would destroy it for everyone (and the API only lets an admin do
- * that at all). A notification, by contrast, is one user's private row, which
- * is what makes its trash button safe. Do not copy the trash affordance over
- * from `NotificationList` until per-user delivery of announcements exists.
+ * person, it would destroy it for everyone. There is no endpoint to call
+ * either: the API's news mutations were removed, so a trash button could only
+ * lie. A notification, by contrast, is one user's private row, which is what
+ * makes its trash button safe. Do not copy the trash affordance over from
+ * `NotificationList` until per-user delivery of announcements exists.
+ *
+ * A row leaves on its own when its server-side duration runs out, or when an
+ * admin retracts it — never by anything the user does here.
  */
 export function NewsList({ news }: Props) {
-  const [selected, setSelected] = useState<AdminMessage | null>(null)
+  const [selected, setSelected] = useState<News | null>(null)
 
   if (news.length === 0) {
     return (

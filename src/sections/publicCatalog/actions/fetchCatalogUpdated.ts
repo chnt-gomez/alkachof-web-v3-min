@@ -1,6 +1,4 @@
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockFetchCatalogUpdated } from '@/mocks'
 
 /** An opaque comparison token. The only operation on it is `!==`. */
 export type CatalogStamp = { catalogId: string; updated: string }
@@ -20,6 +18,5 @@ export type CatalogStamp = { catalogId: string; updated: string }
  * queue this behind a refresh it does not need.
  */
 export async function fetchCatalogUpdated(catalogId: string): Promise<CatalogStamp> {
-  if (IS_DEV_STAGE) return mockFetchCatalogUpdated(catalogId)
   return api<CatalogStamp>(`/updated/${catalogId}`, { authenticated: false })
 }
