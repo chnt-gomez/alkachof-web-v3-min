@@ -3,9 +3,23 @@ import { resetAppCache } from './queryClient'
 
 const PROACTIVE_REFRESH_BUFFER_MS = 30_000
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.alkachof.mx'
+/**
+ * API origin, with any trailing slash removed.
+ *
+ * Every caller here joins with a path that already starts with `/`, so a var set
+ * to `https://api.alkachof.mx/` (an easy thing to paste) produces
+ * `https://api.alkachof.mx//catalog/…`. Most servers collapse the double slash,
+ * which is exactly why this survives unnoticed — but path-based nginx `location`
+ * rules do not match it, and it makes a mess of access logs. Normalising at the
+ * definition covers the export's other two consumers as well: the Socket.IO host
+ * in `liveSocket.ts` and the loopback rewrite in `mediaUrl.ts`.
+ *
+ * Trailing slashes only. Anything else about the value is the deployment's
+ * business, not this module's.
+ */
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'https://api.alkachof.mx').replace(/\/+$/, '')
 
-/** API origin — also the Socket.IO host for the `/live` namespace. */
+/** API origin — also the Socket.IO host for the `/live` namespace. Never ends in `/`. */
 export const API_BASE_URL = BASE_URL
 
 export class ApiError extends Error {
