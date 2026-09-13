@@ -1,48 +1,117 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
-import { Store, CircleUserRound } from 'lucide-react'
+import { useState } from 'react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Store, CircleUserRound, ReceiptText, MessageCircle, Bell, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/BrandMark'
+import { HelpDialog } from '@/components/HelpDialog'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/sections/auth/useAuth'
+import { useNotifications } from '@/sections/notifications/useNotifications'
+import { useChat } from '@/sections/chat/useChat'
+import { resolveMediaUrl } from '@/lib/mediaUrl'
 
 const TABS = [
   { to: '/', label: 'Inicio', icon: Store },
+  { to: '/transactions', label: 'Pedidos', icon: ReceiptText },
+  { to: '/chats', label: 'Chats', icon: MessageCircle },
   { to: '/profile', label: 'Perfil', icon: CircleUserRound },
 ]
 
+/**
+ * Bell linking to the home notification feed, with a live unread badge fed by
+ * `NotificationsProvider` (REST + socket).
+ */
+function NotificationBell() {
+  const { unseen } = useNotifications()
+  const label = unseen > 0 ? `Notificaciones, ${unseen} sin leer` : 'Notificaciones'
+
+  return (
+    <Link
+      to="/"
+      aria-label={label}
+      className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <Bell size={20} />
+      {unseen > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
+        >
+          {unseen > 9 ? '9+' : unseen}
+        </span>
+      )}
+    </Link>
+  )
+}
+
 export function NavShell() {
   const { isAuthenticated, profile } = useAuth()
+  const { unreadCount } = useChat()
+  const location = useLocation()
+  const [helpOpen, setHelpOpen] = useState(false)
 
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <Link to="/" aria-label="Alkachof — inicio">
+          {/* Guests reach the shell through the public catalog, where "inicio"
+              is a protected route — send them to the landing page instead. */}
+          <Link
+            to={isAuthenticated ? '/' : '/about'}
+            aria-label={isAuthenticated ? 'Alkachof — inicio' : 'Alkachof — conoce la plataforma'}
+          >
             <BrandMark />
           </Link>
           {isAuthenticated ? (
-            <Link to="/profile" aria-label="Mi perfil" className="shrink-0">
-              {profile?.profile_picture_url ? (
-                <img
-                  src={profile.profile_picture_url}
-                  alt={profile.alias ?? 'Perfil'}
-                  className="h-9 w-9 rounded-full border object-cover"
-                />
-              ) : (
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-bold text-secondary-foreground">
-                  {(profile?.alias ?? 'A').charAt(0).toUpperCase()}
-                </span>
-              )}
-            </Link>
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                aria-label="Ayuda"
+                onClick={() => setHelpOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <HelpCircle size={20} />
+              </button>
+              <NotificationBell />
+              <Link to="/profile" aria-label="Mi perfil" className="shrink-0">
+                {profile?.profile_picture_url ? (
+                  <img
+                    src={resolveMediaUrl(profile.profile_picture_url)}
+                    alt={profile.alias ?? 'Perfil'}
+                    className="h-9 w-9 rounded-full border object-cover"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-bold text-secondary-foreground">
+                    {(profile?.alias ?? 'A').charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </Link>
+            </div>
           ) : (
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/login">Ingresar</Link>
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                aria-label="Ayuda"
+                onClick={() => setHelpOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <HelpCircle size={20} />
+              </button>
+              <Button variant="ghost" size="sm" asChild>
+                {/* Carry the current page so login returns the visitor to the
+                    catalog they were browsing, not to Inicio. */}
+                <Link to="/login" state={{ from: location.pathname }}>
+                  Ingresar
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </header>
 
-      <main className={cn('flex-1', isAuthenticated && 'pb-24')}>
+      {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
+
+      <main className={cn('flex flex-1 flex-col', isAuthenticated && 'pb-24')}>
         <Outlet />
       </main>
 
@@ -68,11 +137,19 @@ export function NavShell() {
                     <>
                       <span
                         className={cn(
-                          'flex h-8 w-14 items-center justify-center rounded-full transition-colors',
+                          'relative flex h-8 w-14 items-center justify-center rounded-full transition-colors',
                           isActive && 'bg-secondary'
                         )}
                       >
                         <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                        {to === '/chats' && unreadCount > 0 && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute right-2 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
+                          >
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        )}
                       </span>
                       {label}
                     </>

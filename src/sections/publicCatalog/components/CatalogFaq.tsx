@@ -1,17 +1,14 @@
-import { useEffect, useState } from 'react'
-import { HelpCircle, MessageCircle, Flag, Send, X } from 'lucide-react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/queryKeys'
+import { HelpCircle, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/sections/auth/useAuth'
 import { usePublicCatalog } from '../context/PublicCatalogContext'
-import { fetchCatalogQuestions, type Question, type QuestionFlag } from '../actions/fetchCatalogQuestions'
+import { useOwnerGuard } from '../hooks/useOwnerGuard'
+import { fetchCatalogQuestions, type Question } from '../actions/fetchCatalogQuestions'
 import { askQuestion } from '../actions/askQuestion'
-import { answerQuestion } from '../actions/answerQuestion'
-
-const FLAG_LABELS: Record<Exclude<QuestionFlag, null>, string> = {
-  inappropriate: 'Inapropiada',
-  not_a_question: 'No es una pregunta',
-  not_help: 'No es útil',
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-MX', {
@@ -29,9 +26,19 @@ function AskQuestionForm({
   const [text, setText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { isOwner, guard, ariaDisabled, blockedClass } = useOwnerGuard()
+
+  const explainOwner = guard(
+    'Este es tu catálogo: no puedes hacerte preguntas a ti mismo.',
+    () => {},
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (isOwner) {
+      explainOwner()
+      return
+    }
     if (!text.trim()) {
       setError('Escribe tu pregunta antes de enviarla.')
       return
@@ -57,13 +64,26 @@ function AskQuestionForm({
         id="new-question"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="¿Qué te gustaría saber sobre este catálogo?"
+        placeholder={
+          isOwner
+            ? 'Las preguntas las escriben tus visitantes.'
+            : '¿Qué te gustaría saber sobre este catálogo?'
+        }
         rows={3}
-        className="w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        disabled={isSubmitting}
+        className={cn(
+          'w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary',
+          blockedClass,
+        )}
+        disabled={isSubmitting || isOwner}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
-      <Button type="submit" size="sm" className="self-end" disabled={isSubmitting}>
+      <Button
+        type="submit"
+        size="sm"
+        className={cn('self-end', blockedClass)}
+        disabled={isSubmitting}
+        aria-disabled={ariaDisabled}
+      >
         <Send size={14} />
         {isSubmitting ? 'Enviando…' : 'Enviar pregunta'}
       </Button>
@@ -71,104 +91,7 @@ function AskQuestionForm({
   )
 }
 
-function OwnerAnswerControls({
-  question,
-  onSaved,
-}: {
-  question: Question
-  onSaved: (updated: Question) => void
-}) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [draft, setDraft] = useState(question.questionAnswer ?? '')
-  const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function save(patch: { questionAnswer?: string | null; flag?: QuestionFlag }) {
-    setIsSaving(true)
-    setError(null)
-    try {
-      const updated = await answerQuestion(question.catalogId, question.id, patch)
-      onSaved(updated)
-      setIsEditing(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar.')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  if (isEditing) {
-    return (
-      <div className="mt-2 flex flex-col gap-2">
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={2}
-          placeholder="Escribe tu respuesta"
-          className="w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          disabled={isSaving}
-        />
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => save({ questionAnswer: draft.trim() || null })}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Guardando…' : 'Guardar respuesta'}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setIsEditing(false)
-              setDraft(question.questionAnswer ?? '')
-              setError(null)
-            }}
-            disabled={isSaving}
-          >
-            <X size={14} /> Cancelar
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="mt-2 flex flex-wrap gap-2">
-      <Button type="button" size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-        <MessageCircle size={14} />
-        {question.questionAnswer ? 'Editar respuesta' : 'Responder'}
-      </Button>
-      {(Object.keys(FLAG_LABELS) as Array<keyof typeof FLAG_LABELS>).map((flagKey) => (
-        <Button
-          key={flagKey}
-          type="button"
-          size="sm"
-          variant={question.flag === flagKey ? 'destructive' : 'ghost'}
-          onClick={() => save({ flag: question.flag === flagKey ? null : flagKey })}
-          disabled={isSaving}
-        >
-          <Flag size={14} />
-          {FLAG_LABELS[flagKey]}
-        </Button>
-      ))}
-      {error && <p className="w-full text-xs text-destructive">{error}</p>}
-    </div>
-  )
-}
-
-function QuestionCard({
-  question,
-  isOwner,
-  onSaved,
-}: {
-  question: Question
-  isOwner: boolean
-  onSaved: (updated: Question) => void
-}) {
+function QuestionCard({ question }: { question: Question }) {
   return (
     <li className="rounded-xl border bg-card p-3">
       <p className="text-sm font-medium">{question.questionText}</p>
@@ -183,46 +106,44 @@ function QuestionCard({
       ) : (
         <p className="mt-2 text-xs italic text-muted-foreground">Sin respuesta aún.</p>
       )}
-      {question.flag && (
-        <p className="mt-1 text-xs text-destructive">
-          Marcada como {FLAG_LABELS[question.flag]}
-        </p>
-      )}
-      {isOwner && <OwnerAnswerControls question={question} onSaved={onSaved} />}
     </li>
   )
 }
 
 export function CatalogFaq() {
-  const { catalog } = usePublicCatalog()
-  const { isAuthenticated, profile } = useAuth()
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { catalog, isOwner } = usePublicCatalog()
+  const { isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
 
   const catalogId = catalog?._id
-  const isOwner = Boolean(catalog && profile && catalog.userId === profile.userId)
 
-  useEffect(() => {
-    if (!catalogId) return
-    setIsLoading(true)
-    setError(null)
-    fetchCatalogQuestions(catalogId)
-      .then(setQuestions)
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setIsLoading(false))
-  }, [catalogId])
+  // The third of the three payloads the freshness stamp covers, so it shares
+  // their key prefix and is invalidated with them by `usePublicCatalogFreshness`.
+  const questionsQuery = useQuery({
+    queryKey: queryKeys.publicCatalogQuestions(catalogId ?? ''),
+    queryFn: () => fetchCatalogQuestions(catalogId as string),
+    enabled: Boolean(catalogId),
+    staleTime: Infinity,
+    refetchOnMount: false,
+  })
+
+  const questions = questionsQuery.data ?? []
+  const isLoading = questionsQuery.isLoading
+  const error = questionsQuery.error?.message ?? null
 
   if (!catalog) return null
 
   async function handleAsk(text: string) {
     if (!catalogId) return
     const created = await askQuestion(catalogId, text)
-    setQuestions((prev) => [created, ...prev])
-  }
-
-  function handleSaved(updated: Question) {
-    setQuestions((prev) => prev.map((q) => (q.id === updated.id ? updated : q)))
+    // The API's own answer, written straight in — no refetch to learn what we
+    // were just told. Asking does move the server's stamp, so the next freshness
+    // check will re-sync the whole subtree; that is correct, and costs one
+    // refetch we could not have avoided without knowing the new stamp value.
+    queryClient.setQueryData<Question[]>(queryKeys.publicCatalogQuestions(catalogId), (prev) => [
+      created,
+      ...(prev ?? []),
+    ])
   }
 
   const visibleQuestions = isOwner
@@ -235,14 +156,6 @@ export function CatalogFaq() {
         <HelpCircle size={18} />
         Preguntas frecuentes
       </h2>
-
-      {isAuthenticated ? (
-        <AskQuestionForm onSubmit={handleAsk} />
-      ) : (
-        <p className="rounded-xl border border-dashed bg-card p-3 text-sm text-muted-foreground">
-          Inicia sesión para hacer una pregunta al vendedor.
-        </p>
-      )}
 
       {isLoading && (
         <p className="text-sm text-muted-foreground">Cargando preguntas…</p>
@@ -257,14 +170,17 @@ export function CatalogFaq() {
       {!isLoading && visibleQuestions.length > 0 && (
         <ul className="flex flex-col gap-2">
           {visibleQuestions.map((question) => (
-            <QuestionCard
-              key={question.id}
-              question={question}
-              isOwner={isOwner}
-              onSaved={handleSaved}
-            />
+            <QuestionCard key={question.id} question={question} />
           ))}
         </ul>
+      )}
+
+      {isAuthenticated ? (
+        <AskQuestionForm onSubmit={handleAsk} />
+      ) : (
+        <p className="rounded-xl border border-dashed bg-card p-3 text-sm text-muted-foreground">
+          Inicia sesión para hacer una pregunta al vendedor.
+        </p>
       )}
     </section>
   )

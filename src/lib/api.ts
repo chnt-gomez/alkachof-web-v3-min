@@ -1,15 +1,52 @@
 import { clearTokens, getRefreshToken, getToken, getTokenExpiryMs, setTokens } from './auth'
+import { resetAppCache } from './queryClient'
 
 const PROACTIVE_REFRESH_BUFFER_MS = 30_000
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.alkachof.mx'
+
+/** API origin — also the Socket.IO host for the `/live` namespace. */
+export const API_BASE_URL = BASE_URL
 
 export class ApiError extends Error {
   readonly status: number
-  constructor(message: string, status: number) {
+  /** Parsed JSON response body, when the server returned one. */
+  readonly body: unknown
+  constructor(message: string, status: number, body?: unknown) {
     super(message)
     this.status = status
+    this.body = body
   }
+}
+
+/** Envelope A — controller-rejected error body. Carries the codeDestroyed flag. */
+export type ApiErrorBody = {
+  message?: string
+  /** Present and true only when a verification/reset code was destroyed by too many attempts. */
+  codeDestroyed?: boolean
+  /** Present only on a 429, from the rate limiter. ISO 8601. */
+  availableAt?: string
+  /** Envelope B — global error handler. */
+  error?: { message?: string }
+}
+
+/**
+ * The moment a 429 says the caller may try again, when the body carries one.
+ *
+ * Both the IP rate limiter and the per-seller Instagram cooldown answer with
+ * this field, so a caller reads one shape rather than two — and since the wait
+ * can be fifteen minutes or seven days, the date is what the UI must show. Null
+ * when the server sent no date; say "más tarde" rather than inventing one.
+ */
+export function availableAtOf(err: unknown): string | null {
+  if (!(err instanceof ApiError)) return null
+  const at = (err.body as ApiErrorBody | undefined)?.availableAt
+  return typeof at === 'string' ? at : null
+}
+
+/** True only when the code was destroyed server-side after too many wrong attempts — key off this flag, never the message string. */
+export function isCodeDestroyedError(err: unknown): boolean {
+  return err instanceof ApiError && (err.body as ApiErrorBody | undefined)?.codeDestroyed === true
 }
 
 type ApiOptions = Omit<RequestInit, 'body'> & {
@@ -17,7 +54,7 @@ type ApiOptions = Omit<RequestInit, 'body'> & {
   authenticated?: boolean
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) return null
   const res = await fetch(`${BASE_URL}/refresh`, {
@@ -31,12 +68,12 @@ async function refreshAccessToken(): Promise<string | null> {
   return data.token
 }
 
-async function readError(res: Response): Promise<string> {
+async function readError(res: Response): Promise<{ message: string; body: unknown }> {
   try {
     const data = await res.json()
-    return data?.error?.message ?? data?.message ?? `HTTP ${res.status}`
+    return { message: data?.error?.message ?? data?.message ?? `HTTP ${res.status}`, body: data }
   } catch {
-    return `HTTP ${res.status}`
+    return { message: `HTTP ${res.status}`, body: undefined }
   }
 }
 
@@ -73,12 +110,18 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     const newToken = await refreshAccessToken()
     if (!newToken) {
       clearTokens()
+      // The session is over, and the cached rows belong to it — see
+      // `resetAppCache`. This is the other end of `logout`.
+      resetAppCache()
       throw new ApiError('Sesión expirada', 401)
     }
     res = await send(newToken)
   }
 
-  if (!res.ok) throw new ApiError(await readError(res), res.status)
+  if (!res.ok) {
+    const { message, body } = await readError(res)
+    throw new ApiError(message, res.status, body)
+  }
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
 }

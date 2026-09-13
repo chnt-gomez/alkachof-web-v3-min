@@ -36,14 +36,20 @@ export function RecoverPage() {
       <AuthScreen>
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-xl">Revisa tu correo</CardTitle>
+            <CardTitle className="text-xl">Revisa tu teléfono</CardTitle>
             <CardDescription>
-              Si tu correo está registrado, te enviamos un enlace para restablecer tu contraseña.
+              Si tu correo está registrado, te enviamos un código por mensaje de texto para
+              restablecer tu contraseña.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-2">
+            <Link to="/reset" state={{ email }}>
+              <Button className="w-full">Ingresar código</Button>
+            </Link>
             <Link to="/login">
-              <Button className="w-full">Volver a iniciar sesión</Button>
+              <Button variant="outline" className="w-full">
+                Volver a iniciar sesión
+              </Button>
             </Link>
           </CardContent>
         </Card>
@@ -56,7 +62,7 @@ export function RecoverPage() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-xl">Recuperar contraseña</CardTitle>
-          <CardDescription>Te enviaremos un enlace para restablecerla</CardDescription>
+          <CardDescription>Te enviaremos un código por mensaje de texto para restablecerla</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -77,7 +83,7 @@ export function RecoverPage() {
               </p>
             )}
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? 'Enviando...' : 'Enviar enlace'}
+              {submitting ? 'Enviando...' : 'Enviar código'}
             </Button>
           </form>
           <p className="mt-4 text-sm text-muted-foreground">

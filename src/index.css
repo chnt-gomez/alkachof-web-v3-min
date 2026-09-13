@@ -16,6 +16,27 @@
   --color-accent-foreground: hsl(120 40% 18%);
   --color-destructive: hsl(4 72% 50%);
   --color-destructive-foreground: hsl(10 60% 98%);
+  /* Item type identity. Products carry the signature green (the same hue as
+     --color-primary); services carry purple #9c88ff. Used by the type chips in
+     both catalog views and by the accent bar under each Pedidos card, so a
+     glance tells the two apart. */
+  --color-product: hsl(152 44% 26%);
+  --color-product-soft: hsl(152 40% 93%);
+  --color-service: hsl(250 100% 77%);
+  --color-service-soft: hsl(250 100% 95%);
+  --color-service-foreground: hsl(250 45% 35%);
+  /* Text on a *filled* --color-service surface. The brand purple is light, so a
+     white label on it lands around 2.4:1 — this deep ink clears 5:1 instead. */
+  --color-service-ink: hsl(250 60% 22%);
+  /* Buy-side identity (#FF9100). Signature color of the "Comprar" tab, which is
+     the visitor/shopper half of Home — deliberately distinct from the green the
+     rest of the app uses for the seller's own things. */
+  --color-buy: hsl(34 100% 50%);
+  --color-buy-soft: hsl(34 100% 94%);
+  /* Text on a *filled* --color-buy surface. #FF9100 is bright, so a white label
+     lands around 2.3:1 — this deep ink clears 5:1 instead. Same trade-off as
+     --color-service-ink above. */
+  --color-buy-ink: hsl(28 85% 18%);
   --color-border: hsl(140 16% 88%);
   --color-input: hsl(140 16% 85%);
   --color-ring: hsl(152 44% 30%);
@@ -25,6 +46,102 @@
 @layer components {
   .input {
     @apply w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none ring-offset-background transition-shadow focus:ring-2 focus:ring-ring focus:ring-offset-1;
+  }
+}
+
+/* Subtle entrance for overlays/sheets: fade the backdrop, pop the panel. */
+@keyframes overlay-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-overlay-fade {
+  animation: overlay-fade 0.18s ease-out;
+}
+
+.animate-sheet-pop {
+  animation: sheet-pop 0.22s ease-out;
+}
+
+/* Word swap used by WordRandomizer on the About page: each new word fades up. */
+@keyframes word-swap {
+  from {
+    opacity: 0;
+    transform: translateY(0.25em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-word-swap {
+  animation: word-swap 0.2s ease-out;
+}
+
+/* Left-to-right progress fill used to turn the checkout button into a bar. */
+@keyframes progress-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.animate-progress-fill {
+  animation: progress-fill 1s linear forwards;
+}
+
+/* Deep-link highlight: draws the eye to a card scrolled into view from a
+   notification (a product card in the catalog, or a transaction card in Pedidos). */
+@keyframes product-highlight-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 4px var(--color-primary);
+  }
+}
+
+.product-highlight,
+.transaction-highlight {
+  border-radius: 1rem;
+  animation: product-highlight-pulse 1.2s ease-in-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-overlay-fade,
+  .animate-sheet-pop,
+  .animate-word-swap {
+    animation: none;
+  }
+  /* Keep the fill instant rather than removing the progress feedback entirely. */
+  .animate-progress-fill {
+    animation-duration: 0.01s;
+  }
+  /* Swap the pulse for a static outline so the highlight is still visible. */
+  .product-highlight,
+  .transaction-highlight {
+    animation: none;
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
 }
 
