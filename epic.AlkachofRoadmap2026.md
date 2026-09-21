@@ -58,7 +58,7 @@ A consolidated punch list of every parked follow-up lives in the **"Carry-over b
 - **MVP scope (must ship):** auth (sign-up, login, recovery), private catalog view (CRUD), private product view (CRUD), image upload, public catalog view wired to the API.
 - **Post-MVP (parked):** home/dashboard, browse catalogs + search, profile view, app settings, subscriptions, transactions, broadcasts, notifications, sales/purchase dashboards, payments, WhatsApp order flow, multi-catalog per seller.
 - **Backend:** exists. OpenAPI at `http://localhost:3001/api-docs/` (title `Alkachof API` v1.0.0). Bearer JWT (`securitySchemes.bearerAuth`).
-- **Auth model:** JWT stored in `localStorage`, attached as `Authorization: Bearer <token>`. `/refresh` available for renewal.
+- **Auth model:** JWT stored in the `alk.token` / `alk.refreshToken` cookies, attached as `Authorization: Bearer <token>`. `/refresh` available for renewal.
 - **UI:** barebones shadcn primitives only. Theme + palette + design rules deferred to a post-MVP epic.
 - **Release shape:** vertical slices — each week ends with one usable end-to-end feature, demoable on its own branch.
 - **Branch strategy (mandatory for the agent):**
@@ -81,9 +81,9 @@ To confirm (flagged for redline):
 These pieces ship inside Week 1 but are listed once for visibility:
 
 - `src/lib/api.ts` — fetch wrapper: base URL, `Authorization` header injection, JSON parsing, error normalization, 401 → `/refresh` retry once.
-- `src/lib/auth.ts` — token read/write/clear against `localStorage`. Single source of truth.
-- `VITE_API_BASE_URL` env var; `.env.development` points at `http://localhost:3001`.
-- ~~`IS_DEV_STAGE` continues to gate mocks per `src/lib/stage.ts`. **Every new action ships with a paired mock** under `src/mocks/`, per the rules in `CLAUDE.md`.~~ **No longer true** — the mock layer was removed (`blueprint.RemoveDevStageMocks.md`). A new action is just its `api()` call.
+- `src/lib/auth.ts` — token read/write/clear against cookies. Single source of truth (`blueprint.CookieStorage.md`).
+- `VITE_API_BASE_URL` env var, set per environment in the committed `.env.*` files.
+- There is no mock layer: a new action is just its `api()` call, and every environment runs against a real API.
 
 ---
 
@@ -119,9 +119,9 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 **Acceptance criteria — status**
 
-- ✅ A `<NavShell>` wraps private routes (`/`, `/product/:id`, `/edit/catalog/:catalogId`); shows app title and auth-aware menu.
+- ✅ A `<NavShell>` wraps private routes (`/`, `/product/:id`, `/catalog`); shows app title and auth-aware menu.
 - ✅ `/login` and `/signup` render shadcn forms with Spanish validation messages.
-- ✅ `POST /login` stores `token` + `refreshToken` in `localStorage` under `alk.token` / `alk.refreshToken` and redirects to the page the user came from (or `/`).
+- ✅ `POST /login` stores `token` + `refreshToken` in the `alk.token` / `alk.refreshToken` cookies and redirects to the page the user came from (or `/`).
 - ⚠️ `POST /signup` does **not** auto-login — the backend returns no token and the user starts with `status: 'pending-registration'`. The UI ends signup on a "Revisa tu correo" screen with a button to `/login`. Acceptance updated to match reality.
 - ✅ `ProtectedRoute` redirects unauthenticated users to `/login` with `state.from` so they bounce back after login.
 - ✅ `AuthContext` exposes `profile`, `isAuthenticated`, `isBooting`, `login`, `signup`, `logout`.
@@ -136,7 +136,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 **Token handling (as implemented)**
 
-- Login response → `AuthContext.login` → `setTokens(token, refreshToken)` writes both keys to `localStorage` → immediately calls `GET /profile` to populate the user.
+- Login response → `AuthContext.login` → `setTokens(token, refreshToken)` writes both cookies → immediately calls `GET /profile` to populate the user.
 - Every authenticated request goes through `api()` in `src/lib/api.ts`, which attaches `Authorization: Bearer ${token}`.
 - On a `401`, `api()` calls `POST /refresh` with the refresh token once, stores the new pair, retries the original request. If `/refresh` fails, both tokens are cleared and `ApiError('Sesión expirada', 401)` is thrown.
 - On boot, `AuthContext` checks for a token; if present it calls `GET /profile`. Profile failure clears tokens.
@@ -145,7 +145,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 **Tasks — status**
 
 - [x] `src/lib/api.ts` fetch wrapper with auth header + 401-refresh-retry
-- [x] `src/lib/auth.ts` localStorage helpers (`getToken`, `getRefreshToken`, `setTokens`, `clearTokens`)
+- [x] `src/lib/auth.ts` token helpers (`getToken`, `getRefreshToken`, `setTokens`, `clearTokens`)
 - [x] `src/components/NavShell.tsx` (barebones shadcn)
 - [x] `src/sections/auth/` with `LoginPage`, `SignupPage`, `AuthContext`, `useAuth`, `types.ts`
 - [x] `actions/login.ts`, `actions/signup.ts`, `actions/fetchProfile.ts` (+ mocks)
@@ -158,12 +158,12 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 **Pending / follow-ups parked for later weeks (do not lose track):**
 
 - [ ] **Email verification landing page** — backend issues a verification email after signup. We need `/verify/:token` calling `GET /validate/{token}` to activate the account. Currently the user has no in-app way to complete verification. **Owner: Week 7 (folded into recovery epic).**
-- [ ] **Proactive token refresh** — we only refresh on 401 today, so the first request after expiry pays a one-hop penalty. A timer-based refresh (or decoding `exp` from the JWT) would smooth this. **Owner: Week 8 hardening.**
-- [ ] **Token storage hardening** — `localStorage` is XSS-readable. Revisit once the backend can issue HTTP-only cookies, or evaluate `sessionStorage` + "remember me". **Owner: post-MVP security review (not in MVP, but tracked here).**
+- [x] **Proactive token refresh** — `api()` decodes `exp` via `getTokenExpiryMs` and refreshes inside a 30s buffer before sending, so an expiring token costs no extra hop.
+- [ ] **Token storage hardening** — tokens are in cookies now, but not `HttpOnly` ones: the client builds the `Authorization` header, so JavaScript must be able to read them and XSS exposure is unchanged. Closing that needs the **API** to set `HttpOnly; Secure; SameSite` cookies on `/login` and `/refresh`. **Owner: backend coordination** (`blueprint.CookieStorage.md` §1).
 - [ ] **Logout server-side** — the backend currently has no `/logout` endpoint to invalidate the refresh token. Tokens stay valid until expiry. Flag for backend if this becomes a compliance concern. **Owner: backend coordination, post-MVP.**
 - [ ] **Inactivity / session timeout** — no client-side idle timeout. Acceptable for MVP. **Owner: post-MVP.**
 - [ ] **Toast system** — login/signup errors render as inline `role="alert"` text. A shared `useToast` hook will land in Week 8 hardening; revisit auth pages to use it then.
-- [ ] **Refresh-token race** — concurrent 401s could trigger multiple `/refresh` calls. Acceptable now (idempotent on the backend, last-write-wins on localStorage). If we hit a bug, gate with an in-flight promise. **Owner: hardening if it surfaces.**
+- [ ] **Refresh-token race** — concurrent 401s could trigger multiple `/refresh` calls. Acceptable now (idempotent on the backend, last-write-wins on the cookie). If we hit a bug, gate with an in-flight promise. **Owner: hardening if it surfaces.**
 - [ ] **`fast-refresh/only-export-components` warning** in `AuthContext.tsx` (matches the same warning in existing context files). Cosmetic; either split `useAuth` out or accept the pattern repo-wide. **Owner: hardening.**
 - [ ] **`GET /profile` boot race** — if the boot fetch is slow, `ProtectedRoute` shows "Cargando..." with no skeleton. Replace with proper skeleton in Week 8.
 
@@ -185,7 +185,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - ✅ "Nuevo catálogo" opens a hand-rolled modal (matches the in-repo pattern from `AddProductModal`; shadcn `Dialog` primitive deferred — see follow-up below) with a validated form. Success closes and prepends the new catalog to the list.
 - ✅ Loading skeleton during fetch (`aria-busy`); error state surfaces a Spanish message with a "Reintentar" button.
 - ✅ Empty state in Spanish: "Aún no tienes catálogos" + "Crear mi primer catálogo" CTA.
-- ✅ Tapping a catalog card navigates to `/edit/catalog/:catalogId` (the existing Week 3 edit shell).
+- ✅ Tapping the catalog tile navigates to the owner's editor at `/catalog`.
 
 **API**
 
@@ -196,10 +196,9 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 **Tasks — status**
 
 - [x] `actions/fetchMyCatalogs.ts`, `actions/createCatalog.ts`, `actions/fetchCatalog.ts` under `src/sections/catalogs/actions/`
-- [x] Paired mocks under `src/mocks/`: `mockFetchMyCatalogs`, `mockCreateCatalog`, `mockFetchCatalog` (shared in-memory cache so a freshly created catalog appears in subsequent fetches in dev stage)
 - [x] `src/sections/catalogs/CatalogsPage.tsx` (loading skeleton, error+retry, empty state, list render, create dialog mount)
 - [x] `NewCatalogDialog` component with validated form (alias, description, pay options, delivery types) and Spanish errors
-- [x] `CatalogCard` component links to `/edit/catalog/:catalogId`
+- [x] `CatalogCard` component links to the owner's catalog editor
 - [x] `HomePage` now renders `CatalogsPage` (the previous landing card is gone; `/` is the seller's catalogs index)
 - [x] Page-level tests: empty state, list render, create flow happy path, error+retry, validation rejection (5 new, 38/38 green total)
 - [x] `vite build` passes; `npm run lint` clean (only the 4 pre-existing `react-refresh/only-export-components` warnings)
@@ -249,8 +248,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 **Pending / follow-ups parked for later weeks:**
 
 - [ ] **`EditCatalogModal` and `AddProductModal` still hand-roll the overlay shell.** Rolling them onto a shared shadcn `Dialog` primitive is tracked as carry-over **C9**. **Owner: Week 8 hardening.**
-- [ ] **`mockFetchEditableCatalog.ts` is now only used by `mockFetchCatalog`** — collapse the two into one mock generator during Week 8 cleanup, or leave as-is if backend coordination splits the two reads. **Owner: Week 8.**
-- [ ] **No back-link from `ProductPage` to public catalog view.** Today it links to `/edit/catalog/:catalogId`; revisit once the buyer-side product view ships (post-MVP).
+- [ ] **`ProductPage` still points at the retired `/edit/catalog/:catalogId`** — both the "Volver" link and the post-delete redirect. That route no longer exists, so each lands on `NotFoundPage`; they should go to `/catalog`. Revisit the buyer-side back-link once the buyer product view ships (post-MVP).
 
 ---
 
@@ -283,7 +281,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - [x] `actions/createItem.ts`, `actions/updateItem.ts`, `actions/deleteItem.ts` migrated/added; all route through the `api()` wrapper. Paired mocks: `mockCreateItem`, `mockUpdateItem`, `mockDeleteItem`.
 - [x] `ItemFormDialog` shared create/edit component (`mode: 'create' | 'edit'`, `onSubmit` callback). Replaces `AddProductModal` + `EditProductModal` (both deleted).
 - [x] `DeleteItemConfirm` confirmation dialog with Spanish copy and inline error rendering.
-- [x] `EditCatalogContext` extended with `deleteItem`. `ProductGrid` exposes per-card delete affordance. `ProductPage` adds "Editar" + "Eliminar" CTAs; delete navigates back to `/edit/catalog/:catalogId`.
+- [x] `EditCatalogContext` extended with `deleteItem`. `ProductGrid` exposes per-card delete affordance. `ProductPage` adds "Editar" + "Eliminar" CTAs; delete navigates back to the catalog editor.
 - [x] Tests: create flow, update flow, delete flow, cancel-delete, blank-product render, negative-price validation (6 new, 47/47 green).
 - [x] `vite build` passes; `npm run lint` clean (only the 4 pre-existing `react-refresh/only-export-components` warnings).
 
@@ -310,7 +308,6 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - ✅ File picker accepts JPG/PNG/WebP, ≤ 5 MB; client-side validation with Spanish errors (`ImageUploadField` validates type + size before invoking the upload action).
 - ✅ Upload shows progress state (spinner + "Subiendo imagen…") and replaces the placeholder on success.
 - ✅ Failures retain the previous image and surface a Spanish inline `role="alert"` (shared `useToast` migration still tracked under C3).
-- ✅ Mocks return stable picsum URLs in dev stage — `mockUploadItemImage`, `mockUploadProfileImage`.
 
 **API (wired through `api()` with FormData)**
 
@@ -364,11 +361,11 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - [x] `api()` already exposed the `authenticated` flag from W1 — no wrapper changes required; reusing the existing knob.
 - [x] `CatalogNotFound` component renders a Spanish not-found state when the backend returns `ApiError(404)`. `PublicCatalogContext` now exposes a `notFound` flag separate from `error`.
 - [x] Page-level test updated: generic error path still covered, plus a new test that asserts the not-found view when the API throws `ApiError(_, 404)`. 52/52 green.
-- [ ] End-to-end smoke against `localhost:3001` with each seeded id — pending manual verification by the user (dev stage default still serves mocks; flip `VITE_DEV_STAGE=false` to hit the real backend).
+- [ ] End-to-end smoke with each seeded id — pending manual verification by the user.
 
 **Pending / follow-ups parked for later weeks:**
 
-- [ ] **Live backend smoke** — verify the three seeded ids (`6a0365fdf74fdcb617a8a5b6`, `…5c3`, `…5d0`) round-trip against `localhost:3001` with `VITE_DEV_STAGE=false`. **Owner: Week 8 hardening.**
+- [ ] **Live backend smoke** — verify the three seeded ids (`6a0365fdf74fdcb617a8a5b6`, `…5c3`, `…5d0`) round-trip against the API. **Owner: Week 8 hardening.**
 
 ---
 
@@ -426,7 +423,7 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 - ✅ `useAuth` split out of `AuthContext.tsx` into `useAuth.ts` + `authContextValue.ts` (closes C6).
 - ✅ Shared `Dialog` primitive in `src/components/ui/dialog.tsx`; `NewCatalogDialog`, `EditCatalogModal`, `ItemFormDialog`, `DeleteItemConfirm` now wrap it instead of repeating the hand-rolled `inset-0` shell (closes C9).
 - ✅ `vite build` passes; `npm run lint` clean (3 pre-existing `react-refresh/only-export-components` warnings remain on `button.tsx`, `EditCatalogContext.tsx`, `PublicCatalogContext.tsx`); `npm test` green (67/67).
-- ✅ README added with `VITE_API_BASE_URL` and `VITE_DEV_STAGE` documentation.
+- ✅ README added with `VITE_API_BASE_URL` documentation.
 
 **Acceptance criteria**
 
@@ -435,9 +432,8 @@ Image upload is implicit in epics 4 and 7 — broken out as Week 5 because it ca
 
 **Pending / follow-ups parked for post-MVP:**
 
-- [ ] **Manual phone-viewport run-through against `localhost:3001`** with `VITE_DEV_STAGE=false`, including the seeded user/catalog ids — owner: user.
+- [ ] **Manual phone-viewport run-through against the API**, including the seeded user/catalog ids — owner: user.
 - [ ] **Backend confirmation on C7 (item image upload endpoint shape) and C8 (`/validate/{token}` token-type semantics).** Both are blocked on backend coordination, not on the UI.
-- [ ] **Collapse `mockFetchEditableCatalog` into `mockFetchCatalog`.** Cosmetic mock cleanup — not blocking.
 - [ ] **Live-backend smoke for the three seeded public catalog ids** carried over from W6 — folds into the same manual run-through above.
 
 ---
@@ -496,7 +492,7 @@ Add a row per week as work lands. Link the merge commit and any open follow-ups.
 |------|------|--------|-------------|------------|
 | 1 | Nav shell + auth | ✅ shipped | branch `ALK-1-W1`, commit `e6aab8d` | Email verification page → W7; proactive refresh + toasts + skeleton → W8; cookie/HTTP-only token storage → post-MVP security review |
 | 2 | Private Catalog (list + create) | ✅ shipped | branch `ALK-3-W2` | Replace hand-rolled dialog with shadcn `Dialog` primitive → W8; migrate edit shell off `fetchEditableCatalog` onto `fetchCatalog` via `api()` → W3 |
-| 3 | Private Catalog (edit + items) | ✅ shipped | branch `ALK-3-W3` | Shared shadcn `Dialog` primitive → W8 (C9); collapse `mockFetchEditableCatalog` into `mockFetchCatalog` → W8 |
+| 3 | Private Catalog (edit + items) | ✅ shipped | branch `ALK-3-W3` | Shared shadcn `Dialog` primitive → W8 (C9) |
 | 4 | Private Product CRUD | ✅ shipped | branch `ALK-4-W4` | Real image upload → W5; shared shadcn `Dialog` primitive → W8 (C9) |
 | 5 | Image upload | ✅ shipped | branch `ALK-4-W5` | Confirm item-image endpoint with backend (C7); persist profile picture via profile update endpoint → post-W8 |
 | 6 | Public Catalog wired | ✅ shipped | branch `ALK-9-W6` | Live backend smoke against seeded ids → W8 |

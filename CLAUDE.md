@@ -28,17 +28,26 @@ All routes are registered in `src/router/AppRouter.tsx`. Adding a section = crea
 
 Current routes:
 
-Public:
-- `/catalog/:catalogId` → `PublicCatalogPage` (visitor view of a catalog by id)
+Public, outside `NavShell`:
+- `/about` → `AboutPage`
+- `/join` → `JoinPage`
 - `/login`, `/signup`, `/recover`, `/reset`, `/verify` → auth pages (the reset/verify code is typed into a form field, not read from a URL param)
+
+Public, inside `NavShell` (the header's guest variant):
+- `/catalog/:catalogId` → `PublicCatalogPage` (visitor view of a catalog by id)
 
 Protected (wrapped in `NavShell` + `ProtectedRoute`):
 - `/` → `HomePage`
 - `/catalog` → `CatalogPage` (owner's own catalog editor — resolved from the auth token, no id in the URL)
 - `/product/:id` → `ProductPage`
 - `/transactions` → `TransactionsPage` (the "Pedidos" tab — buyer/seller order history, product orders *and* service requests)
-- `/requests` → redirect to `/transactions` (retired route kept alive for notifications stored with the old path)
+- `/requests` → redirect to `/transactions` (alias for notifications stored with a path that never shipped)
 - `/profile` → `ProfilePage`
+- `/chats` → `ChatListPage`
+
+Protected, **outside** `NavShell` — a full-screen conversation has no bottom tabs:
+- `/chats/new` → `ChatThreadPage` (the unsaved draft; the static segment wins over the param, so a real chat id never collides with it)
+- `/chats/:chatId` → `ChatThreadPage`
 
 - `*` → `NotFoundPage`
 
@@ -105,6 +114,45 @@ Reads that **the owner also writes** go through `@tanstack/react-query`. Bluepri
   Never share one: an entry written by an earlier test would satisfy a later one's
   query and the test would pass for the wrong reason.
 
+#### Where the tokens live
+
+`src/lib/auth.ts` is the only module that knows, and the four exports
+(`getToken`, `getRefreshToken`, `setTokens`, `clearTokens`) are the only way to
+reach them. They are **cookies** — `alk.token` and `alk.refreshToken`,
+host-only, `path=/; SameSite=Strict`, `Secure` only over https (a `Secure`
+cookie set over `http://localhost:5173` is discarded silently and `npm run dev`
+could not log in). `src/lib/cookies.ts` owns that format and nothing else.
+
+- **The cookie is not `HttpOnly`, and cannot be.** The API authenticates with an
+  `Authorization: Bearer` header the client builds, so the token must be
+  readable by JavaScript. **This is not an XSS mitigation** — script execution
+  reads `document.cookie` as easily as any other client storage. What it buys is
+  a browser-enforced expiry, so an abandoned device does not keep a live refresh
+  token indefinitely; storage that survives Safari private mode; and the shape
+  the real fix needs if the API ever sets `HttpOnly; Secure; SameSite` cookies
+  itself, which is the only thing that would harden this against XSS.
+- **Both cookies carry the refresh token's lifetime** (7 days, the API's TTL,
+  re-armed on every `/refresh` since it rotates the pair). Not the access
+  token's: `AuthProvider` seeds `hasSession` from `Boolean(getToken())`, so an
+  access cookie that evaporated beside a live refresh token would boot the app
+  as logged out with nothing left to call `/refresh`. The access token's real
+  expiry is its `exp` claim — read by `getTokenExpiryMs`, enforced by the API.
+- **`alk.session` in `localStorage` is not a credential and must not be
+  deleted as dead weight.** It is a random id with no meaning to the API, whose
+  *removal* is the only cross-tab signal that a session ended — cookies fire no
+  `storage` event. `AuthContext`'s listener keys off it; `setTokens` and
+  `clearTokens` are its only writers, so it cannot drift out of step.
+- **A failed cookie write throws** (`CookieWriteError`). A cookie over ~4 KB is
+  a no-op the browser does not report, which would surface as a login that
+  appears to work and a next request that goes out unauthenticated. Tokens
+  measure ~210 bytes today, so this is a tripwire, not a constraint.
+- **`migrateLegacyTokens()` in `auth.ts` is scheduled for deletion.** It runs
+  once at module scope to carry a signed-in seller across the deploy that
+  introduced cookies. Delete it, and its test, one release after that ship.
+- The persisted query cache (`alkachof.query`) lives in `localStorage` and stays
+  there — it is megabytes at the wrong end of a 4 KB cookie limit, and unrelated
+  to auth.
+
 **Shipped:** `/profile`, the owner's catalog and its items, and `/instagram/status`,
 plus persistence across reloads. See `blueprint.LocalCaching.md` and
 `blueprint.CachePersistence.md`.
@@ -150,7 +198,7 @@ instead of three.
   shown is still the server's string and the gate is still the API's 429.
 - **Every server answer about the gate is written into the cache** —
   `enrollInstagram` ok/409, a 201 carrying `nextAvailable`, and a 429 from either
-  metered route. That is why `ProductGrid` no longer refreshes the status after an
+  metered route. That is why `ProductGrid` does not refresh the status after an
   import: the button is already disabled by the time the dialog reports back.
 - **`/instagram/posts` is never cached.** It is the billed scraper run, and
   opening the dialog stays the only thing that reads it.
@@ -343,7 +391,7 @@ The public catalog (`/catalog/:catalogId`) is reachable without logging in. `Pub
 - **Guests may browse and add items to the cart** — the cart is client-side (`localStorage`) and requires no account.
 - **Checkout is the auth gate.** In `CartDrawer`, a guest who taps "Finalizar pedido" gets the `GuestCheckoutPrompt` dialog (encourages "Crear cuenta" / "Ya tengo cuenta", passing the catalog path as `location.state.from` so login returns them here). No checkout backend call is made for guests. Authenticated users check out normally.
 - **The "Suscribirme" button (`CatalogJumbotron`) renders only for authenticated users** — hidden entirely for guests.
-- **Questions (`CatalogFaq`) has no answer/flag action UI.** The owner-only "Responder"/flag controls were removed for _all_ users; answering questions will be handled in a separate effort. The section still renders questions read-only, keeps the "Haz una pregunta" form (auth-gated) and still hides `inappropriate`-flagged questions from non-owners.
+- **Questions (`CatalogFaq`) are read-only for everyone, owner included.** There is no answer or flag control anywhere in the section — answering is a separate effort. It renders the questions, keeps the "Haz una pregunta" form (auth-gated) and hides `inappropriate`-flagged questions from non-owners.
 
 ### Transactions section (`src/sections/transactions/`)
 
@@ -357,9 +405,9 @@ The API leaves **finished** orders (`DELIVERED`/`REJECTED`/`RETURNED` for produc
 
 `useOrdersFeed` owns a single `scope: OrdersScope` (`'active' | 'history'`) and passes it to **both** halves, which must switch together — a screen showing active products beside archived services would be incoherent. The `ScopeToggle` in the page header flips it; the empty active list also offers a way in, and words itself as *"no tienes … activas"* rather than the history's absolute *"aún no has recibido …"*, because a user whose orders are all archived still has orders.
 
-**Both halves paginate now.** `/request/all` used to return every request as a bare `{ requests }`; it returns a page envelope (`RequestListResult`) and at most `limit` rows, so nothing may treat that array as complete — read `total`. `useRequests` therefore accumulates pages exactly like `useTransactions`, and `loadMore` asks only the halves that still have rows (asking an exhausted one refetches its last page and duplicates rows). Both hooks dedupe on append via `appendNew`: skip-based paging over a dataset where rows can un-archive mid-session can legitimately hand back a row the client already holds.
+**Both halves paginate.** `/request/all` answers with a page envelope (`RequestListResult`) and at most `limit` rows, so nothing may treat that array as complete — read `total`. `useRequests` therefore accumulates pages exactly like `useTransactions`, and `loadMore` asks only the halves that still have rows (asking an exhausted one refetches its last page and duplicates rows). Both hooks dedupe on append via `appendNew`: skip-based paging over a dataset where rows can un-archive mid-session can legitimately hand back a row the client already holds.
 
-The client **never** applies the archive rule itself — the server owns it, in `api/util/orderFeedQuery.js`. The client used to keep a mirror of that rule (`src/mocks/ordersArchive.ts`) so the mocked dev stage behaved like production; with the mocks gone there is no copy of it here, and there should not be one — read the API if you need to know what counts as archived. Full contract: `followup.OrdersFeedPagination.md`.
+The client **never** applies the archive rule itself — the server owns it, in `api/util/orderFeedQuery.js`, and no copy of it exists here or should. Read the API if you need to know what counts as archived. Full contract: `followup.OrdersFeedPagination.md`.
 
 ### Instagram import (`src/sections/catalog/`, Apify)
 
@@ -370,13 +418,12 @@ actions (`fetchInstagramStatus`, `searchInstagramProfiles`, `enrollInstagram`,
 `fetchInstagramPosts`, `importInstagramPosts`). `ProductGrid` itself calls
 `useInstagramAvailability` to decide whether to offer the button at all.
 
-**Why this was rebuilt.** It ran on Phyllo, an aggregator over Instagram's Graph
-API. Instagram retired the Basic Display API in December 2024, and Graph reads
-media only for Business/Creator accounts linked to a Facebook Page — which
-Alkachof's nano/micro sellers do not have. The integration was not degraded for
-them, it was inapplicable. The API now reads **public profiles** through an Apify
-scraper. There is no SDK, no OAuth, and nothing Instagram-related in the browser:
-`src/lib/phylloConnect.ts` is gone and no script is injected.
+**The API reads *public profiles* through an Apify scraper — there is no SDK,
+no OAuth, and nothing Instagram-related in the browser.** No script is injected;
+the client only calls Alkachof's own `/instagram/*` routes. Instagram's Graph
+API is not an option to reach for: it reads media only for Business/Creator
+accounts linked to a Facebook Page, which Alkachof's nano/micro sellers do not
+have.
 
 Three consequences shape the whole screen:
 
@@ -462,9 +509,9 @@ Rules this screen must keep:
   so a new item is priced afterwards like any other unpriced one.
 - **One bounded page, no "Cargar más", and no refresh control.** The scraper has
   no resume cursor into Instagram, so a second page means re-scraping from the
-  top and paying again. There was an "Actualizar" button; it is gone. It was the
-  one gesture on the screen that cost money, and it bought nothing — the feed is
-  fetched fresh on every open, and posts do not change between two taps. **Opening
+  top and paying again. **There is no refresh control**, and adding one would be
+  the only gesture on the screen that costs money while buying nothing — the feed
+  is fetched fresh on every open, and posts do not change between two taps. **Opening
   the dialog is the only thing that reads the feed**, which is why `loadPosts` is
   not exposed by `useInstagramImport`. Do not add a refresh, a poll or a
   pull-to-refresh here.
@@ -502,6 +549,47 @@ The lookup is **exact-handle only**, so a partial name resolves to nothing —
 testing the wizard needs a real un-enrolled account and a real handle, and
 enrollment is permanent, so an account spent on a test is spent for good.
 
+### Chat section (`src/sections/chat/`)
+
+Private 1:1 conversations. Contract: `followup.ChatApi.md`. `ChatProvider` (mounted in
+`AppRouter` inside `AuthProvider`) is the app-wide store: it loads `/chat/recent` on
+login, clears on logout, and exposes everything through `useChat()` — the inbox
+(`ChatListPage`, `/chats`) and the full-screen thread (`ChatThreadPage`,
+`/chats/:chatId` and `/chats/new`) are both views over it.
+
+- **REST is the source of truth**; sending is a REST POST rendered optimistically.
+- **There is no second socket.** Live delivery rides the same `/live` connection
+  notifications owns, through the in-process bus in `src/lib/liveEvents.ts`: the socket
+  layer publishes, `ChatProvider` subscribes to `chatMessage`. Do not open another
+  connection or couple the two providers. The socket is best-effort — history recovers
+  everything on load — and a message from an unknown chat triggers a `syncChats` so a
+  brand-new conversation appears in the inbox.
+- **`findChatWith` is a pure lookup and `createChatWith` persists.** Call the second
+  only at the moment of the first send, never on intent to chat, or a visitor who opens
+  a thread and leaves strands an empty conversation on the seller's inbox.
+- **The thread is outside `NavShell`** — a full-screen conversation has no bottom tabs.
+- `type` ('incoming' / 'outgoing') is server-computed on history reads and **absent from
+  the socket payload**; compute it from `sender` there (`LiveChatMessage`).
+
+### Service requests (`src/sections/requests/`)
+
+The exception to the sections pattern: **no page, no route.** `/requests` is an alias
+onto Pedidos, and this folder is the library of service-request pieces that
+`transactions` and `publicCatalog` import — `RequestCard`, `RequestDetailDialog`,
+`RequestStatusBadge`, the `transitions.ts` status machine, and the `/request/*` actions.
+The `ServiceRequestRow` type lives here and is read from Pedidos. See
+`blueprint.ProductServiceType.md`.
+
+### About and Join (`src/sections/about/`, `src/sections/join/`)
+
+Two standalone public pages, both **outside `NavShell`**:
+
+- `/about` → `AboutPage`, the product pitch. Its word list is placeholder content.
+- `/join` → `JoinPage`, the invitation landing page: reads a catalog id from the query
+  string, shows the seller's card and subscribes the visitor. Reuses
+  `fetchPublicCatalog`, `useCatalogSubscription` and `CatalogNotFound` from
+  `publicCatalog` rather than redeclaring them. See `blueprint.InvitationPage.md`.
+
 ### Notifications section (`src/sections/notifications/`)
 
 App-wide live notifications (contract: `followup.LiveNotificationsApi.md`). `NotificationsProvider` (mounted in `AppRouter` inside `AuthProvider`) owns the list: on login it fetches `GET /notification/recent` (REST is the source of truth) and opens a best-effort **Socket.IO v4** connection to the `/live` namespace on the API origin (`connectLiveSocket` in `liveSocket.ts`, JWT via `auth.token`). `notification:new` prepends + toasts; every socket `connect` re-syncs from REST (missed events are not replayed); `connect_error: Unauthorized` refreshes the token and reconnects; logout disconnects. `markSeen` is optimistic (`POST /notification/:id/seen`, 404 drops the row).
@@ -535,32 +623,30 @@ retraction is precisely what a stamp-less cache would defeat. Until it ships the
 component state; the TODOs in `fetchNews.ts` and `src/lib/queryKeys.ts` (where the absence is
 recorded) point at that document, and the plan for the day it lands is written down there.
 
-There are **no news mutations** — `/news/create`, `/news/:id/update` and `/news/:id/delete` were
-removed from the API and answer 404. `GET /news/:id` exists and has **no caller**: the list payload
-already carries the full `message`, so `NewsDetailDialog` opens from data in hand. Unused is not
-dead — do not delete it from the contract, and do not start calling it.
+There are **no news mutations**: `/news/create`, `/news/:id/update` and `/news/:id/delete` answer
+404. `GET /news/:id` exists and has **no caller** — the list payload already carries the full
+`message`, so `NewsDetailDialog` opens from data in hand. Unused is not dead: do not delete it from
+the contract, and do not start calling it.
 
-There is **no admin composer and never will be** — the API's write endpoints were removed
-deliberately (an announcement reaches every user at once). Do not scaffold one.
+There is **no admin composer and never will be.** The API has no write route to build one against,
+deliberately — an announcement reaches every user at once. Do not scaffold one.
 
 ### Environment
 
 There is no mock layer. Every environment — dev included — runs against a real
-API, and `npm run dev` needs one reachable at `VITE_API_BASE_URL`
-(`.env.development` points at `http://localhost:3001`; see the `alkachof-api`
-repo). There is no offline mode: without a backend the app does not work.
+API, and `npm run dev` needs one reachable at `VITE_API_BASE_URL`. Point
+`.env.development` at whichever API you are working against — a local
+`alkachof-api` on `http://localhost:3001`, or the deployed one it currently
+holds. There is no offline mode: without a backend the app does not work.
 
 **Adding a new action is therefore one step:** write the `api()` call. There is
 no paired file to create, no flag to branch on, and nothing to register in a
 barrel.
 
-The client once shipped a "development stage" — `VITE_DEV_STAGE` and
-`src/lib/stage.ts` gated 56 `IS_DEV_STAGE` branches that returned data from 67
-generators in `src/mocks/`. All of it is deleted; see
-`blueprint.RemoveDevStageMocks.md` for what was removed and why. **Do not
-reintroduce a mock layer** — if offline development is wanted again, it belongs
-at the network boundary (MSW), as its own decision with its own blueprint, not
-as a branch inside every action.
+**Do not reintroduce a mock layer.** If offline development is wanted, it
+belongs at the network boundary (MSW), as its own decision with its own
+blueprint — never as a branch inside every action, which is what this codebase
+had and paid for.
 
 Tests are unaffected by any of this: they `vi.mock` the action module directly,
 which replaces it before any network call is reached.
@@ -603,7 +689,7 @@ bandwidth on mobile data and keeps the resize work off the cheap VPS.
   original file. The API re-encodes whatever it receives, so this stays a pure
   optimisation. **Never assume an uploaded file is already bounded.**
 - Output is WebP, and the API accepts JPEG/PNG/WebP. Bad uploads answer 400 with
-  a readable message (this used to be an opaque 500).
+  a readable message.
 
 ### Product grid layout
 

@@ -26,8 +26,7 @@ touching the committed files, copy `.env.example` to `.env.local`.
 
 | Var | Purpose |
 |-----|---------|
-| `VITE_API_BASE_URL` | Base URL the `api()` wrapper in `src/lib/api.ts` prepends to every request, and the Socket.IO host for the `/live` namespace. Point at `http://localhost:3001` for a local backend. |
-| `VITE_DEV_STAGE` | When `true`, every action short-circuits through a paired mock in `src/mocks/` instead of hitting the network — see `src/lib/stage.ts`. Lets you run the UI with no backend at all. Must stay `false` in `.env.production`. |
+| `VITE_API_BASE_URL` | Base URL the `api()` wrapper in `src/lib/api.ts` prepends to every request, and the Socket.IO host for the `/live` namespace. The committed files point at `https://api.alkachof.mx`; use `http://localhost:3001` for a local backend. |
 | `VITE_PUBLIC_APP_URL` | Root used to build shareable catalog links. |
 
 ## Versioning
@@ -44,8 +43,8 @@ curl -s https://app.alkachof.mx/ | grep 'name="build-sha"'
 
 The same three facts are `<meta>` tags in `index.html`, so view-source answers it
 too. Both are produced by the `alkachof-version` plugin in `vite.config.ts` and
-are served in dev as well, so a smoke test does not need to know which stage it
-is pointed at.
+are served in dev as well, so a smoke test does not need to know which
+environment it is pointed at.
 
 `version` comes from `package.json` — bump it with `npm version patch|minor|major`,
 which also writes the commit and tag. `sha` and `builtAt` come from the build
@@ -62,4 +61,4 @@ The following test fixtures are provisioned on the backend (also documented in
 `CLAUDE.md`):
 
 - Public catalogs: `6a0365fdf74fdcb617a8a5b6`, `6a0365fdf74fdcb617a8a5c3`, `6a0365fdf74fdcb617a8a5d0`
-- Users: `user@admin.com`, `user2@admin.com`, `user3@admin.com` — password `admin`
+- Users: `user@admin.com`, `user2@admin.com`, `user3@admin.com` — password `password`

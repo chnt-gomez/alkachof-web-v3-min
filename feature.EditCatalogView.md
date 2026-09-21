@@ -19,47 +19,30 @@ Make an execution plan for this and wait for instructions
 
 ---
 
-## Implementation log (shipped 2026-06-11)
+## How it is built today
 
-### Route
-- `/edit/catalog` → `/edit/catalog/:catalogId` in `src/router/AppRouter.tsx`.
-- Test URL in dev stage: `http://localhost:5173/edit/catalog/6a0365fdf74fdcb617a8a5b6`.
+The owner's catalog editor is `/catalog` — no id in the url, the catalog is resolved from the auth
+token (`src/sections/catalog/CatalogPage.tsx`). `EditCatalogProvider`
+(`context/EditCatalogContext.tsx`) holds the catalog and its items; it is an adapter over the
+TanStack Query entries owned by `useOwnerCatalog`, so navigating away and back costs nothing. See
+*Caching* in `CLAUDE.md`.
 
-### Data layer
-Types `Catalog` and `Item` are reused from `src/sections/publicCatalog/actions/` — not redeclared.
+Components under `src/sections/catalog/components/`:
 
-| Action (`src/sections/catalog/actions/`) | Mock (`src/mocks/`) | Purpose |
-|---|---|---|
-| `fetchEditableCatalog.ts` | `mockFetchEditableCatalog.ts` | Load catalog by id |
-| `updateCatalog.ts` | `mockUpdateCatalog.ts` | Patch catalog metadata |
-| `updateItem.ts` | `mockUpdateItem.ts` | Patch a single product |
-| `createItem.ts` | `mockCreateItem.ts` | Create a product (returns generated `_id` + `updatedOn`) |
+- `CatalogHeader.tsx` — jumbotron, with the link through to the public view at `/catalog/:catalogId`.
+- `EditCatalogScreen.tsx` — the catalog form (alias, welcome text, description, delivery and payment
+  options, image).
+- `ProductGrid.tsx` — `columns-2` masonry, "Agregar producto", and the Instagram import entry point.
+- `ItemFormDialog.tsx` — one dialog for both create and edit, including the image field.
+- `DeleteItemConfirm.tsx`, `LocationEditDialog.tsx`, `ShareCatalogDialog.tsx`, `AnnounceDialog.tsx` —
+  the remaining owner actions.
 
-All actions branch on `IS_DEV_STAGE`. All four mocks re-exported from `src/mocks/index.ts`.
+Types `Catalog` and `Item` are reused from `src/sections/publicCatalog/actions/`, never redeclared.
+Prices are centavos in the data and pesos in the form. Images go through `ImageUploadField` with the
+`products` preset — see *Image uploads* in `CLAUDE.md`.
 
-### Context
-`src/sections/catalog/context/EditCatalogContext.tsx` — `EditCatalogProvider({ catalogId })` exposes `{ catalog, items, isLoading, error, updateCatalog, updateItem, createItem }` via `useEditCatalog()`. Fetches catalog + items in parallel on mount; mutations update local state in place (no refetch).
+`src/index.css` gained the `.input` utility under `@layer components` for these forms; it is still
+the only component-layer rule in the project.
 
-### Components (`src/sections/catalog/components/`)
-- `CatalogHeader.tsx` — jumbotron with pencil button (→ `EditCatalogModal`) and `Ver catálogo` link → `/catalog/:catalogId`.
-- `EditCatalogModal.tsx` — full catalog form (alias, welcomeText, description, location, locationZip, payOptions, deliveryType).
-- `ProductGrid.tsx` — `columns-2` masonry + `Agregar producto` button.
-- `EditProductModal.tsx` — product form; tappable image opens `ImagePickerSheet`.
-- `AddProductModal.tsx` — blank product form; same image picker.
-- `ImagePickerSheet.tsx` — bottom sheet with two hidden file inputs: gallery (`accept="image/*"`) and camera (`accept="image/*" capture="environment"`). Returns `URL.createObjectURL(file)` to caller.
-
-### Page
-`src/sections/catalog/CatalogPage.tsx` reads `:catalogId` from route, wraps everything in `EditCatalogProvider`, renders loading/error/content states.
-
-### Styling addition
-Added `.input` utility under `@layer components` in `src/index.css` for form inputs. First component-layer rule in the project — if more accumulate, extract to a dedicated CSS module.
-
-### Tests
-`src/sections/catalog/__tests__/CatalogPage.test.tsx` — 13 integration tests at the page level. Mocks the 4 catalog action modules + `fetchCatalogItems` from publicCatalog. All 25 project tests pass.
-
-### Known limitations / deferred
-- Price form input is in pesos (display + edit) and converted to centavos on save. The existing mock `fetchCatalogItems` generates `randomInt(50, 2000)` centavos = $0.50–$20 MXN, which is unrealistically low but is pre-existing behavior, not changed here.
-- `deliveryDates` and `deliveryLocations` fields on `Catalog` are not yet exposed in `EditCatalogModal` — neither was specified in acceptance criteria.
-- No delete-product action.
-- Image picker stores an in-memory object URL; in production a real upload action will be needed.
-- No auth context yet — `/edit/catalog/:catalogId` is publicly accessible. The dev-stage `updateCatalog` mock uses `credentials: 'include'` in the real branch as a placeholder for future auth.
+Tests: `src/sections/catalog/__tests__/` covers the page by rendering it and mocking the action
+modules.

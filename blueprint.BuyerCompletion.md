@@ -155,17 +155,6 @@ render) and `READY-FOR-PICKUP` (still reachable). The filter chips keep their `R
 user can still find an old returned order in `history`; a chip that matches nothing in `active` is
 not a bug. Revisit only if the chip row proves too long on a phone.
 
-### 3.7 Mocks (`IS_DEV_STAGE` path)
-
-- `src/mocks/mockTransactionStore.ts` — the dev-stage store must accept the new buyer transitions, or
-  the demo build contradicts the real API. Check `mockUpdateTransactionStatus` for any validation
-  and, more importantly, check the seeded rows: a seed sitting in `READY-FOR-PICKUP` on the **buyer**
-  side is now the most valuable demo row there is (it is the frozen order the feature unfreezes) —
-  make sure one exists.
-- `src/mocks/mockRequestStore.ts` — same: an `ACCEPTED` buyer-side request should be present.
-- `src/mocks/ordersArchive.ts` — `TERMINAL_TRANSACTION_STATUSES` keeps all three entries (`RETURNED`
-  stays terminal, D5 in the backend blueprint). No change.
-
 ---
 
 ## 4. Test map
@@ -209,7 +198,6 @@ one place a drift from the backend map gets caught.
    `DELIVERED` from `STARTED`/`PROCESSING`/`READY-FOR-PICKUP` and rejects a buyer `ACCEPTED →
    COMPLETED`. Do not ship the UI first.
 2. UI changes (§3) + tests (§4).
-3. The dev-stage mocks (§3.7) can go in with either step; they gate nothing.
 
 **Risk that matters:** the two `transitions.ts` files are hand-maintained mirrors of a server-side
 map, with no build-time link between them. They were already out of step conceptually (the seller-only

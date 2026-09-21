@@ -1,6 +1,7 @@
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { clearTokens, setTokens, SESSION_MARKER_KEY } from '@/lib/auth'
 import { AppQueryProvider } from '../queryPersist'
 import { queryClient } from '../queryClient'
 import { QUERY_STORAGE_KEY } from '../queryStorage'
@@ -97,7 +98,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   queryClient.clear()
-  localStorage.setItem('alk.token', 'token-user1')
+  setTokens('token-user1', 'refresh-user1')
   vi.mocked(fetchProfile).mockResolvedValue({ _id: 'p1', userId: 'user1', alias: 'Ana' })
   vi.mocked(fetchMyCatalog).mockResolvedValue(mockCatalog)
 })
@@ -322,8 +323,12 @@ describe('query persistence', () => {
     await bootAndPersist()
 
     act(() => {
-      localStorage.removeItem('alk.token')
-      window.dispatchEvent(new StorageEvent('storage', { key: 'alk.token', newValue: null }))
+      // Cookies fire no event, so the cross-tab signal is the session marker —
+      // cleared by `clearTokens` here exactly as the other tab's logout would.
+      clearTokens()
+      window.dispatchEvent(
+        new StorageEvent('storage', { key: SESSION_MARKER_KEY, newValue: null }),
+      )
     })
 
     expect(await screen.findByText('Perfil: ninguno')).toBeInTheDocument()

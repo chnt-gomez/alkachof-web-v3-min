@@ -8,10 +8,10 @@ Base path `/instagram`. Every endpoint needs `Authorization: Bearer <accessToken
 
 ## Why it works this way
 
-Instagram's Basic Display API was retired in December 2024, and the Graph API
-that remains reads media only for Business/Creator accounts linked to a Facebook
-Page. Alkachof's sellers are on ordinary personal accounts, so the previous
-Phyllo integration could not reach them. The API now reads **public profiles**.
+The API reads **public profiles** through an Apify scraper. Instagram's own
+Graph API is not an alternative: it reads media only for Business/Creator
+accounts linked to a Facebook Page, and Alkachof's sellers are on ordinary
+personal accounts.
 
 Three properties follow, and the client must be built around all of them:
 
@@ -22,7 +22,7 @@ Three properties follow, and the client must be built around all of them:
    **enrollment is permanent**: one account, no switching, no unlink endpoint.
 
 3. **Every read costs money.** Apify bills per actor run, and nothing about a
-   request bounds how often a seller makes one — before the cooldown existed, an
+   request bounds how often a seller makes one — without the cooldown, an
    enrolled seller could reopen the import dialog and pay for another run
    immediately, indefinitely. So a **successful import holds the seller's next
    run for `cooldownDays`** (7), recorded on `ig_details.nextAvailable`. See
