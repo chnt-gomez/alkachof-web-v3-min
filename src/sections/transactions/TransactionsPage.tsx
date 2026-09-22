@@ -70,10 +70,12 @@ export function TransactionsPage() {
 
   return (
     <div className="flex flex-col gap-4 p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Pedidos</h1>
-        <ScopeToggle scope={scope} onChange={setScope} />
-      </div>
+      <header className="-mx-5 -mt-5 mb-1 border-b-2 border-ink bg-card px-5 pb-4 pt-5">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl">Pedidos</h1>
+          <ScopeToggle scope={scope} onChange={setScope} />
+        </div>
+      </header>
 
       <div role="tablist" aria-label="Tipo de pedido" className="flex gap-1 rounded-xl border-2 border-ink bg-muted p-1">
         {ROLE_TABS.map((tab) => (

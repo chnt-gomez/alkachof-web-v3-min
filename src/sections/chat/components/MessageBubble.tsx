@@ -20,7 +20,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
         <span
           className={cn(
             'mt-1 block text-right text-[10px]',
-            outgoing ? 'text-primary-foreground/70' : 'text-muted-foreground',
+            outgoing ? 'text-primary-foreground' : 'text-muted-foreground',
           )}
         >
           {timeFormatter.format(new Date(message.sent))}

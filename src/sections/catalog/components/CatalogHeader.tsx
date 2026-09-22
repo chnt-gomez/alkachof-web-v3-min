@@ -27,22 +27,22 @@ export function CatalogHeader() {
 
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
-            <h1 className="text-3xl font-bold leading-tight">{catalog.alias}</h1>
+            <h1 className="stamp stamp-mark text-2xl">{catalog.alias}</h1>
             {catalog.welcomeText && (
-              <p className="text-base text-primary-foreground/80">{catalog.welcomeText}</p>
+              <p className="text-base text-foreground">{catalog.welcomeText}</p>
             )}
           </div>
           <button
             onClick={() => setEditing(true)}
             aria-label="Editar catálogo"
-            className="relative shrink-0 rounded-full bg-primary-foreground/20 p-2.5 transition-colors hover:bg-primary-foreground/30 active:scale-95"
+            className="relative shrink-0 rounded-xl border-2 border-ink bg-card p-2.5 text-foreground transition-[background-color] press-ink"
           >
             <Pencil size={16} />
           </button>
         </div>
 
         {catalog.description && (
-          <p className="text-sm text-primary-foreground/70">{catalog.description}</p>
+          <p className="text-sm text-muted-foreground">{catalog.description}</p>
         )}
 
         <CatalogHeroImage
@@ -52,7 +52,7 @@ export function CatalogHeader() {
         />
 
         {catalog.location && (
-          <p className="flex items-center gap-1.5 text-sm text-primary-foreground/70">
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <MapPin size={14} className="shrink-0" />
             {catalog.location}
           </p>
@@ -60,7 +60,7 @@ export function CatalogHeader() {
 
         {catalog.payOptions.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary-foreground/60">
+            <span className="folio uppercase tracking-wider">
               Pago
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -71,7 +71,7 @@ export function CatalogHeader() {
 
         {catalog.deliveryType.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary-foreground/60">
+            <span className="folio uppercase tracking-wider">
               Envío
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -84,7 +84,7 @@ export function CatalogHeader() {
           <Button
             asChild
             size="sm"
-            className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+            className="border-2 border-ink bg-primary text-primary-foreground press"
           >
             <Link to={`/catalog/${catalog._id}`}>
               <ExternalLink size={14} />
@@ -96,7 +96,7 @@ export function CatalogHeader() {
             size="sm"
             variant="outline"
             onClick={() => setSharing(true)}
-            className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+            className="border-2 border-ink bg-card text-foreground press-ink"
           >
             <Share2 size={14} />
             Compartir
@@ -107,7 +107,7 @@ export function CatalogHeader() {
             variant="outline"
             onClick={() => setAnnouncing(true)}
             disabled={onCooldown}
-            className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+            className="border-2 border-ink bg-card text-foreground press-ink"
           >
             <Megaphone size={14} />
             Anunciar
@@ -115,7 +115,7 @@ export function CatalogHeader() {
         </div>
 
         {onCooldown && cooldownUntil && (
-          <p className="text-xs text-primary-foreground/70">
+          <p className="text-xs text-muted-foreground">
             Próximo anuncio disponible {formatAvailableAt(cooldownUntil)}.
           </p>
         )}
