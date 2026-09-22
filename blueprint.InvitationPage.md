@@ -2,8 +2,8 @@
 
 **Status:** plan only. No code in this document is written yet.
 **Source:** `feature.InvitationPage.md`.
-**Scope:** UI only. **No new endpoints, no new actions, no new mocks** — every call this page needs
-already exists and is already mocked.
+**Scope:** UI only. **No new endpoints and no new actions** — every call this page needs already
+exists.
 
 ---
 
@@ -72,8 +72,8 @@ src/sections/join/
 
 Plus one line in `src/router/AppRouter.tsx` (route) and its import.
 
-**That is the entire diff.** Nothing under `src/sections/publicCatalog/` changes; nothing under
-`src/mocks/` changes; `src/lib/` is untouched.
+**That is the entire diff.** Nothing under `src/sections/publicCatalog/` changes, and `src/lib/` is
+untouched.
 
 ### 3.1 What it reuses instead of rebuilding
 
@@ -91,8 +91,8 @@ Cross-section imports from `publicCatalog` are consistent with how `PublicCatalo
 imports `CartBookTag`/`CartDrawer` from `sections/cart`. `fetchPublicCatalog` and its `Catalog` type
 stay owned by `publicCatalog` — do **not** copy the type into `sections/join`.
 
-`fetchPublicCatalog` is already dev-stage-guarded (`mockFetchPublicCatalog`), as are `subscribe` and
-`fetchUserSubscriptions`. Rule 1 of the mock contract is satisfied with zero new files.
+`fetchPublicCatalog`, `subscribe` and `fetchUserSubscriptions` all exist already — this page adds no
+action of its own.
 
 ---
 

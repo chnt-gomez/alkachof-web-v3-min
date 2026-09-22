@@ -1,7 +1,7 @@
 # Follow-up: Notification `navigationUrl` — Frontend Handoff
 
 **Date:** 2026-07-30 · **Type:** API contract change (notification metadata overhaul) ·
-**Supersedes:** `followup.NotificationItemDeepLink.md` and the metadata contract described in
+**Supersedes:** the earlier item-deep-link contract, and the metadata contract described in
 `followup.LiveNotificationsApi.md` (that doc's payload examples are already updated).
 
 This document is self-contained: everything the web client needs to handle notifications

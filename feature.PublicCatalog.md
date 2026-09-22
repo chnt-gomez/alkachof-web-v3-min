@@ -17,5 +17,4 @@ We currantly have the catalog section available but that's used only for authent
 
 - **`api.definitions.md` does not exist in the repo.** This file references it but no such doc was ever committed. If you need the API shape, read the `Catalog` and `Item` types in `src/sections/publicCatalog/actions/`.
 - **Route is `/catalog/:catalogId`**, not `catalog/{id}` as worded above. Public catalog page lives at `src/sections/publicCatalog/PublicCatalogPage.tsx`.
-- **Ticket label `ALK-2105` is also used by `feature.developmentStage.md`** — likely a parent ticket split, not duplicates.
 - **Implementation shipped:** `PublicCatalogPage`, `CatalogJumbotron`, `CatalogItemList`, `ProductDetailDialog`, `PublicCatalogContext`, actions `fetchPublicCatalog` + `fetchCatalogItems`. See `feature.RefactorPublicCatalog.md` for follow-up changes.

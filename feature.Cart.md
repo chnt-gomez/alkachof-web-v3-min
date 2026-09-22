@@ -169,24 +169,6 @@ Rendered from local pre-checkout line data (the API returns only purchase ids):
 - Note: `El vendedor confirmará tu pedido.` Transaction id shown small for reference.
 - No link to transactions yet (that's `feature.TransactionsPage.md`).
 
-## Dev-stage mocks (`src/mocks/`)
-
-Per CLAUDE.md rules — one file per action, same imported types, re-export from
-`src/mocks/index.ts`, Spanish user-visible strings, `Promise.resolve` only:
-
-| Mock | Behavior |
-|------|----------|
-| `mockFetchCarts` | Returns the in-memory store (below) |
-| `mockAddToCart` | Upserts into store (increment semantics), returns the cart |
-| `mockRemoveFromCart` | Removes the line, returns the cart |
-| `mockDeleteCart` | Drops the cart |
-| `mockCheckoutCart` | Returns fake purchase ids + a `STARTED` transaction, drops the cart |
-
-To make the authenticated flow exercisable in dev stage, these five mocks share a
-**module-level in-memory `Map<catalogId, Cart>`** (`src/mocks/mockCartStore.ts`). This
-stays within the mock rules: no network, no timers, synchronous resolution — it just
-persists across calls within a session.
-
 ## Tests
 
 Per CLAUDE.md strategy — page-level, `MemoryRouter`, `vi.mock` the action modules,

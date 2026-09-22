@@ -15,12 +15,11 @@ announcement gets published at all, lives in `alkachof-api/followup.NewsApi.md`.
 > **The API and this client must deploy together.** An old client against the new API reads
 > `data.adminMessages` and gets `undefined`.
 
-## What is already done in this repo
+## How the client reads it
 
-The rename is **already applied in the working tree** (uncommitted at the time of writing) across
-seven files — `fetchNews.ts`, `mockFetchNews.ts`, `NewsList.tsx`, `NewsDetailDialog.tsx`,
-`MisCosasPanel.tsx` and two test files. The type `AdminMessage` is now `News`, and
-`fetchNews.ts` reads `data.news`. `tsc --noEmit` is clean and the 31 home tests pass.
+`fetchNews.ts` owns the type `News` and reads `data.news` from the envelope. Its consumers are
+`NewsList.tsx`, `NewsDetailDialog.tsx` and `MisCosasPanel.tsx`, with the behaviour covered by the
+home section's tests.
 
 **Nothing else is required for the duration feature.** The server decides what is live and sends
 only live rows; the client renders what it is given. There is no client-side date arithmetic to
@@ -157,7 +156,7 @@ leaves when its duration runs out, and not before.
 
 - [x] `AdminMessage` type renamed to `News`
 - [x] `fetchNews.ts` reads `data.news`
-- [x] Mocks and tests updated; `tsc --noEmit` clean
+- [x] Tests updated; `tsc --noEmit` clean
 - [ ] Commit and deploy **in step with the API** — an old client here breaks on the new response key
 - [x] Confirm nothing new persists or long-caches the feed (see *Caching*) — the absence is now
       recorded in `queryKeys.ts` and `queryPersist.tsx`, and `followup.NewsCacheStamp.md` is the

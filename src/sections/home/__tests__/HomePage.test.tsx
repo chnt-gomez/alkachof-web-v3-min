@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setTokens } from '@/lib/auth'
 import { HomePage } from '../HomePage'
 import { ToastProvider } from '@/components/ui/toast'
 import { withQueryClient } from '@/test/renderWithProviders'
@@ -106,7 +107,7 @@ function renderPage(initialEntry = '/') {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  localStorage.setItem('alk.token', 'test-token')
+  setTokens('test-token', 'test-refresh')
   vi.mocked(fetchProfile).mockResolvedValue({ _id: 'p1', userId: 'me', alias: 'Yo' })
   vi.mocked(fetchMyCatalog).mockResolvedValue(sampleCatalog())
   vi.mocked(fetchCatalogItems).mockResolvedValue([sampleItem()])

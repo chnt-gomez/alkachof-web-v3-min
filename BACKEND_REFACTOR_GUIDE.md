@@ -178,10 +178,10 @@ When checkout is called, the backend **must validate** client-provided cart data
 
 ---
 
-## Mock Data & Testing
+## Testing
 
-### Frontend Mock (unchanged)
-Frontend dev mode mocks checkout at `src/mocks/mockCheckoutCart.ts`. Backend should support real checkout endpoint for integration tests.
+The frontend runs against a real API in every environment, so the checkout endpoint has
+to exist for the client to work at all.
 
 ### Backend Test Scenarios
 Ensure checkout handles:

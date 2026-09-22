@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setTokens } from '@/lib/auth'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { withQueryClient } from '@/test/renderWithProviders'
 import { emitLiveEvent, type LiveChatMessage } from '@/lib/liveEvents'
@@ -73,7 +74,7 @@ function renderProvider() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  localStorage.setItem('alk.token', 'test-token')
+  setTokens('test-token', 'test-refresh')
   vi.mocked(fetchProfile).mockResolvedValue({ _id: 'p1', userId: MY_ID, alias: 'Yo' })
   vi.mocked(fetchRecentChats).mockResolvedValue([existingChat])
 })

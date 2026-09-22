@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { clearTokens, getToken, setTokens, TOKEN_KEY } from '@/lib/auth'
+import { clearTokens, getToken, setTokens, SESSION_MARKER_KEY } from '@/lib/auth'
 import { queryKeys } from '@/lib/queryKeys'
 import { clearPersistedCache } from '@/lib/queryStorage'
 import { login as loginAction, type LoginCredentials } from './actions/login'
@@ -50,20 +50,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * Another tab ended the session.
    *
-   * Tokens live in shared `localStorage`, so a logout elsewhere already leaves
-   * this tab rendering as authenticated with no tokens. Persistence turns that
-   * from transient UI weirdness into a real hole: this tab still holds the
-   * previous user's rows in memory and **re-persists them on its next cache
-   * write**, putting them back on disk after a logout. Listening closes it.
+   * Tokens live in cookies, which are shared across tabs but fire **no event**:
+   * a logout elsewhere would leave this tab rendering as authenticated with no
+   * tokens, and none the wiser. Persistence turns that from transient UI
+   * weirdness into a real hole — this tab still holds the previous user's rows
+   * in memory and **re-persists them on its next cache write**, putting them
+   * back on disk after a logout.
+   *
+   * `SESSION_MARKER_KEY` exists for exactly this: a non-secret id in
+   * `localStorage` that `setTokens`/`clearTokens` keep in step with the
+   * cookies, so ending a session still fires `storage` here. `getToken()` then
+   * reads the cookie, which is authoritative and already cleared.
    *
    * `storage` fires only in the *other* tabs, never the one that wrote, so this
    * cannot loop. A null `key` means the whole store was cleared.
    */
   useEffect(() => {
     function onStorage(event: StorageEvent) {
-      const tokenCleared = event.key === TOKEN_KEY && event.newValue === null
+      const sessionEnded = event.key === SESSION_MARKER_KEY && event.newValue === null
       const storeCleared = event.key === null
-      if (!tokenCleared && !storeCleared) return
+      if (!sessionEnded && !storeCleared) return
       if (getToken()) return
       setHasSession(false)
       queryClient.clear()

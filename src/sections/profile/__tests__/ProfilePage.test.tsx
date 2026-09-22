@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setTokens } from '@/lib/auth'
 import { ProfilePage } from '../ProfilePage'
 import { AuthProvider } from '@/sections/auth/AuthContext'
 import { withQueryClient } from '@/test/renderWithProviders'
@@ -39,7 +40,7 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  localStorage.setItem('alk.token', 'test-token')
+  setTokens('test-token', 'test-refresh')
   vi.mocked(fetchProfile).mockResolvedValue(sampleProfile())
   vi.mocked(updateProfile).mockImplementation((_id, patch) =>
     Promise.resolve(sampleProfile(patch))

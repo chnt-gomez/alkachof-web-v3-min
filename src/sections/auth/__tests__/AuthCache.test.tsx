@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { setTokens } from '@/lib/auth'
 import { withQueryClient } from '@/test/renderWithProviders'
 import { AuthProvider } from '../AuthContext'
 import { useAuth } from '../useAuth'
@@ -68,7 +69,7 @@ function renderProbe() {
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
-  localStorage.setItem('alk.token', 'token-user1')
+  setTokens('token-user1', 'refresh-user1')
   vi.mocked(fetchProfile).mockResolvedValue({ _id: 'p1', userId: 'user1', alias: 'Ana' })
   vi.mocked(fetchMyCatalog).mockResolvedValue(catalogOf('Tienda de Ana'))
   vi.mocked(loginAction).mockResolvedValue({ token: 'token-user2', refreshToken: 'r2' })

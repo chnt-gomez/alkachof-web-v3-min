@@ -1,8 +1,7 @@
 # Phone Validation — frontend handoff
 
 Account verification is a phone-code challenge, and password reset delivers a code the same way.
-This is the API-side contract for both flows. Full engineering rationale: `CLAUDE.md` §W and
-`blueprint.PhoneValidation.md`.
+This is the API-side contract for both flows.
 
 > **Revision 2 — breaking.** The verification code changed shape (12-char hex → **6 numeric
 > digits**), both challenge endpoints now **require `email`**, a code is **destroyed after 5 wrong
@@ -316,28 +315,18 @@ export type ApiErrorBody = {
 
 ---
 
-## 6. Update the mocks
+## 6. Tests
 
-`IS_DEV_STAGE` routes both flows to mocks, so the new states are unreachable in dev until these are
-updated:
+`VerifyPhonePage.test.tsx`, `ResetPasswordPage.test.tsx` and `RecoverPage.test.tsx` cover these
+flows. Reach the destroyed-code state by having the mocked action reject with an `ApiError` whose
+**third argument** carries the body — the status alone does not distinguish it:
 
-- **`mockVerifyPhone.ts`** — accept `{ email, code }`; keep the `invalid`-prefix rejection, and add a
-  `destroyed` trigger so the new UI state is reachable:
-  ```ts
-  if (data.code.startsWith('destroyed')) {
-    return Promise.reject(new ApiError('Too many incorrect attempts. Request a new code.', 400, {
-      message: 'Too many incorrect attempts. Request a new code.',
-      codeDestroyed: true,
-    }))
-  }
-  ```
-  Note the **third argument** — `ApiError`'s `body`. The existing `invalid` mock omits it, which is
-  fine for that case but would make a `codeDestroyed` mock silently untestable.
-- **`mockResetPassword.ts`** — currently resolves unconditionally and ignores its argument. Give it
-  the same `invalid` / `destroyed` triggers so `ResetPasswordPage`'s new branches are reachable.
-
-Existing tests to update: `VerifyPhonePage.test.tsx`, `ResetPasswordPage.test.tsx`,
-`RecoverPage.test.tsx`.
+```ts
+new ApiError('Too many incorrect attempts. Request a new code.', 400, {
+  message: 'Too many incorrect attempts. Request a new code.',
+  codeDestroyed: true,
+})
+```
 
 ---
 
@@ -387,7 +376,7 @@ Live spec: **`/api-docs`**. Bold = changed in this revision.
 - [ ] `RecoverPage` — pass `state={{ email }}` on the link to `/reset`
 - [ ] Both pages — handle `codeDestroyed` and 429 as distinct states
 - [ ] Read `codeDestroyed` off `ApiError.body`, not the message string (§0, §4)
-- [ ] Mocks + tests for the new states
+- [ ] Tests for the new states
 - [ ] Confirm nothing still calls `GET /validate/:token`
 
 Everything in this document was verified against a running server on 2026-08-29 — request shapes,

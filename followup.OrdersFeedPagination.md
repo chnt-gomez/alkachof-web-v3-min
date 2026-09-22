@@ -179,7 +179,6 @@ never after the fetch — that is what keeps `total` honest and pages full.
 | Paging both halves | `useRequests` gained accumulate/`loadMore`/`hasMore`, mirroring `useTransactions` |
 | One scope for the whole feed | `useOrdersFeed` — both halves switch together |
 | Toggle + empty state | `ScopeToggle` / `EmptyState` in `TransactionsPage.tsx` |
-| Dev-stage parity | `src/mocks/ordersArchive.ts` mirrors `api/util/orderFeedQuery.js` |
 
 Three things worth knowing about how it was wired:
 
@@ -192,6 +191,6 @@ Three things worth knowing about how it was wired:
   recibido …". A user whose orders are all archived still has orders, so the absolute phrasing would
   be false — and that list is exactly where it would be shown.
 
-The client never applies the archive rule itself; the server owns it. `src/mocks/ordersArchive.ts` is
-the sole exception, so the mocked dev stage behaves like production — **keep it in step with
-`api/util/orderFeedQuery.js`**.
+The client never applies the archive rule itself; the server owns it, in `api/util/orderFeedQuery.js`.
+**There is no copy of that rule in this repo, and there must not be one** — a second implementation
+of "what counts as archived" would drift, and the screen would disagree with the feed it renders.

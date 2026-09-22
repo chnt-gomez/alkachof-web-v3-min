@@ -153,14 +153,12 @@ not re-fire — but it is a wasted request per change, so either invalidate the 
 explicitly or give the stamp a sibling key (`['catalog','public',catalogId,'stamp']` outside the
 payload prefix) if you prefer one call.
 
-A new action, `src/sections/publicCatalog/actions/fetchCatalogUpdated.ts`, mirroring the others
-(including the `IS_DEV_STAGE` branch):
+A new action, `src/sections/publicCatalog/actions/fetchCatalogUpdated.ts`, mirroring the others:
 
 ```ts
 export type CatalogStamp = { catalogId: string; updated: string }
 
 export async function fetchCatalogUpdated(catalogId: string): Promise<CatalogStamp> {
-  if (IS_DEV_STAGE) return mockFetchCatalogUpdated(catalogId)
   return api<CatalogStamp>(`/updated/${catalogId}`, { authenticated: false })
 }
 ```
@@ -200,14 +198,6 @@ that comment describes.
 Persisting per-catalog entries means the blob grows with how many shops a visitor has opened. Worth
 a cap or an LRU if that turns out to matter; not worth pre-solving.
 
-### 4. Add the dev-stage mock
-
-`src/mocks/mockFetchCatalogUpdated.ts`, exported from `src/mocks/index.ts`. Have the existing mock
-stores (`mockCreateItem`, `mockUpdateItem`, `mockDeleteItem`, `mockUpdateCatalog`, `mockAskQuestion`,
-`mockAnswerQuestion`, `mockUploadCatalogImage`, …) bump a module-level date, so the dev stage
-exercises the invalidation path rather than a frozen constant. A mock that always returns the same
-string makes the whole gate untestable by hand.
-
 ## Gotchas
 
 - **Do not send an `Authorization` header.** Harmless if you do — the route ignores it — but the
@@ -231,4 +221,4 @@ string makes the whole gate untestable by hand.
 - **Anything on the owner's own dashboard.** The owner performs the mutations, so their client
   already knows; this endpoint is for *other people's* copies of a shop.
 
-Backend detail, plan and rationale: `blueprint.LocalCache.md`.
+Backend detail, plan and rationale live with the implementation, in the `alkachof-api` repo.
