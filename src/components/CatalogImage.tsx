@@ -20,7 +20,7 @@ type HeroProps = {
 export function CatalogHeroImage({ src, alt, hint }: HeroProps) {
   if (src) {
     return (
-      <div className="overflow-hidden rounded-2xl bg-primary-foreground/10">
+      <div className="overflow-hidden rounded-xl border-2 border-ink bg-muted">
         <img src={src} alt={alt} className="w-full object-contain" />
       </div>
     )
@@ -30,7 +30,7 @@ export function CatalogHeroImage({ src, alt, hint }: HeroProps) {
     <div
       role="img"
       aria-label="Este catálogo aún no tiene imagen"
-      className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-ink border-dashed border-primary-foreground/40 bg-primary-foreground/10 text-primary-foreground/70"
+      className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-ink border-dashed border-primary-foreground/40 bg-primary-foreground/10 text-muted-foreground"
     >
       <ImageIcon size={28} aria-hidden="true" />
       <p className="text-xs font-medium">Imagen del catálogo</p>

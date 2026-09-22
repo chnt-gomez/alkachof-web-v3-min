@@ -27,9 +27,9 @@ export function ProfilePage() {
 
   return (
     <div className="flex flex-col gap-6 p-5">
-      <header className="flex items-start justify-between gap-3">
+      <header className="-mx-5 -mt-5 mb-1 border-b-2 border-ink bg-card px-5 pb-4 pt-5 flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">Mi perfil</h1>
+          <h1 className="text-2xl">Mi perfil</h1>
           <p className="text-sm text-muted-foreground">
             Actualiza tus datos y tu foto para que tus clientes te reconozcan.
           </p>
@@ -37,7 +37,7 @@ export function ProfilePage() {
         <button
           onClick={() => setEditing(true)}
           aria-label="Editar perfil"
-          className="shrink-0 rounded-full bg-muted p-2.5 transition-colors hover:bg-muted/70 active:scale-95"
+          className="shrink-0 rounded-xl border-2 border-ink bg-card p-2.5 transition-[background-color] press-ink"
         >
           <Pencil size={16} />
         </button>

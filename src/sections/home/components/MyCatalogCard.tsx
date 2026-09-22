@@ -56,7 +56,7 @@ export function MyCatalogCard({ catalog, itemCount }: Props) {
       </Link>
 
       {itemCount === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-ink border-dashed p-8 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-primary border-dashed p-8 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
             <PackagePlus size={26} />
           </span>
