@@ -95,7 +95,7 @@ export function ChatThreadPage() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background/95 px-3 py-2.5 backdrop-blur">
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b-2 border-ink bg-card px-3 py-2.5">
         <Link
           to="/chats"
           aria-label="Volver a los chats"
@@ -113,7 +113,7 @@ export function ChatThreadPage() {
             {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className={`h-10 w-2/3 animate-pulse rounded-2xl bg-muted ${i % 2 ? 'self-end' : ''}`}
+                className={`h-10 w-2/3 animate-box-wait rounded-2xl bg-muted ${i % 2 ? 'self-end' : ''}`}
               />
             ))}
           </div>

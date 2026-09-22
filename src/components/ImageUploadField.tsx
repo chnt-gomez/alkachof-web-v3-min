@@ -149,7 +149,7 @@ export function ImageUploadField({
     <div className="flex flex-col gap-2">
       <button
         type="button"
-        className="flex w-full flex-col items-center justify-center overflow-hidden rounded-xl border bg-muted transition-opacity hover:opacity-80 disabled:opacity-50"
+        className="flex w-full flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-ink bg-muted transition-opacity hover:opacity-80 disabled:opacity-50"
         onClick={() => setSheetOpen(true)}
         disabled={busy}
         aria-label={ariaLabel ?? (value ? 'Cambiar imagen' : 'Agregar imagen')}
@@ -186,7 +186,7 @@ export function ImageUploadField({
           onClick={() => void handleDelete()}
           disabled={busy}
           aria-busy={deleting}
-          className="flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+          className="flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive-soft disabled:opacity-50"
         >
           {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
           {deleting ? 'Quitando…' : 'Quitar imagen'}
@@ -239,14 +239,14 @@ function PickerSheet({ onClose, onPick }: { onClose: () => void; onPick: (file: 
 
         <div className="flex flex-col gap-3">
           <button
-            className="flex items-center gap-3 rounded-xl border p-4 text-left text-sm font-medium transition-colors hover:bg-muted"
+            className="flex items-center gap-3 rounded-xl border-2 border-ink p-4 text-left text-sm font-medium transition-colors hover:bg-muted"
             onClick={() => galleryRef.current?.click()}
           >
             <ImageIcon size={20} className="text-primary" />
             Galería
           </button>
           <button
-            className="flex items-center gap-3 rounded-xl border p-4 text-left text-sm font-medium transition-colors hover:bg-muted"
+            className="flex items-center gap-3 rounded-xl border-2 border-ink p-4 text-left text-sm font-medium transition-colors hover:bg-muted"
             onClick={() => cameraRef.current?.click()}
           >
             <Camera size={20} className="text-primary" />

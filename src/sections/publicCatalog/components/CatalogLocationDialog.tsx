@@ -52,7 +52,7 @@ export function CatalogLocationDialog({ location, onClose }: Props) {
   return (
     <Dialog onClose={onClose} ariaLabel="Ubicación del catálogo" title="Ubicación">
       <div className="flex flex-col gap-4 p-5">
-        <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border bg-muted">
+        <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl border-2 border-ink border-border bg-muted">
           {staticMapFailed ? (
             <iframe
               title="Mapa de la ubicación del catálogo"
@@ -81,7 +81,7 @@ export function CatalogLocationDialog({ location, onClose }: Props) {
           href={buildMapsHref(location, address)}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-transform active:scale-[0.97]"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform"
         >
           <Navigation size={15} />
           Abrir en mi app de mapas

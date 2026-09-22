@@ -1,147 +1,361 @@
 @import "tailwindcss";
+@import "@fontsource/oswald/500.css";
+@import "@fontsource/oswald/600.css";
+
+/*
+  TARJETA DE ABONOS — the shop is a card that gets stamped.
+
+  The server caps a catalog at 25 items, so the catalog IS a card: a fixed grid
+  of numbered boxes, some filled, some plainly empty. Publishing fills a box.
+  An order advances by taking another stamp.
+
+  Three marking systems carry this world, and the third one is the point:
+
+    1. THE PRINTED RULE — the card's own lithography. Boxes, dividers, and the
+       fill-in line a value is written on. Structure that was on the card
+       before anyone used it.
+    2. THE STAMP — an act someone performed. Boxed, double-ruled, rotated off
+       square, in stamp-pad ink. Never decoration: if nothing happened,
+       nothing is stamped.
+    3. THE PUNCH — something spent or removed. A hole, not a colour.
+
+  Because state has a non-colour channel, no status here depends on hue alone.
+
+  The ground is chosen from the use scene: a seller holding a mid-range Android
+  at half brightness, outdoors, in sun. Those panels are backlight-limited, so
+  the card stays light and the structure stays graphite.
+*/
 
 @theme {
-  --color-background: hsl(80 33% 98%);
-  --color-foreground: hsl(156 32% 12%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(156 32% 12%);
-  --color-primary: hsl(152 44% 26%);
-  --color-primary-deep: hsl(158 48% 16%);
-  --color-primary-foreground: hsl(140 45% 97%);
-  --color-secondary: hsl(140 28% 93%);
-  --color-secondary-foreground: hsl(152 44% 22%);
-  --color-muted: hsl(120 18% 94%);
-  --color-muted-foreground: hsl(155 10% 40%);
-  --color-accent: hsl(84 55% 88%);
-  --color-accent-foreground: hsl(120 40% 18%);
-  --color-destructive: hsl(4 72% 50%);
-  --color-destructive-foreground: hsl(10 60% 98%);
-  /* Item type identity. Products carry the signature green (the same hue as
-     --color-primary); services carry purple #9c88ff. Used by the type chips in
-     both catalog views and by the accent bar under each Pedidos card, so a
-     glance tells the two apart. */
-  --color-product: hsl(152 44% 26%);
-  --color-product-soft: hsl(152 40% 93%);
-  --color-service: hsl(250 100% 77%);
-  --color-service-soft: hsl(250 100% 95%);
-  --color-service-foreground: hsl(250 45% 35%);
-  /* Text on a *filled* --color-service surface. The brand purple is light, so a
-     white label on it lands around 2.4:1 — this deep ink clears 5:1 instead. */
-  --color-service-ink: hsl(250 60% 22%);
-  /* Buy-side identity (#FF9100). Signature color of the "Comprar" tab, which is
-     the visitor/shopper half of Home — deliberately distinct from the green the
-     rest of the app uses for the seller's own things. */
-  --color-buy: hsl(34 100% 50%);
-  --color-buy-soft: hsl(34 100% 94%);
-  /* Text on a *filled* --color-buy surface. #FF9100 is bright, so a white label
-     lands around 2.3:1 — this deep ink clears 5:1 instead. Same trade-off as
-     --color-service-ink above. */
-  --color-buy-ink: hsl(28 85% 18%);
-  --color-border: hsl(140 16% 88%);
-  --color-input: hsl(140 16% 85%);
-  --color-ring: hsl(152 44% 30%);
-  --radius: 1rem;
+  /* ── The card itself ───────────────────────────────────────────────────
+     Manila stock for the ground, receipt paper for anything laid on it. The
+     board is LIGHTER than the ground, so a filled box reads as paper resting
+     on card rather than a hole cut in it. */
+  --color-background: hsl(40 30% 85%);
+  --color-foreground: hsl(28 10% 15%);
+  --color-card: hsl(42 42% 94%);
+  --color-card-foreground: hsl(28 10% 15%);
+
+  /* Graphite: every box rule, every divider, every letter of body copy. Warm,
+     because it sits on warm stock — a cool black on manila reads like a
+     screenshot pasted onto the card. */
+  --color-ink: hsl(28 10% 15%);
+
+  /* The card's printed lithography: the pale line a value is written ON.
+     Deliberately weaker than graphite — it is the line, not the value. */
+  --color-rule: hsl(210 18% 52%);
+
+  /* ── Violeta de sello: the signature ──────────────────────────────────
+     The purple stamp-pad ink of Latin American small-business paperwork. It
+     carries the seller's own things and every primary action. Chosen against
+     two colours this product already tried: a signal red that was the generic
+     accent every light-ground interface ships, and a rosa that became page
+     wallpaper. Nothing in this category reaches for violeta. */
+  --color-primary: hsl(287 44% 38%);
+  --color-primary-deep: hsl(288 46% 28%);
+  --color-primary-foreground: hsl(42 48% 97%);
+
+  /* Quiet fills — a patch of the same card stock, never a neutral gray. */
+  --color-secondary: hsl(40 26% 80%);
+  --color-secondary-foreground: hsl(28 10% 15%);
+  --color-muted: hsl(40 24% 82%);
+  /* The only lighter text in the system: warm graphite, not gray. */
+  --color-muted-foreground: hsl(28 8% 34%);
+
+  /* The highlight wash — a pencil-marked row. */
+  --color-accent: hsl(44 62% 84%);
+  --color-accent-foreground: hsl(28 40% 18%);
+
+  /* Rojo de sello — the CANCELADO stamp. */
+  --color-destructive: hsl(356 66% 42%);
+  --color-destructive-foreground: hsl(42 48% 97%);
+  --color-destructive-soft: hsl(356 60% 92%);
+
+  /* ── The four roles ───────────────────────────────────────────────────
+     One signature for the seller's own things, one for services, one for the
+     buy side, one for confirmed, ink for structure.
+
+     Every role carries the SAME FOUR SLOTS — the hue, a `-soft` wash, a
+     `-foreground` for text on that wash, and an `-ink` for text on the filled
+     hue. A role missing one of these is how a contrast defect gets shipped. */
+  --color-product: hsl(287 44% 38%);
+  --color-product-soft: hsl(287 40% 92%);
+  --color-product-foreground: hsl(288 48% 28%);
+  --color-product-ink: hsl(42 48% 97%);
+
+  --color-service: hsl(212 62% 36%);
+  --color-service-soft: hsl(212 54% 91%);
+  --color-service-foreground: hsl(212 66% 28%);
+  --color-service-ink: hsl(210 60% 97%);
+
+  --color-buy: hsl(44 92% 50%);
+  --color-buy-soft: hsl(44 80% 88%);
+  --color-buy-foreground: hsl(30 70% 24%);
+  /* Amarillo is the lightest role; white on it is ~1.9:1, so a filled buy
+     surface takes graphite. */
+  --color-buy-ink: hsl(28 40% 14%);
+
+  /* Confirmed is its own role so a completed order is never painted the same
+     colour as "this is a button". */
+  --color-confirm: hsl(152 48% 30%);
+  --color-confirm-soft: hsl(152 40% 90%);
+  --color-confirm-foreground: hsl(152 52% 22%);
+  --color-confirm-ink: hsl(150 40% 97%);
+
+  /* ── Rules and focus ─────────────────────────────────────────────────── */
+  --color-border: hsl(28 10% 15%);
+  --color-input: hsl(210 18% 52%);
+  --color-ring: hsl(287 44% 38%);
+
+  /* ── Depth: paper on paper ────────────────────────────────────────────
+     This world is FLAT. A card lies on a table. The only shadows are the
+     short soft ones a thin sheet casts on the sheet beneath it, and they
+     belong to overlays alone — a shadow on a resting control is wrong here. */
+  --shadow-sm: 0 1px 2px hsl(28 25% 12% / 0.10);
+  --shadow-md: 0 4px 10px hsl(28 25% 12% / 0.14);
+  --shadow-lg: 0 10px 28px hsl(28 25% 12% / 0.18);
+
+  /* ── Form: a card is cut square. Nothing here is a pill. ─────────────── */
+  --radius: 0.25rem;
+  --radius-sm: 0.0625rem;
+  --radius-md: 0.125rem;
+  --radius-lg: 0.1875rem;
+  --radius-xl: 0.25rem;
+  --radius-2xl: 0.3125rem;
+  --radius-3xl: 0.375rem;
+
+  /* ── Lettering ────────────────────────────────────────────────────────
+     Oswald, self-hosted, two weights: the condensed grotesque of a ticket, a
+     rubber stamp and a printed form. It sets stamps, box numbers, headings
+     and money. Anything read as prose stays on the platform stack. */
+  --font-stamp: "Oswald", "Arial Narrow", system-ui, sans-serif;
 }
 
 @layer components {
+  /* ── 1. THE PRINTED RULE ───────────────────────────────────────────── */
+
+  /* A numbered box on the card: the default container of this world. Flat,
+     ruled, no shadow. */
+  .box {
+    @apply rounded-xl border-2 border-ink bg-card;
+  }
+
+  /* The line a value is written ON, drawn even when the field is empty — an
+     empty line is the invitation to fill it. */
+  .rule-line {
+    border-bottom: 2px solid var(--color-rule);
+  }
+
+  /* A field is a fill-in line, not a boxed input. `text-base` is 16px and is
+     not a style choice: iOS Safari zooms the viewport on focus below it, and
+     this product is phone-only. */
   .input {
-    @apply w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none ring-offset-background transition-shadow focus:ring-2 focus:ring-ring focus:ring-offset-1;
+    @apply w-full border-0 bg-transparent px-1 py-2 text-base text-foreground outline-none;
+    border-bottom: 2px solid var(--color-rule);
+    border-radius: 0;
+  }
+  .input:focus {
+    border-bottom-color: var(--color-primary);
+    border-bottom-width: 3px;
+    padding-bottom: calc(0.5rem - 1px);
+  }
+  .input::placeholder {
+    color: var(--color-muted-foreground);
+  }
+  .input:disabled {
+    color: var(--color-muted-foreground);
+    border-bottom-style: dashed;
+  }
+
+  /* ── 2. THE STAMP ──────────────────────────────────────────────────── */
+
+  .stamp {
+    font-family: var(--font-stamp);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    border: 2px solid currentColor;
+    border-radius: 2px;
+    padding: 0.2rem 0.55rem;
+    display: inline-block;
+    rotate: -1.6deg;
+    /* the inner keyline of a double-ruled rubber stamp */
+    box-shadow: inset 0 0 0 1px currentColor;
+  }
+
+  /* The seller's own mark, at shop-name scale: lands further off square, the
+     way a hand-pressed stamp does. */
+  .stamp-mark {
+    rotate: -2.2deg;
+  }
+
+  /* ── 3. THE PUNCH ──────────────────────────────────────────────────── */
+
+  /* Something spent or removed: a hole in the card, not a colour. */
+  .punched {
+    position: relative;
+  }
+  .punched::after {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    background-color: var(--color-background);
+    box-shadow: inset 0 1px 2px hsl(28 25% 12% / 0.45);
+    pointer-events: none;
+  }
+
+  /* Money and counts are printed, and they line up in a column. */
+  .numeral {
+    font-family: var(--font-stamp);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The small printed number in a box's corner. */
+  .folio {
+    font-family: var(--font-stamp);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    color: var(--color-muted-foreground);
+  }
+
+  /* An unfilled box on the card: drawn, and plainly empty. A shop with room
+     left should look like one — which is also the onboarding. */
+  .box-empty {
+    @apply rounded-xl bg-transparent;
+    border: 2px dashed var(--color-rule);
   }
 }
 
-/* Subtle entrance for overlays/sheets: fade the backdrop, pop the panel. */
+/* ── The press: a control leaves an impression ────────────────────────────
+   The world's one authored interaction. The ink lands in a single step: no
+   travel and no fade, because a stamp does not slide.
+
+   This lives in `utilities`, not `components`, and that is load-bearing.
+   Tailwind orders `components` before `utilities`, so a conflict between a
+   `:active` rule here and a utility class on the same element is decided by
+   LAYER and never by specificity — put this in `components` and a `bg-*`
+   utility silently wins. */
+@layer utilities {
+  .press:not(:disabled):active {
+    background-color: var(--color-primary-deep);
+    rotate: -0.6deg;
+  }
+  /* An unpainted control impresses by taking ink rather than changing fill. */
+  .press-ink:not(:disabled):active {
+    background-color: var(--color-accent);
+    rotate: -0.6deg;
+  }
+  /* Disabled flattens into the card. It does NOT fade: a fade is the one
+     motion this world does not have. */
+  .press:disabled,
+  .press-ink:disabled {
+    color: var(--color-muted-foreground);
+    border-style: dashed;
+    cursor: not-allowed;
+  }
+}
+
+/* ── Motion: impression and punch, never dissolve ─────────────────────────
+   Everything lands in one ~120ms step from an already-visible default. */
+
+/* The scrim is the only place opacity moves, and it moves in steps. */
 @keyframes overlay-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-
-@keyframes sheet-pop {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 .animate-overlay-fade {
-  animation: overlay-fade 0.18s ease-out;
+  animation: overlay-fade 0.1s steps(2, end);
 }
 
+/* A sheet is laid down, not dissolved in. */
+@keyframes sheet-pop {
+  from { transform: translateY(12px); }
+  to { transform: translateY(0); }
+}
 .animate-sheet-pop {
-  animation: sheet-pop 0.22s ease-out;
+  animation: sheet-pop 0.16s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
-/* Word swap used by WordRandomizer on the About page: each new word fades up. */
+/* A stamp landing: off square, then square, in two discrete steps. */
+@keyframes impression {
+  from { rotate: -3deg; }
+  to { rotate: 0deg; }
+}
+.animate-impression {
+  animation: impression 0.12s steps(2, end);
+}
+
+/* Each new word on the About page is stamped, not faded up. */
 @keyframes word-swap {
-  from {
-    opacity: 0;
-    transform: translateY(0.25em);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { rotate: -2deg; }
+  to { rotate: 0deg; }
 }
-
 .animate-word-swap {
-  animation: word-swap 0.2s ease-out;
+  animation: word-swap 0.12s steps(2, end);
 }
 
-/* Left-to-right progress fill used to turn the checkout button into a bar. */
+/* Left-to-right fill that turns a control into a progress bar. */
 @keyframes progress-fill {
-  from {
-    width: 0%;
-  }
-  to {
-    width: 100%;
-  }
+  from { width: 0%; }
+  to { width: 100%; }
 }
-
 .animate-progress-fill {
   animation: progress-fill 1s linear forwards;
 }
 
-/* Deep-link highlight: draws the eye to a card scrolled into view from a
-   notification (a product card in the catalog, or a transaction card in Pedidos). */
-@keyframes product-highlight-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
-  30% {
-    box-shadow: 0 0 0 4px var(--color-primary);
-  }
+/* Loading is an unstamped box, already ruled on the card and waiting for its
+   impression. It steps between two printed values rather than ramping
+   opacity, because a fade is the one motion this world does not have. */
+@keyframes box-wait {
+  0%, 100% { background-color: var(--color-muted); }
+  50% { background-color: var(--color-secondary); }
+}
+.animate-box-wait {
+  animation: box-wait 1.1s steps(1, end) infinite;
 }
 
+/* Deep-link arrival: the box is stamped, not glowed at — its rule floods to
+   the signature and back, twice, in steps. */
+@keyframes box-highlight {
+  0%, 100% { border-color: var(--color-ink); }
+  40% { border-color: var(--color-primary); }
+}
 .product-highlight,
 .transaction-highlight {
-  border-radius: 1rem;
-  animation: product-highlight-pulse 1.2s ease-in-out 2;
+  border-radius: var(--radius-xl);
+  animation: box-highlight 0.9s steps(1, end) 2;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-overlay-fade,
   .animate-sheet-pop,
-  .animate-word-swap {
+  .animate-impression,
+  .animate-word-swap,
+  .animate-box-wait {
     animation: none;
   }
-  /* Keep the fill instant rather than removing the progress feedback entirely. */
+  /* Keep the fill instant rather than removing the progress feedback. */
   .animate-progress-fill {
     animation-duration: 0.01s;
   }
-  /* Swap the pulse for a static outline so the highlight is still visible. */
+  /* A standing rule instead of the repeat, so the information survives. */
   .product-highlight,
   .transaction-highlight {
     animation: none;
-    outline: 2px solid var(--color-primary);
+    outline: 3px solid var(--color-primary);
     outline-offset: 2px;
+  }
+  .press:not(:disabled):active,
+  .press-ink:not(:disabled):active {
+    rotate: 0deg;
   }
 }
 
@@ -150,6 +364,7 @@
     box-sizing: border-box;
     border-color: var(--color-border);
   }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -157,20 +372,58 @@
     font-family: system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Headings are printed on the card, in the condensed form face. */
+  h1, h2, .display {
+    font-family: var(--font-stamp);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+  }
+
+  ::selection {
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+
+  :root {
+    accent-color: var(--color-primary);
+    caret-color: var(--color-primary);
+    scrollbar-color: var(--color-rule) var(--color-background);
+    scrollbar-width: thin;
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 2px;
+  }
+
+  /* Focus is a printed rule, never a glow. */
+  :focus-visible {
+    outline: 3px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  td, th {
+    font-variant-numeric: tabular-nums;
+  }
+
   #root {
     min-height: 100dvh;
   }
-  /* Phone-column app frame: on wider viewports the app renders as a
-     centered mobile column; on real phones it stays edge-to-edge. */
+
+  /* Above the one breakpoint the app is a card lying on a desk, not a
+     stretched layout: a darker desk tone behind it, and the short soft shadow
+     a sheet of stock actually casts. */
   @media (min-width: 640px) {
     body {
-      background-color: hsl(150 14% 91%);
+      background-color: hsl(32 14% 62%);
     }
     #root {
       max-width: 28rem;
       margin-inline: auto;
       background-color: var(--color-background);
-      box-shadow: 0 0 48px rgb(20 45 30 / 0.14);
+      box-shadow: 0 8px 28px hsl(28 25% 12% / 0.28);
     }
   }
 }

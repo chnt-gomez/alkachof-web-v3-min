@@ -63,7 +63,7 @@ export function RejectPriceDialog({ currentNote, pending, onConfirm, onClose }: 
             // Selected on open: the buyer overwrites by typing, or leaves it be.
             onFocus={(e) => e.target.select()}
             placeholder="Cuéntale qué necesitas: fechas, cantidad, tamaño, tu colonia…"
-            className="w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="input resize-none focus:outline-none"
           />
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
@@ -76,7 +76,7 @@ export function RejectPriceDialog({ currentNote, pending, onConfirm, onClose }: 
         </div>
       </div>
 
-      <div className="flex gap-3 border-t px-5 py-4">
+      <div className="flex gap-3 border-t-2 border-ink px-5 py-4">
         <Button variant="outline" className="flex-1" onClick={onClose} disabled={pending}>
           Atrás
         </Button>

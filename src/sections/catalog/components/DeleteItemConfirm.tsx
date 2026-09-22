@@ -41,7 +41,7 @@ export function DeleteItemConfirm({ itemName, onConfirm, onClose }: Props) {
           </p>
         )}
       </div>
-      <div className="flex gap-3 border-t px-5 py-4">
+      <div className="flex gap-3 border-t-2 border-ink px-5 py-4">
         <Button variant="outline" className="flex-1" onClick={onClose} disabled={deleting}>
           Cancelar
         </Button>

@@ -9,7 +9,7 @@ type Props = { catalogs: Catalog[] }
 export function SavedCatalogList({ catalogs }: Props) {
   if (catalogs.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-ink border-dashed p-8 text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
           <Bookmark size={22} />
         </span>
@@ -26,7 +26,7 @@ export function SavedCatalogList({ catalogs }: Props) {
         <li key={catalog._id}>
           <Link
             to={`/catalog/${catalog._id}`}
-            className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.98]"
+            className="flex items-center gap-3 rounded-2xl border-2 border-ink bg-card p-4 transition-[box-shadow,transform]"
             aria-label={`Ver catálogo ${catalog.alias}`}
           >
             <CatalogThumb

@@ -171,7 +171,7 @@ export function ResetPasswordPage() {
           </form>
           <p className="mt-4 text-sm text-muted-foreground">
             ¿No recibiste el código?{' '}
-            <Link to="/recover" state={{ email }} className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link to="/recover" state={{ email }} className="font-medium text-primary underline decoration-2 underline-offset-4">
               Solicita uno nuevo
             </Link>
           </p>

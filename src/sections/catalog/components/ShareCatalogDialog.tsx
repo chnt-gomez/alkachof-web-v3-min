@@ -100,7 +100,7 @@ export function ShareCatalogDialog({ catalogId, catalogName, qr, onClose }: Prop
         </p>
 
         {qrSrc && (
-          <div className="flex flex-col items-center gap-3 border-t pt-5">
+          <div className="flex flex-col items-center gap-3 border-t-2 border-ink pt-5">
             <p className="text-center text-sm text-muted-foreground">
               O muestra este código para que tus clientes cercanos escaneen y entren directo a tu
               catálogo.

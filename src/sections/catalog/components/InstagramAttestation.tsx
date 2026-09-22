@@ -40,7 +40,7 @@ export function InstagramAttestation({
 }: Props) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-center gap-2 rounded-xl border p-4 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-ink p-4 text-center">
         <img src={candidate.avatarUrl} alt="" className="size-16 rounded-full object-contain" />
         <p className="text-sm font-semibold">@{candidate.alias}</p>
         <p className="text-xs text-muted-foreground">{candidate.fullName}</p>

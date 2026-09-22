@@ -13,7 +13,7 @@ import { InvitationCard } from './components/InvitationCard'
 
 function JoinFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-gradient-to-b from-secondary via-background to-background px-5 py-10">
+    <div className="flex min-h-dvh flex-col bg-background px-5 py-10">
       <header className="flex justify-center">
         <BrandMark size="lg" />
       </header>
@@ -29,7 +29,7 @@ function InvalidInvitation() {
     <JoinFrame>
       <div className="flex flex-col items-center gap-3 text-center">
         <h1 className="text-2xl font-semibold">Esta invitación no es válida.</h1>
-        <Link to="/about" className="font-medium text-primary underline-offset-4 hover:underline">
+        <Link to="/about" className="font-medium text-primary underline decoration-2 underline-offset-4">
           Conoce Alkachof
         </Link>
       </div>
@@ -148,7 +148,7 @@ export function JoinPage() {
       {!isAuthenticated && (
         <p className="text-center text-sm text-muted-foreground">
           ¿Aún no tienes cuenta?{' '}
-          <Link to="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
+          <Link to="/signup" className="font-medium text-primary underline decoration-2 underline-offset-4">
             Crea una
           </Link>
         </p>

@@ -23,11 +23,7 @@ export function CatalogHeader() {
 
   return (
     <>
-      <section className="relative flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-deep p-6 text-primary-foreground shadow-lg shadow-primary/20">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary-foreground/10 blur-2xl"
-        />
+      <section className="relative flex flex-col gap-4 rounded-xl border-2 border-ink bg-card p-5 text-foreground">
 
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -88,7 +84,7 @@ export function CatalogHeader() {
           <Button
             asChild
             size="sm"
-            className="bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground/90"
+            className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
           >
             <Link to={`/catalog/${catalog._id}`}>
               <ExternalLink size={14} />

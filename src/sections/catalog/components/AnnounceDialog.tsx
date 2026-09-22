@@ -109,7 +109,7 @@ export function AnnounceDialog({ catalogId, items, onCooldown, onClose }: Props)
                   onClick={() => setSelectedItemId(null)}
                   aria-pressed={selectedItemId === null}
                   className={cn(
-                    'flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border text-xs text-muted-foreground',
+                    'flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border-2 border-ink text-xs text-muted-foreground',
                     selectedItemId === null ? 'border-primary bg-primary/5' : 'border-input',
                   )}
                 >
@@ -126,7 +126,7 @@ export function AnnounceDialog({ catalogId, items, onCooldown, onClose }: Props)
                       aria-pressed={selected}
                       aria-label={item.name || 'Producto sin nombre'}
                       className={cn(
-                        'relative flex h-20 w-20 shrink-0 flex-col overflow-hidden rounded-xl border',
+                        'relative flex h-20 w-20 shrink-0 flex-col overflow-hidden rounded-xl border-2 border-ink',
                         selected ? 'border-primary ring-2 ring-primary' : 'border-input',
                       )}
                     >
@@ -156,12 +156,12 @@ export function AnnounceDialog({ catalogId, items, onCooldown, onClose }: Props)
       </div>
 
       {error && (
-        <p role="alert" className="border-t px-5 py-2 text-sm text-destructive">
+        <p role="alert" className="border-t-2 border-ink px-5 py-2 text-sm text-destructive">
           {error}
         </p>
       )}
 
-      <div className="flex gap-3 border-t px-5 py-4">
+      <div className="flex gap-3 border-t-2 border-ink px-5 py-4">
         <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>
           Cancelar
         </Button>

@@ -35,7 +35,7 @@ function ListSkeleton() {
   return (
     <div className="flex flex-col gap-2" aria-busy="true" aria-label="Cargando chats">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-[68px] animate-pulse rounded-2xl bg-muted" />
+        <div key={i} className="h-[68px] animate-box-wait rounded-2xl bg-muted" />
       ))}
     </div>
   )
@@ -45,7 +45,7 @@ function ListError({ onRetry }: { onRetry: () => void }) {
   return (
     <div
       role="alert"
-      className="flex flex-col items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4"
+      className="flex flex-col items-start gap-3 rounded-2xl border-2 border-ink border-destructive/40 bg-destructive/5 p-4"
     >
       <p className="text-sm text-destructive">No pudimos cargar tus conversaciones.</p>
       <Button size="sm" variant="outline" onClick={onRetry}>
@@ -57,7 +57,7 @@ function ListError({ onRetry }: { onRetry: () => void }) {
 
 function EmptyState() {
   return (
-    <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+    <p className="rounded-2xl border-2 border-ink border-dashed p-8 text-center text-sm text-muted-foreground">
       Aún no tienes conversaciones. Escríbele a un vendedor desde su catálogo para empezar.
     </p>
   )

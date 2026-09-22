@@ -132,7 +132,7 @@ export function LocationEditDialog({ catalogId, location, onSaved, onClose }: Pr
 
       {/* Pinned to the bottom of the scrolling dialog so the actions stay
           reachable no matter how tall the map + address fields grow. */}
-      <div className="sticky bottom-0 border-t bg-background">
+      <div className="sticky bottom-0 border-t-2 border-ink bg-background">
         {error && (
           <p role="alert" className="px-5 pt-2 text-sm text-destructive">
             {error}

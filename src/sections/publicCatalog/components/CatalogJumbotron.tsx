@@ -69,17 +69,16 @@ export function CatalogJumbotron() {
 
   return (
     <>
-    <section className="relative flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-deep p-6 text-primary-foreground shadow-lg shadow-primary/20">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary-foreground/10 blur-2xl"
-      />
-
+    {/* The head of the card. Flat stock and a printed rule — no gradient and no
+        blurred orb: nothing in this world glows, and a gradient belongs to no
+        material. The shop name is the seller's own rubber stamp, landed off
+        square the way a hand-pressed one does. */}
+    <section className="relative flex flex-col gap-4 rounded-xl border-2 border-ink bg-card p-5 text-foreground">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold leading-tight">{catalog.alias}</h1>
+        <div className="flex flex-col items-start gap-2">
+          <h1 className="stamp stamp-mark text-2xl">{catalog.alias}</h1>
           {catalog.welcomeText && (
-            <p className="text-base text-primary-foreground/80">{catalog.welcomeText}</p>
+            <p className="text-base text-foreground">{catalog.welcomeText}</p>
           )}
         </div>
         {location && (
@@ -87,7 +86,7 @@ export function CatalogJumbotron() {
             type="button"
             onClick={() => setShowLocation(true)}
             aria-label="Ver la ubicación en el mapa"
-            className="shrink-0 rounded-full bg-primary-foreground/20 p-2.5 transition-colors hover:bg-primary-foreground/30 active:scale-95"
+            className="shrink-0 rounded-xl border-2 border-ink bg-card p-2.5 text-foreground transition-colors press-ink"
           >
             <MapPin size={16} />
           </button>
@@ -95,36 +94,32 @@ export function CatalogJumbotron() {
       </div>
 
       {catalog.description && (
-        <p className="text-sm text-primary-foreground/70">{catalog.description}</p>
+        <p className="text-sm text-muted-foreground">{catalog.description}</p>
       )}
 
       <CatalogHeroImage src={resolveMediaUrl(catalog.image)} alt={catalog.alias} />
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-primary-foreground/60">
-            Pago
-          </span>
-          <div className="flex flex-wrap gap-1.5">
+          <span className="folio uppercase tracking-wider">Pago</span>
+          <div className="rule-line flex flex-wrap gap-1.5 pb-2">
             <PayOptionChips options={catalog.payOptions} />
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary-foreground/60">
-              Envío
-            </span>
+            <span className="folio uppercase tracking-wider">Envío</span>
             <button
               type="button"
               onClick={() => setShowShippingInfo(true)}
               aria-label="Información sobre opciones de envío"
-              className="text-primary-foreground/60 transition-colors hover:text-primary-foreground"
+              className="text-muted-foreground transition-colors hover:text-foreground"
             >
               <HelpCircle size={14} />
             </button>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="rule-line flex flex-wrap gap-1.5 pb-2">
             <DeliveryOptionChips options={catalog.deliveryType} />
           </div>
         </div>
@@ -138,10 +133,10 @@ export function CatalogJumbotron() {
             aria-pressed={isSubscribed}
             aria-busy={isSubPending}
             className={cn(
-              'flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60',
+              'flex items-center gap-2 rounded-xl border-2 border-ink px-5 py-2.5 text-sm font-semibold transition-[background-color] disabled:cursor-not-allowed',
               isSubscribed
-                ? 'border border-primary-foreground/40 bg-transparent text-primary-foreground'
-                : 'bg-primary-foreground text-primary',
+                ? 'bg-primary text-primary-foreground press'
+                : 'bg-card text-foreground press-ink',
             )}
           >
             {isSubscribed ? <BellRing size={14} /> : <Bell size={14} />}
@@ -155,7 +150,7 @@ export function CatalogJumbotron() {
           </button>
           <button
             onClick={handleContact}
-            className="flex items-center gap-2 rounded-full border border-primary-foreground/40 px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform active:scale-[0.97]"
+            className="flex items-center gap-2 rounded-xl border-2 border-ink bg-buy px-5 py-2.5 text-sm font-semibold text-buy-ink transition-[background-color] press-ink"
           >
             <MessageCircle size={14} />
             Contactar
@@ -164,7 +159,6 @@ export function CatalogJumbotron() {
       )}
     </section>
 
-    {/* Rendered outside the section so they don't inherit its white text color */}
     {showShippingInfo && (
       <ShippingInfoDialog onClose={() => setShowShippingInfo(false)} />
     )}
