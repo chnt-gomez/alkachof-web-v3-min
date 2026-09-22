@@ -7,7 +7,9 @@ export function ChatListPage() {
 
   return (
     <div className="flex flex-col gap-4 p-5">
-      <h1 className="text-2xl font-bold tracking-tight">Chats</h1>
+      <header className="-mx-5 -mt-5 mb-1 border-b-2 border-ink bg-card px-5 pb-4 pt-5">
+        <h1 className="text-2xl">Chats</h1>
+      </header>
 
       {status === 'loading' && <ListSkeleton />}
       {status === 'error' && <ListError onRetry={reload} />}

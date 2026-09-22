@@ -133,10 +133,10 @@ export function ProductGrid() {
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <li
               key={item._id}
-              className="flex items-stretch gap-3 overflow-hidden rounded-2xl border-2 border-ink bg-card focus-within:ring-2 focus-within:ring-primary"
+              className="flex items-stretch gap-3 overflow-hidden rounded-2xl border-2 border-ink bg-card focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ring"
             >
               <button
                 className="flex min-w-0 flex-1 items-center gap-3 p-2 text-left focus:outline-none"
@@ -145,6 +145,9 @@ export function ProductGrid() {
                   item.name || (isService(item) ? 'Servicio sin nombre' : 'Producto sin nombre')
                 }
               >
+                <span className="folio shrink-0 self-start pt-1">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
                 {item.imgPath ? (
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
                     <img
@@ -184,6 +187,34 @@ export function ProductGrid() {
             </li>
           ))}
         </ul>
+      )}
+
+      {items.length > 0 && remainingCatalogSlots(items.length) > 0 && (
+        <div className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-2">
+            {Array.from(
+              { length: Math.min(remainingCatalogSlots(items.length), 4) },
+              (_, i) => (
+                <li key={`casilla-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => setAddingProduct(true)}
+                    className="box-empty flex w-full items-center gap-3 p-3 text-left transition-[background-color] press-ink"
+                  >
+                    <span className="folio">
+                      {String(items.length + i + 1).padStart(2, '0')}
+                    </span>
+                    <span className="text-sm text-muted-foreground">Casilla libre</span>
+                    <Plus size={14} className="ml-auto text-muted-foreground" />
+                  </button>
+                </li>
+              ),
+            )}
+          </ul>
+          <p className="folio uppercase">
+            Quedan {remainingCatalogSlots(items.length)} de {MAX_CATALOG_ITEMS} casillas
+          </p>
+        </div>
       )}
 
       {editingItem && (

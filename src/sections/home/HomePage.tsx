@@ -73,7 +73,11 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col gap-6 p-5">
-      <h1 className="text-2xl font-bold tracking-tight">Inicio</h1>
+      {/* The card's printed head: stock above the rule, manila below it, so
+          every page reads as the same card the catalog is printed on. */}
+      <header className="-mx-5 -mt-5 mb-1 border-b-2 border-ink bg-card px-5 pb-4 pt-5">
+        <h1 className="text-2xl">Inicio</h1>
+      </header>
 
       <HomeTabs
         active={tab}

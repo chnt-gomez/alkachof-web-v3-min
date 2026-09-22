@@ -88,7 +88,9 @@ export function CatalogItemList() {
             className={`mb-3 break-inside-avoid${highlightedId === item._id ? ' product-highlight' : ''}`}
           >
             <button
-              className="relative flex w-full flex-col overflow-hidden rounded-xl border-2 border-ink bg-card text-left transition-[background-color] press-ink"
+              className={`relative flex w-full flex-col overflow-hidden rounded-xl border-2 border-ink bg-card text-left transition-[background-color] press-ink${
+                !isService(item) && item.outOfStock ? ' punched' : ''
+              }`}
               onClick={() => setSelectedItem(item)}
             >
               {/* The box's printed number. A catalog is a fixed set of boxes,

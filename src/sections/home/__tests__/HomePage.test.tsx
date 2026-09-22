@@ -336,7 +336,7 @@ describe('MyCatalogCard', () => {
     expect(await screen.findByText('Sin artículos todavía')).toBeInTheDocument()
   })
 
-  it('outlines the card in the green signature color', async () => {
+  it('outlines the card in the signature color', async () => {
     renderPage()
 
     const link = await screen.findByRole('link', { name: /abrir mi catálogo/i })
