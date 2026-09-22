@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
  * are showing — the bar under a Pedidos card, where a product order and a
  * service request are different components entirely.
  *
- * Green is the signature colour (products), purple `#9c88ff` marks services.
+ * Violeta de sello is the signature colour (products); azul marks services.
  * Both are theme tokens, so the pairing is defined once in `index.css`.
  */
 export const ITEM_TYPE_BAR = {
@@ -32,8 +32,10 @@ export function ItemTypeChip({ item, className }: Props) {
   return (
     <span
       className={cn(
-        'self-start rounded-full px-2 py-0.5 text-[11px] font-medium',
-        service ? 'bg-service-soft text-service-foreground' : 'bg-product-soft text-product',
+        'folio self-start rounded-sm border px-1.5 py-0.5 uppercase',
+        service
+          ? 'border-service-foreground bg-service-soft text-service-foreground'
+          : 'border-product-foreground bg-product-soft text-product-foreground',
         className,
       )}
     >

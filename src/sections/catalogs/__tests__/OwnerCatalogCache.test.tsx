@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, Link } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { setTokens } from '@/lib/auth'
 import { ToastProvider } from '@/components/ui/toast'
 import { withQueryClient } from '@/test/renderWithProviders'
 import { AuthProvider } from '@/sections/auth/AuthContext'
@@ -105,7 +106,7 @@ function renderApp(initialEntry = '/') {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  localStorage.setItem('alk.token', 'test-token')
+  setTokens('test-token', 'test-refresh')
   vi.mocked(fetchProfile).mockResolvedValue({ _id: 'p1', userId: 'me', alias: 'Yo' })
   vi.mocked(fetchNotifications).mockResolvedValue([])
   vi.mocked(fetchNews).mockResolvedValue([])

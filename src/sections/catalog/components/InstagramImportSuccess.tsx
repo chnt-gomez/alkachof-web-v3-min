@@ -67,7 +67,7 @@ export function InstagramImportSuccess({ summary, autoClosing, onClose }: Props)
         or `skipped`, and this is the only place the reasons are shown.
       */}
       {skipped.length > 0 && (
-        <div className="w-full rounded-xl border p-3 text-left">
+        <div className="w-full rounded-xl border-2 border-ink p-3 text-left">
           <p className="text-sm text-muted-foreground">
             {skipped.length === 1
               ? 'No pudimos importar 1 publicación:'

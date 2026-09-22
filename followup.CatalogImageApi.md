@@ -53,10 +53,10 @@ double-tap or a retry needs no special handling.
 | 400 | `{"message":"Image exceeds the maximum upload size"}` | over 10 MB |
 | 400 | `{"message":"The uploaded file is not a readable image"}` | corrupt or truncated bytes |
 
-## Image processing (resolved — this section used to describe a mismatch)
+## Image processing
 
-**The WebP/500 problem is gone.** The API now re-encodes every upload, so the
-input format only has to be something it can decode: `image/jpeg`, `image/png`
+**The API re-encodes every upload**, so the input format only has to be
+something it can decode: `image/jpeg`, `image/png`
 and `image/webp` are all accepted, and bad uploads answer **400 with a readable
 message** instead of an opaque 500.
 
@@ -115,12 +115,9 @@ is lost and the server sees no file (→ 400).
 ```ts
 // uploadCatalogImage.ts
 import { api } from '@/lib/api'
-import { IS_DEV_STAGE } from '@/lib/stage'
-import { mockUploadCatalogImage } from '@/mocks'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 
 export async function uploadCatalogImage(catalogId: string, file: File): Promise<Catalog> {
-  if (IS_DEV_STAGE) return mockUploadCatalogImage(catalogId, file)
   const form = new FormData()
   form.append('image', file)
   const { catalog } = await api<{ catalog: Catalog }>(`/catalog/${catalogId}/image`, {
@@ -137,18 +134,7 @@ export async function uploadCatalogImage(catalogId: string, file: File): Promise
 Returning the whole `Catalog` (rather than just the url, as `uploadProfileImage` does) keeps the
 caller's cached catalog in sync in one step — worth the small divergence from the profile action.
 
-### 3. Mocks — `src/mocks/`
-
-Per the mock rules in `CLAUDE.md`: one file per action, import the real type, re-export from
-`src/mocks/index.ts`. `mockUploadCatalogImage` should return a catalog whose `image` is
-`URL.createObjectURL(file)` (same trick as `mockUpdateItem`); `mockDeleteCatalogImage` returns one
-with `image` omitted. Spanish for any user-visible strings.
-
-Also add `image` to the existing catalog mocks so the dev stage exercises both states —
-`mockFetchPublicCatalog` / `mockFetchMyCatalog` / `mockFetchEditableCatalog` with an image,
-`mockUpdateCatalog` passing it through.
-
-### 4. Owner UI — `src/sections/catalog/components/EditCatalogScreen.tsx`
+### 3. Owner UI — `src/sections/catalog/components/EditCatalogScreen.tsx`
 
 Add an image section next to the existing fields, reusing `ImageUploadField` in **upload-now mode**
 (the profile pattern in `src/sections/profile/ProfilePage.tsx:52`), since the endpoint persists
@@ -173,7 +159,7 @@ Because the upload persists immediately while the rest of the form is deferred, 
 catalog held in `EditCatalogContext` is updated from the action's response — otherwise a subsequent
 "save" of the other fields will re-render with a stale (image-less) catalog.
 
-### 5. Display sites
+### 4. Display sites
 
 The image is presentational; add it where a catalog is already identified by `alias`:
 
@@ -191,7 +177,7 @@ image**. Cards fed by summaries cannot show a thumbnail without an extra per-cat
 that's an N+1). If the design calls for thumbnails in lists, say so and the API will add `image` to
 the summary shape; that is a small backend change.
 
-### 6. Tests
+### 5. Tests
 
 Page-level per `CLAUDE.md`: render the page in a `MemoryRouter`, `vi.mock` the action modules, assert
 on DOM output. Worth covering: a catalog without an image renders the placeholder; a successful

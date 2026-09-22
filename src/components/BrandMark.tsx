@@ -13,7 +13,7 @@ export function BrandMark({ size = 'sm', className }: BrandMarkProps) {
     <span className={cn('inline-flex items-center', isLarge ? 'gap-3' : 'gap-2', className)}>
       <span
         className={cn(
-          'flex items-center justify-center bg-gradient-to-br from-primary to-primary-deep text-primary-foreground shadow-sm',
+          'flex items-center justify-center border-2 border-ink bg-primary text-primary-foreground',
           isLarge ? 'h-14 w-14 rounded-2xl' : 'h-8 w-8 rounded-xl'
         )}
       >

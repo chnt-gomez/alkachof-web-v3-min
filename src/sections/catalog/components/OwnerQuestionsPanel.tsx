@@ -31,7 +31,7 @@ export function OwnerQuestionsPanel() {
       {status === 'loading' && (
         <div className="flex flex-col gap-2" aria-busy="true" aria-label="Cargando preguntas">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-muted" />
+            <div key={i} className="h-24 animate-box-wait rounded-2xl bg-muted" />
           ))}
         </div>
       )}
@@ -39,7 +39,7 @@ export function OwnerQuestionsPanel() {
       {status === 'error' && (
         <div
           role="alert"
-          className="flex flex-col items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4"
+          className="flex flex-col items-start gap-3 rounded-2xl border-2 border-ink border-destructive/40 bg-destructive/5 p-4"
         >
           <p className="text-sm text-destructive">No pudimos cargar las preguntas.</p>
           <Button size="sm" variant="outline" onClick={reload}>
@@ -50,7 +50,7 @@ export function OwnerQuestionsPanel() {
 
       {status === 'ready' &&
         (questions.length === 0 ? (
-          <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border-2 border-ink border-dashed p-6 text-center text-sm text-muted-foreground">
             No tienes preguntas pendientes por responder.
           </p>
         ) : (
@@ -93,7 +93,7 @@ function QuestionAnswerCard({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border-2 border-ink p-4">
       <div className="flex flex-col gap-0.5">
         <p className="font-medium">{question.questionText}</p>
         <span className="text-xs text-muted-foreground">
@@ -108,7 +108,7 @@ function QuestionAnswerCard({
           placeholder="Escribe tu respuesta..."
           aria-label={`Respuesta a: ${question.questionText}`}
           rows={2}
-          className="w-full resize-y rounded-xl border border-input bg-background px-3.5 py-2 text-sm shadow-sm transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="input resize-y"
         />
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" size="sm" disabled={!text.trim() || submitting} className="self-end gap-2">

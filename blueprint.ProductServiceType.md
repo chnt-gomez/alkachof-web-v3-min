@@ -1,7 +1,7 @@
 # Blueprint — Product / Service Item Type (web client)
 
-Implementation plan for `feature.ProductServiceType.md` (which embeds the backend handoff
-`followup.ProductServiceTypeApi.md`). Grounded in the current code: `src/sections/catalog/`,
+Implementation plan for `feature.ProductServiceType.md`, which embeds the backend handoff.
+Grounded in the current code: `src/sections/catalog/`,
 `src/sections/publicCatalog/`, `src/sections/cart/`, `src/sections/transactions/`.
 
 ---
@@ -36,8 +36,7 @@ now **seven** of them: `REQUESTED` / `PRICED` / `ACCEPTED` / `SERVING` / `COMPLE
   feed, detail dialog with the seller's pricing form).
 - **Phase C — ✅ shipped.** The `/request` endpoints went live, so the feature flags
   (`src/lib/features.ts`) and the chat fallback in `useServiceRequest` are **deleted**: "Solicitar"
-  now calls `POST /request/create` for real, and the request actions use the ordinary
-  `IS_DEV_STAGE` guard like every other action. See §4 for the shipped contract, which differs from
+  now calls `POST /request/create` for real. See §4 for the shipped contract, which differs from
   the draft this blueprint was originally written against.
 
 > **Where the draft was wrong.** Phases A3 and B were built against a draft contract that has since
@@ -63,7 +62,6 @@ now **seven** of them: `REQUESTED` / `PRICED` / `ACCEPTED` / `SERVING` / `COMPLE
 | 7 | Requests domain: types, status meta, transitions, actions, mocks | new `src/sections/requests/` |
 | 8 | Pedidos merges orders + requests into one feed per role | `transactions/hooks/useOrdersFeed.ts`, `components/OrdersList.tsx`, `orderStatusFilter.ts` |
 | 9 | Notification deep-link handles `?request=<id>` | `transactions/hooks/useTransactionDeepLink.ts` |
-| 10 | Mocks emit services; new request mocks | `src/mocks/*` |
 | 11 | Tests | `__tests__` in the touched sections |
 
 **Out of scope:** service search/filtering in the catalog, scheduling/calendar, buyer
@@ -314,7 +312,6 @@ So the rejection is treated as recoverable, not as an error:
 | `checkoutCart` | Recognises the 400 by message + status and rethrows it as a typed `ServiceInCartError` carrying `itemId` (`null` if absent). Any other failure passes through untouched. |
 | `CartContext.checkout` | On `ServiceInCartError` with an `itemId`, removes that line from the stored cart and rethrows. Deliberately does **not** toast — the drawer says something better. A rejection naming no item leaves the cart alone. |
 | `CartDrawer` | Renders an inline `role="alert"`: *"Quitamos «‹nombre›» de tu carrito — es un servicio… No se hizo ningún cargo: puedes finalizar tu pedido con el resto."* The remaining lines and the checkout button stay put, so the retry is one tap. |
-| `mockCheckoutCart` | Mirrors the rule so dev stage matches the contract. |
 
 The atomicity guarantee is what makes this safe to phrase as "nothing was charged" — worth keeping
 that wording in sync if the backend ever relaxes it.
@@ -336,8 +333,7 @@ tapped. Gated: add-to-cart and checkout, "Solicitar", and "Enviar pregunta".
 ### 4.1 No feature flag
 
 Built behind `src/lib/features.ts` while `/request` was unbuilt; that file is **deleted** now the
-endpoints are live. The actions carry the ordinary two-line `IS_DEV_STAGE` guard and a paired mock,
-per the dev-stage rules in CLAUDE.md.
+endpoints are live. The request actions are ordinary `api()` calls.
 
 ### 4.2 `src/sections/requests/` (new section)
 
@@ -447,7 +443,7 @@ A `null` price renders as **"Precio a convenir"** — the same string a zero-pri
 for a fresh quote. Unlimited rounds, no quote history, and the seller re-quotes blind (there is no
 "reason" field — see the open question in §7).
 
-**Actions** — each with the standard two-line dev-stage guard and a paired mock:
+**Actions** — each an ordinary `api()` call:
 
 ```ts
 createRequest(serviceId: string, customerNote: string): Promise<ServiceRequest> // POST /request/create
@@ -535,21 +531,11 @@ whichever list is mounted. The highlight CSS class and timings are unchanged.
 Tell backend the exact URL shape to build (§7) so `navigationUrlService.js` gains a
 `requestUrl(requestId, role)` alongside `transactionUrl`.
 
-### 4.5 Mocks
+### 4.5 Test data
 
-Every new action needs a paired generator re-exported from `src/mocks/index.ts` (CLAUDE.md dev-stage
-rules), plus updates to the item mocks so services actually appear in dev:
-
-| File | Change |
-|---|---|
-| `mockFetchCatalogItems.ts` | ~1 in 4 items gets `type: 'service'`, `price: 0` most of the time, `outOfStock: false`, and a service name from a new `SERVICE_NAMES` list (`Corte de cabello`, `Reparación de bicicleta`, `Clases de bordado`, `Entrega a domicilio`, `Instalación de cortinas`) |
-| `mockFetchItem.ts` | same treatment so `/product/:id` and request enrichment show services |
-| `mockCreateItem.ts` | pass `type` straight through from `NewItemData` (it already spreads `...fields`) |
-| `mockUpdateItem.ts` | default `type: 'product'` in the base object so the spread keeps the patch's value |
-| `mockRequestStore.ts` (new) | deterministic seeded requests across both roles and all five statuses, mirroring `mockTransactionStore.ts`; mutable so status changes stick within a session |
-| `mockCreateRequest.ts`, `mockFetchRequests.ts`, `mockUpdateRequestStatus.ts` (new) | thin wrappers over the store, `Promise.resolve(...)`, no `setTimeout` |
-
-All user-visible mock strings in es-MX.
+Exercising this needs a catalog holding both types and requests sitting in each of the
+five statuses across both roles. That is seeded on the API — see *Test data* in
+`CLAUDE.md` — not built in the client.
 
 ---
 
@@ -558,7 +544,7 @@ All user-visible mock strings in es-MX.
 The `/request` endpoints shipped, so:
 
 1. ✅ `src/lib/features.ts` deleted; the Servicios toggle renders unconditionally and the request
-   actions use the ordinary `IS_DEV_STAGE` guard like every other action in the codebase.
+   actions are ordinary `api()` calls.
 2. ✅ The chat fallback in `useServiceRequest` is gone — "Solicitar" calls `POST /request/create`.
    A `sending` guard replaces it, because the API has **no find-or-create**: posting twice books
    twice, by design.

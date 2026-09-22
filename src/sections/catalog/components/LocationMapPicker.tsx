@@ -13,7 +13,7 @@ const PIN_ICON = L.divIcon({
   className: '',
   html:
     '<span style="display:block;width:20px;height:20px;border-radius:9999px;' +
-    'background:#166534;border:3px solid #ffffff;box-shadow:0 0 0 1px rgba(0,0,0,0.35)"></span>',
+    'background:var(--color-primary);border:2px solid var(--color-ink);"></span>',
   iconSize: [20, 20],
   iconAnchor: [10, 10],
 })
@@ -68,7 +68,7 @@ export function LocationMapPicker({ value, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="h-[40vh] max-h-64 min-h-48 overflow-hidden rounded-2xl border border-border">
+      <div className="h-[40vh] max-h-64 min-h-48 overflow-hidden rounded-2xl border-2 border-ink border-border">
         <MapContainer
           center={[initialCenter.lat, initialCenter.lng]}
           zoom={value ? PIN_ZOOM : OVERVIEW_ZOOM}

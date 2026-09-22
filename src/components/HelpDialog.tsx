@@ -20,7 +20,7 @@ export function HelpDialog({ onClose }: Props) {
 
         <a
           href={`mailto:${SUPPORT_EMAIL}`}
-          className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-secondary"
+          className="flex items-center gap-3 rounded-xl border-2 border-ink p-3 transition-colors hover:bg-secondary"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
             <Mail size={18} />
@@ -35,7 +35,7 @@ export function HelpDialog({ onClose }: Props) {
           href={SUPPORT_WHATSAPP_HREF}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-secondary"
+          className="flex items-center gap-3 rounded-xl border-2 border-ink p-3 transition-colors hover:bg-secondary"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
             <MessageCircle size={18} />

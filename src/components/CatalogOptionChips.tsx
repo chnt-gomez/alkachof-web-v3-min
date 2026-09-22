@@ -41,7 +41,7 @@ const DELIVERY_CHIPS = Object.fromEntries(
 
 function Chip({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1.5 text-xs font-medium">
+    <span className="inline-flex items-center gap-1.5 rounded-sm border-2 border-rule bg-card px-2.5 py-1 text-xs font-medium text-foreground">
       {icon}
       {label}
     </span>

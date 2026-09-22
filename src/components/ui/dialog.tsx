@@ -48,7 +48,7 @@ export function Dialog({
         onClick={(e) => e.stopPropagation()}
       >
         {title !== undefined && (
-          <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="flex items-center justify-between border-b-2 border-ink px-5 py-4">
             <h2 className="text-base font-semibold">{title}</h2>
             <button onClick={onClose} aria-label="Cerrar">
               <X size={18} />

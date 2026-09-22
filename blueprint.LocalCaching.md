@@ -98,7 +98,6 @@ once persistence lands.
 | Invalidation | Only where a **server-side** write happened that we do not hold the result of | Exactly one case today: the Instagram import creates items the 201 does not fully describe (`reloadItems`, see `InstagramImport.test.tsx:407`). Everything else is `setQueryData`. |
 | Retries | `retry: 1` globally, `retry: 0` for `/instagram/status` | v5 defaults to 3 — a down endpoint becomes 4 requests. Status fails open anyway, so a retry buys nothing. |
 | Persistence scope | **Phase 3**, profile + Instagram status only by default | Those two are the epic's explicit ask and the two where a stale read is harmless. Catalog items persist behind a boot-revalidate (§7.2) because a deleted product rendering from disk is a real defect. |
-| Dev stage | Untouched | Queries call the same action functions, which already branch on `IS_DEV_STAGE`. No new endpoints, therefore **no new mock files** (CLAUDE.md rule 1 is satisfied by the existing mocks). |
 
 ---
 
@@ -468,10 +467,9 @@ on the sample session, and 0 on a warm reload once §8 lands.
 
 > **Superseded.** This section was the sketch; the decisions it implies turned out to
 > need their own document. **Read `blueprint.CachePersistence.md` instead** — it
-> revises three things in here: the allowlist splits into *persist-and-revalidate*
-> vs *persist-and-trust* (they buy different prizes), the `buster` is derived from
-> the build rather than hand-maintained, and persistence must be **off** in dev stage
-> because it contradicts `mockInstagramStore`. What follows is kept for context.
+> revises two things in here: the allowlist splits into *persist-and-revalidate* vs
+> *persist-and-trust* (they buy different prizes), and the `buster` is derived from
+> the build rather than hand-maintained. What follows is kept for context.
 
 In-memory caching solves navigation. It does **not** solve a reload, a PWA cold
 start, or a phone killing the tab — and that is where opportunity 1's "save the
@@ -561,8 +559,8 @@ races the retry timer.
 `ProfilePage.test.tsx`, `LoginPage.test.tsx`, `SignupPage.test.tsx`,
 `NotificationsContext.test.tsx`, `ChatContext.test.tsx` — anything that mounts
 `AuthProvider` or an affected page. Each keeps its `vi.mock` of the **action
-module**, which is what CLAUDE.md's strategy prescribes and what keeps the dev-stage
-mocks out of the picture entirely. Only the render wrapper changes.
+module**, which is what CLAUDE.md's strategy prescribes — it replaces the module
+before any network call is reached. Only the render wrapper changes.
 
 Two existing assertions to watch, both of which should still pass and both of which
 are the epic's thesis in test form:
@@ -603,8 +601,6 @@ Add a **Caching** subsection under *Architecture*, stating:
    one phone is an ordinary case.
 5. The persisted allowlist is closed by default. Adding a key to it is a product
    decision about staleness, not a performance tweak.
-6. `IS_DEV_STAGE` still branches inside the action. Queries call actions, so mocks
-   are unaffected and **no new mock file is needed** for a query.
 
 ---
 

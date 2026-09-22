@@ -3,17 +3,27 @@ import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
+/*
+  A control on this card is a stamp waiting to land. It is ruled, flat and cut
+  square — no pill, no shadow, no scale on press. Pressing it darkens the ink
+  and rotates it a fraction off square, the way a hand-pressed stamp lands.
+
+  `ghost` and `link` are deliberately unruled: they are written on the card
+  rather than stamped onto it.
+*/
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-[background-color,border-color] duration-[120ms] ease-out disabled:pointer-events-none',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
-        destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
-        outline: 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
+        default: 'border-2 border-ink bg-primary text-primary-foreground hover:bg-primary-deep press',
+        destructive:
+          'border-2 border-ink bg-destructive text-destructive-foreground hover:brightness-95 press',
+        outline: 'border-2 border-ink bg-card text-foreground hover:bg-accent press-ink',
+        secondary:
+          'border-2 border-ink bg-secondary text-secondary-foreground hover:bg-accent press-ink',
+        ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground',
+        link: 'text-primary underline decoration-2 underline-offset-4 hover:text-primary-deep',
       },
       size: {
         default: 'h-11 px-5 py-2',

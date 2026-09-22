@@ -26,7 +26,7 @@ export function RequestCard({ row, role, onSelect }: Props) {
     <button
       onClick={() => onSelect(row)}
       aria-label={`${row.serviceName}, ${subheader}, del ${formatDate(row.dateCreated)}`}
-      className="relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border bg-card p-4 pb-5 text-left shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border-2 border-ink bg-card p-4 pb-5 text-left transition-[box-shadow,transform] focus-visible:outline-none"
     >
       {/* Item-type footer, purple for a service — see TransactionCard for the
           green half of the pair. Decorative; the text already says what it is. */}

@@ -69,7 +69,7 @@ export function CatalogItemList() {
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed p-8 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-ink border-dashed p-8 text-center">
         <p className="text-sm text-muted-foreground">Sin artículos aún.</p>
       </div>
     )
@@ -78,7 +78,7 @@ export function CatalogItemList() {
   return (
     <>
       <ul className="columns-2 gap-3">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <li
             key={item._id}
             ref={(el) => {
@@ -88,9 +88,15 @@ export function CatalogItemList() {
             className={`mb-3 break-inside-avoid${highlightedId === item._id ? ' product-highlight' : ''}`}
           >
             <button
-              className="flex w-full flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="relative flex w-full flex-col overflow-hidden rounded-xl border-2 border-ink bg-card text-left transition-[background-color] press-ink"
               onClick={() => setSelectedItem(item)}
             >
+              {/* The box's printed number. A catalog is a fixed set of boxes,
+                  so each filled one carries its place on the card — and a
+                  seller can name it out loud to a buyer. */}
+              <span className="folio absolute left-1.5 top-1.5 z-10 rounded-sm border border-rule bg-card px-1">
+                {String(index + 1).padStart(2, '0')}
+              </span>
               {item.imgPath ? (
                 <div className="flex w-full items-center justify-center overflow-hidden bg-muted">
                   <img
@@ -104,13 +110,13 @@ export function CatalogItemList() {
                   Sin imagen
                 </div>
               )}
-              <div className="flex flex-col gap-1 p-2.5">
+              <div className="flex flex-col gap-1 border-t-2 border-ink p-2.5">
                 <p className="line-clamp-2 text-sm font-medium leading-tight">{item.name}</p>
-                <p className="text-sm font-bold text-primary">{formatItemPrice(item)}</p>
+                <p className="numeral rule-line pb-1 text-base text-primary">{formatItemPrice(item)}</p>
                 <div className="flex flex-wrap items-center gap-1">
                   <ItemTypeChip item={item} />
                   {!isService(item) && item.outOfStock && (
-                    <p className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                    <p className="folio rounded-sm border border-destructive bg-destructive-soft px-1.5 py-0.5 uppercase text-destructive">
                       Sin existencias
                     </p>
                   )}

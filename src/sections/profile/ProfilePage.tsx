@@ -43,7 +43,7 @@ export function ProfilePage() {
         </button>
       </header>
 
-      <section className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm">
+      <section className="flex flex-col gap-3 rounded-2xl border-2 border-ink bg-card p-4">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Foto de perfil
         </h2>
@@ -57,7 +57,7 @@ export function ProfilePage() {
         />
       </section>
 
-      <dl className="flex flex-col gap-4 rounded-2xl border bg-card p-4 text-sm shadow-sm">
+      <dl className="flex flex-col gap-4 rounded-2xl border-2 border-ink bg-card p-4 text-sm">
         <div className="flex flex-col gap-0.5">
           <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Alias

@@ -29,9 +29,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [threadStatus, setThreadStatus] = useState<Record<string, ChatStatus>>({})
   const [unread, setUnread] = useState<Set<string>>(new Set())
 
-  // The counterparty is whichever member id is not mine. In dev the mock
-  // profile id is random, so this may fall back to the first member — harmless,
-  // since summaries resolve a friendly name for any id.
+  // The counterparty is whichever member id is not mine, falling back to the
+  // first member if my own id is not among them — harmless, since summaries
+  // resolve a friendly name for any id.
   const counterpartyId = useCallback(
     (chat: Chat) => chat.users.find((u) => u !== myUserId) ?? chat.users[0],
     [myUserId],

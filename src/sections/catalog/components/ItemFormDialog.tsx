@@ -196,7 +196,7 @@ export function ItemFormDialog({ mode, initial = null, onSubmit, onClose }: Prop
             )}
           </div>
 
-          <div className="flex gap-3 border-t px-5 py-4">
+          <div className="flex gap-3 border-t-2 border-ink px-5 py-4">
             <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
               Cancelar
             </Button>
@@ -244,7 +244,7 @@ function TypeOption({
       aria-checked={selected}
       onClick={onSelect}
       className={cn(
-        'flex-1 rounded-full border px-3 py-2 text-sm font-medium transition-colors',
+        'flex-1 rounded-md border-2 border-ink px-3 py-2 text-sm font-medium transition-colors',
         selected
           ? SELECTED_TYPE_CLASS[tone]
           : 'border-border bg-background text-muted-foreground hover:text-foreground',

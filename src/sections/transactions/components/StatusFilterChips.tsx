@@ -52,7 +52,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+        'shrink-0 rounded-md border-2 border-ink px-3 py-1 text-xs font-medium transition-colors',
         active
           ? 'border-primary bg-primary text-primary-foreground'
           : 'border-border bg-background text-muted-foreground hover:text-foreground',

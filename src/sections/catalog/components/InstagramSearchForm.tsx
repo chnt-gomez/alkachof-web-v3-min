@@ -24,7 +24,7 @@ export function InstagramSearchForm({ initialQuery, isSearching, onSearch }: Pro
 
   return (
     <form
-      className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center"
+      className="flex flex-col items-center gap-3 rounded-xl border-2 border-ink border-dashed p-6 text-center"
       onSubmit={(e) => {
         e.preventDefault()
         onSearch(query)
@@ -37,7 +37,7 @@ export function InstagramSearchForm({ initialQuery, isSearching, onSearch }: Pro
         importar tus fotos.
       </p>
 
-      <div className="flex w-full items-center gap-2 rounded-xl border px-3 py-2">
+      <div className="flex w-full items-center gap-2 rounded-xl border-2 border-ink px-3 py-2">
         <span aria-hidden="true" className="text-sm text-muted-foreground">
           @
         </span>

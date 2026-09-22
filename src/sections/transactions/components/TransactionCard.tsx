@@ -27,7 +27,7 @@ export function TransactionCard({ transaction, header, role, onSelect }: Props) 
     <button
       onClick={() => onSelect(transaction)}
       aria-label={`Pedido de ${header} del ${formatDate(transaction.dateCreated)}`}
-      className="relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border bg-card p-4 pb-5 text-left shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border-2 border-ink bg-card p-4 pb-5 text-left transition-[box-shadow,transform] focus-visible:outline-none"
     >
       {/* Item-type footer: green marks a product order, purple a service
           request, so the two kinds are told apart at a glance in a mixed feed.

@@ -17,7 +17,7 @@ export function CartLineItem({ line, catalogId }: Props) {
   }
 
   return (
-    <div className="flex gap-3 rounded-lg border bg-card p-3">
+    <div className="flex gap-3 rounded-lg border-2 border-ink bg-card p-3">
       <div className="h-24 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
         {line.imgPath ? (
           <img
@@ -37,7 +37,7 @@ export function CartLineItem({ line, catalogId }: Props) {
         <p className="text-sm font-semibold text-primary">{formatPrice(line.price)}</p>
 
         <div className="mt-auto flex items-center justify-between">
-          <div className="flex items-center gap-1 rounded-lg border bg-muted p-0.5">
+          <div className="flex items-center gap-1 rounded-lg border-2 border-ink bg-muted p-0.5">
             <button
               onClick={() => handleQtyChange(line.quantity - 1)}
               disabled={isMutating || line.quantity <= 1}
@@ -60,7 +60,7 @@ export function CartLineItem({ line, catalogId }: Props) {
           <button
             onClick={() => handleQtyChange(0)}
             disabled={isMutating}
-            className="rounded p-1 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+            className="rounded p-1 text-destructive transition-colors hover:bg-destructive-soft disabled:opacity-50"
             aria-label="Eliminar"
           >
             <Trash2 size={16} />

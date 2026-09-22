@@ -75,7 +75,7 @@ localStorage blob; `shouldDehydrateQuery` limits which keys go in.
 | Composes: adding a key to the allowlist later is one line | Adds a rehydration-type trap (R1) — the single most dangerous item on this list |
 | Removes the `isBooting` gate → instant paint | Puts seller data on disk, outliving the tab (R4) |
 | Closes the epic's opportunity 1 properly | Turns a multi-tab UI inconsistency into data on disk (R2) |
-| One mechanism, one place to reason about | Contradicts the dev-stage mocks unless disabled there (R3) |
+| One mechanism, one place to reason about | Two new dependencies to keep current |
 | Library-maintained; restore, throttling and `maxAge` are solved | Two new dependencies |
 
 ### Option B — targeted micro-persistence, Instagram date only
@@ -87,7 +87,7 @@ No persister. A purpose-built `localStorage` key holding one ISO string, read as
 |---|---|
 | Minimal surface: one string, no dehydrate/rehydrate, no type trap | Bespoke machinery that does not compose — a second resource means a second copy of it |
 | No PII on disk | Does **not** fix the boot paint, which is the bigger prize |
-| Trivially dev-stage-safe | Hand-rolls what a maintained library already does (throttling, maxAge, versioning) |
+| Nothing to gate or disable anywhere | Hand-rolls what a maintained library already does (throttling, maxAge, versioning) |
 | Answers the epic's literal ask, and nothing more | We would likely still want A later, and then this is dead code |
 
 ### Option C — defer
@@ -146,7 +146,6 @@ down instead, flip profile to "trust" — but make that choice deliberately.
 | **D2** | Mechanism | `PersistQueryClientProvider` + `createSyncStoragePersister` | Maintained; restore/throttle/`maxAge` solved. `experimental_createPersister` (per-query) is finer-grained but still experimental and we do not need per-query granularity — the allowlist gives it. |
 | **D3** | Cache version (`buster`) | **Auto-derive from the build**, via a `define` in `vite.config.ts` | See R1. A hand-maintained `CACHE_VERSION` const only works if every future author remembers to bump it when a cached type changes. Nobody will. Deriving it from the build makes the trap structurally impossible, at the cost of dropping the cache on each deploy — deploys are far rarer than sessions, so this is close to free. |
 | **D4** | Allowlist | `['profile']`, `['instagram','status']` only | The two where a stale read is harmless. Catalog and items are held back deliberately — see R5. Revisit with §7 once this is proven in production. |
-| **D5** | Dev stage | **Persistence off when `IS_DEV_STAGE`** | Not a preference — see R3, it is a concrete contradiction with the existing mocks. |
 | **D6** | `maxAge` | 24 h | Long enough to cover any realistic gap between sessions; short enough that a forgotten device does not serve week-old data. |
 | **D7** | Logout | Remove the persisted blob on **both** session-end paths | `logout` and `api.ts`'s 401 give-up. Phase 4 already showed these are easy to get subtly wrong. |
 | **D8** | Multi-tab | Add a `storage` listener on the token key | See R2. Small, and it fixes a bug that already exists. |
@@ -176,27 +175,17 @@ Tab A logs out: tokens cleared, memory cache cleared, blob removed. Tab B is sti
 mounted, still holding the previous user's rows in memory, and **re-persists them on
 its next cache write** — resurrecting them on disk after a logout.
 
-Note what is already true without persistence: tokens live in shared `localStorage`,
-so tab B is *already* in a broken state after a logout in tab A — it renders as
-authenticated with no tokens. Persistence does not create this bug; it upgrades it
-from a transient UI inconsistency into data written back to disk.
+Note what is already true without persistence: tokens are shared across tabs, so tab
+B is *already* in a broken state after a logout in tab A — it renders as authenticated
+with no tokens. Persistence does not create this bug; it upgrades it from a transient
+UI inconsistency into data written back to disk.
 
-**Mitigation (D8):** a `storage` event listener on `alk.token` that forces the other
-tabs through `logout`. Worth doing on its own merits.
-
-### R3 — Contradicting the dev-stage mocks · *medium severity, certain*
-
-Verified, not hypothetical. `src/mocks/mockInstagramStore.ts:101,104` keeps
-`enrolled` and `nextAvailable` as module-level `let`s that reset on reload — and
-`CLAUDE.md` documents that reset as the way to replay the enrollment wizard.
-
-Persist `/instagram/status` in dev and a reload restores `enrolled: true,
-nextAvailable: <future>` over a store that says un-enrolled. The dev session is then
-pinned to the cooldown screen with no way out but clearing site data, and the
-documented "reload to start the wizard over" behaviour is gone.
-
-**Mitigation (D5):** no persistence when `IS_DEV_STAGE`. Consequence to accept —
-persistence is then never exercised by hand in dev, so §9's tests carry it.
+**Mitigation (D8):** a `storage` listener on `SESSION_MARKER_KEY` (`alk.session`) that
+forces the other tabs through `logout`. The tokens themselves are cookies, which are
+shared across tabs but fire **no event** — `alk.session` is a non-secret random id that
+`setTokens`/`clearTokens` keep in step with them for no other purpose than firing this
+one. The listener then reads `getToken()`, which is authoritative, and clears the
+memory cache and the blob. Worth doing on its own merits.
 
 ### R4 — Seller data outliving the tab · *medium severity, certain*
 
@@ -250,7 +239,8 @@ Restating, because an allowlist erodes one well-meaning line at a time:
   `CLAUDE.md` already forbids persisting them anywhere.
 - **`/instagram/posts`.** The billed feed. Caching it in memory is already forbidden;
   on disk it would additionally make a stale feed importable.
-- **Tokens.** They live in `alk.token` / `alk.refreshToken` and stay there.
+- **Tokens.** They live in the `alk.token` / `alk.refreshToken` cookies
+  (`blueprint.CookieStorage.md`) and never enter the blob.
 
 ---
 
@@ -280,7 +270,7 @@ npm i @tanstack/react-query-persist-client @tanstack/query-sync-storage-persiste
 |---|---|
 | `vite.config.ts` | `define: { __CACHE_BUSTER__: JSON.stringify(Date.now().toString()) }` — a fresh value per build (D3). Use the git short sha instead if reproducible builds matter; note it needs `.git` present in CI. |
 | `src/lib/queryPersist.ts` | new — the persister, the allowlist predicate, `clearPersistedCache()` |
-| `src/router/AppRouter.tsx` | `PersistQueryClientProvider` in place of `QueryClientProvider`, skipped entirely when `IS_DEV_STAGE` (D5) |
+| `src/router/AppRouter.tsx` | `PersistQueryClientProvider` in place of `QueryClientProvider` |
 | `src/sections/auth/AuthContext.tsx` | `logout` also calls `clearPersistedCache()`; `isBooting` folds in `useIsRestoring()` (R6); `storage` listener for cross-tab logout (D8) |
 | `src/lib/queryClient.ts` | `resetAppCache()` also clears the blob, for `api.ts`'s 401 path (D7) |
 
@@ -309,7 +299,6 @@ vacuously is worse than none.
 | Logout removes the blob | D7 — assert `localStorage` key is gone, not just that memory cleared |
 | The 401 give-up path removes the blob | D7's second half |
 | Only allowlisted keys are written | D4 — seed a catalog query, assert it is absent from the blob |
-| Nothing is persisted in dev stage | D5 |
 | A `storage` event clearing the token logs this tab out | D8 |
 
 ---
@@ -351,7 +340,7 @@ vacuously is worse than none.
 | `src/lib/queryStorage.ts` | new — `QUERY_STORAGE_KEY` + `clearPersistedCache()`, a leaf module so `queryClient` and `queryPersist` need not import each other |
 | `src/lib/queryPersist.tsx` | new — the allowlist, `restoreFromDisk()`, `AppQueryProvider` |
 | `src/lib/queryClient.ts` | `resetAppCache()` drops the blob too (D7, `api.ts` half) |
-| `src/lib/auth.ts` | `TOKEN_KEY` exported for the cross-tab listener |
+| `src/lib/auth.ts` | `SESSION_MARKER_KEY` exported for the cross-tab listener |
 | `src/sections/auth/AuthContext.tsx` | `logout` drops the blob; `storage` listener ends the session cross-tab (D8) |
 | `src/router/AppRouter.tsx` | `AppQueryProvider` replaces `QueryClientProvider` |
 | `src/lib/__tests__/queryPersist*.test.tsx` | new — 10 tests |
@@ -397,7 +386,6 @@ restore makes observable on the first tick.
 | `maxAge` check removed | `discards a blob older than maxAge` |
 | `hydrate()` skipped | cold-start paint, no-booting-state |
 | allowlist opened to all successful queries | `writes only allowlisted keys to disk` |
-| dev-stage gate removed | `writes nothing to disk` (dev suite) |
 | `clearPersistedCache()` dropped from `logout` | `removes the blob on logout` |
 
 ### The open questions, answered (2026-09-08)

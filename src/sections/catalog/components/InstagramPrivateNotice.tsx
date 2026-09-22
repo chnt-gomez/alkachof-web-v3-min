@@ -18,7 +18,7 @@ export function InstagramPrivateNotice({ alias, onDismiss }: Props) {
   return (
     <div
       role="alert"
-      className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center"
+      className="flex flex-col items-center gap-3 rounded-xl border-2 border-ink border-dashed p-6 text-center"
     >
       <Lock size={24} className="text-muted-foreground" />
       <p className="text-sm font-semibold">La cuenta @{alias} es privada</p>

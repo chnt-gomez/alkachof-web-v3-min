@@ -153,7 +153,7 @@ export function RequestDetailDialog({ row, role, onUpdated, onClose }: Props) {
             aria-label={
               role === 'buyer' ? 'Enviar mensaje al vendedor' : 'Enviar mensaje al comprador'
             }
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none"
           >
             <MessageCircle size={20} />
           </button>
@@ -171,7 +171,7 @@ export function RequestDetailDialog({ row, role, onUpdated, onClose }: Props) {
         {/* The buyer's brief is the seller's only context for pricing, so it
             sits above the actions rather than folded away. Omitted when empty. */}
         {customerNote && (
-          <div className="flex flex-col gap-1 rounded-xl border bg-muted/50 p-3">
+          <div className="flex flex-col gap-1 rounded-xl border-2 border-ink bg-muted/50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {role === 'seller' ? 'Detalles del comprador' : 'Tus detalles'}
             </p>
@@ -183,7 +183,7 @@ export function RequestDetailDialog({ row, role, onUpdated, onClose }: Props) {
             convenir", which is the absence of information dressed up as a fact —
             the seller is here to set the number, not to read that it is unset. */}
         {finalPrice !== null && (
-          <div className="flex items-center justify-between border-t pt-3">
+          <div className="flex items-center justify-between border-t-2 border-ink pt-3">
             <span className="text-sm font-medium text-muted-foreground">Precio</span>
             <span className="text-lg font-bold text-primary">
               {formatRequestPrice(finalPrice)}
@@ -202,7 +202,7 @@ export function RequestDetailDialog({ row, role, onUpdated, onClose }: Props) {
             buyer's note still in view above. Only reachable from REQUESTED; a
             turned-down quote comes back here for a fresh one. */}
         {canQuote && (
-          <div className="flex flex-col gap-2 border-t pt-3">
+          <div className="flex flex-col gap-2 border-t-2 border-ink pt-3">
             <p className="text-xs text-muted-foreground">
               Fija el precio de tus servicios con la información de la nota de tu cliente.
             </p>
@@ -233,7 +233,7 @@ export function RequestDetailDialog({ row, role, onUpdated, onClose }: Props) {
         )}
 
         {plainTransitions.length > 0 && (
-          <div className="flex flex-col gap-2 border-t pt-3">
+          <div className="flex flex-col gap-2 border-t-2 border-ink pt-3">
             <span className="text-sm font-medium text-muted-foreground">Acciones</span>
             <div className="flex flex-wrap gap-2">
               {plainTransitions.map((next) => (

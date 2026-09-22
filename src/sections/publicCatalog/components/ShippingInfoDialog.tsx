@@ -30,7 +30,7 @@ export function ShippingInfoDialog({ onClose }: Props) {
           </div>
         ))}
 
-        <p className="border-t pt-4 text-xs text-muted-foreground">
+        <p className="border-t-2 border-ink pt-4 text-xs text-muted-foreground">
           Recuerda que Alkachof no gestiona ningún tipo de entrega o envío. Es
           responsabilidad del vendedor y del comprador aclarar el proceso para el pago y
           entrega de mercancía, productos y servicios.
