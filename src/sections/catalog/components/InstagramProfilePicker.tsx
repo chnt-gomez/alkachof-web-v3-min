@@ -33,7 +33,7 @@ export function InstagramProfilePicker({ query, candidates, onSelect, onSearchAg
       </p>
 
       {candidates.length === 0 ? (
-        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-xl border-2 border-ink border-dashed p-6 text-center text-sm text-muted-foreground">
           No encontramos la cuenta @{query}. Revisa que esté bien escrito y que sea pública.
         </p>
       ) : (
@@ -44,7 +44,7 @@ export function InstagramProfilePicker({ query, candidates, onSelect, onSearchAg
                 type="button"
                 onClick={() => onSelect(candidate)}
                 aria-label={`@${candidate.alias}`}
-                className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${
+                className={`flex w-full items-center gap-3 rounded-xl border-2 border-ink p-3 text-left ${
                   candidate.isPrivate ? 'opacity-50' : 'hover:bg-muted'
                 }`}
               >

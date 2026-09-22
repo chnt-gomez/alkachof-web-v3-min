@@ -115,7 +115,7 @@ export function ProductDetailDialog({ item, onClose }: Props) {
       >
         <button
           onClick={handleShare}
-          className="absolute left-3 top-3 z-10 rounded-full bg-background/80 p-1.5 text-foreground backdrop-blur-sm"
+          className="absolute left-3 top-3 z-10 rounded-full border-2 border-ink bg-card p-1.5 text-foreground"
           aria-label="Compartir producto"
         >
           <Share2 size={18} />
@@ -123,7 +123,7 @@ export function ProductDetailDialog({ item, onClose }: Props) {
 
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-1.5 text-foreground backdrop-blur-sm"
+          className="absolute right-3 top-3 z-10 rounded-full border-2 border-ink bg-card p-1.5 text-foreground"
           aria-label="Cerrar"
         >
           <X size={18} />
@@ -145,7 +145,7 @@ export function ProductDetailDialog({ item, onClose }: Props) {
           <div className="flex flex-wrap items-center gap-2">
             <ItemTypeChip item={item} className="px-2.5 py-1 text-xs" />
             {!service && item.outOfStock && (
-              <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+              <span className="rounded-full bg-destructive-soft px-2.5 py-1 text-xs font-medium text-destructive">
                 Sin existencias
               </span>
             )}
@@ -176,7 +176,7 @@ export function ProductDetailDialog({ item, onClose }: Props) {
             </Button>
           ) : (
             <div className="flex flex-col gap-2 pt-2">
-              <div className="flex items-center gap-2 rounded-lg border bg-muted p-1">
+              <div className="flex items-center gap-2 rounded-lg border-2 border-ink bg-muted p-1">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-background"

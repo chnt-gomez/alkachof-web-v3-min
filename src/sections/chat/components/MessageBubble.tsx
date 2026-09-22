@@ -10,7 +10,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
     <li className={cn('flex', outgoing ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm',
+          'max-w-[80%] rounded-2xl px-3.5 py-2 text-sm',
           outgoing
             ? 'rounded-br-sm bg-primary text-primary-foreground'
             : 'rounded-bl-sm bg-muted text-foreground',

@@ -29,7 +29,7 @@ export function MessageComposer({
   return (
     <form
       onSubmit={submit}
-      className="flex items-center gap-2 border-t bg-background/95 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur"
+      className="flex items-center gap-2 border-t-2 border-ink bg-card p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
     >
       <Input
         value={text}

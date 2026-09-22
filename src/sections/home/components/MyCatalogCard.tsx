@@ -30,7 +30,7 @@ export function MyCatalogCard({ catalog, itemCount }: Props) {
     <div className="flex flex-col gap-3">
       <Link
         to="/catalog"
-        className="flex items-center gap-4 rounded-2xl border-2 border-primary bg-card p-4 shadow-sm transition-[box-shadow,transform] hover:shadow-md active:scale-[0.98]"
+        className="flex items-center gap-4 rounded-2xl border-2 border-primary bg-card p-4 transition-[box-shadow,transform]"
         aria-label={catalog.alias ? `Abrir mi catálogo ${catalog.alias}` : 'Abrir mi catálogo'}
       >
         <CatalogThumb
@@ -56,7 +56,7 @@ export function MyCatalogCard({ catalog, itemCount }: Props) {
       </Link>
 
       {itemCount === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-ink border-dashed p-8 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
             <PackagePlus size={26} />
           </span>

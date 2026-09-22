@@ -30,7 +30,7 @@ export function NewsList({ news }: Props) {
 
   if (news.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+      <p className="rounded-2xl border-2 border-ink border-dashed p-6 text-center text-sm text-muted-foreground">
         No hay noticias por el momento
       </p>
     )
@@ -44,9 +44,9 @@ export function NewsList({ news }: Props) {
             <button
               type="button"
               onClick={() => setSelected(item)}
-              className="block w-full rounded-2xl text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="block w-full rounded-2xl text-left focus-visible:outline-none"
             >
-              <span className="flex items-start gap-3 rounded-2xl border bg-card p-4 shadow-sm">
+              <span className="flex items-start gap-3 rounded-2xl border-2 border-ink bg-card p-4">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
                   <Newspaper size={16} />
                 </span>

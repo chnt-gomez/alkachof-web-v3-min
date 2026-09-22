@@ -47,10 +47,9 @@ export function InstagramPostGrid({ posts, selected, atLimit, disabled, onToggle
               aria-label={captionTitle(post) || 'Publicación de Instagram'}
               onClick={() => onToggle(post.externalPostId)}
               className={cn(
-                'relative flex w-full flex-col overflow-hidden rounded-2xl border bg-card text-left transition-shadow',
+                'relative flex w-full flex-col overflow-hidden rounded-2xl border-2 border-ink bg-card text-left',
                 isSelected ? 'border-primary ring-2 ring-primary' : 'border-input',
                 blocked && 'opacity-60',
-                !blocked && 'hover:shadow-md active:scale-[0.98]',
               )}
             >
               <img

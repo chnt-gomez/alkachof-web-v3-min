@@ -18,7 +18,7 @@ export function ConversationRow({
   return (
     <Link
       to={`/chats/${chat._id}`}
-      className="flex items-center gap-3 rounded-2xl border p-3 transition-colors hover:bg-muted/60"
+      className="flex items-center gap-3 rounded-2xl border-2 border-ink p-3 transition-colors hover:bg-muted/60"
     >
       <CounterpartyAvatar summary={counterparty} />
       <div className="min-w-0 flex-1">

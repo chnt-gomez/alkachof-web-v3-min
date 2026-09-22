@@ -74,13 +74,13 @@ export function LoginPage() {
           </form>
           <p className="mt-4 text-sm text-muted-foreground">
             ¿Aún no tienes cuenta?{' '}
-            <Link to="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link to="/signup" className="font-medium text-primary underline decoration-2 underline-offset-4">
               Crea una
             </Link>
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             ¿Olvidaste tu contraseña?{' '}
-            <Link to="/recover" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link to="/recover" className="font-medium text-primary underline decoration-2 underline-offset-4">
               Recupérala
             </Link>
           </p>

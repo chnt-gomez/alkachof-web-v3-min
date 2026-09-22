@@ -52,7 +52,7 @@ export function NavShell() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b-2 border-ink bg-card">
         <div className="flex items-center justify-between px-4 py-2.5">
           {/* Guests reach the shell through the public catalog, where "inicio"
               is a protected route — send them to the landing page instead. */}
@@ -78,7 +78,7 @@ export function NavShell() {
                   <img
                     src={resolveMediaUrl(profile.profile_picture_url)}
                     alt={profile.alias ?? 'Perfil'}
-                    className="h-9 w-9 rounded-full border object-cover"
+                    className="h-9 w-9 rounded-full border-2 border-ink object-cover"
                   />
                 ) : (
                   <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-bold text-secondary-foreground">
@@ -118,7 +118,7 @@ export function NavShell() {
       {isAuthenticated && (
         <nav
           aria-label="Navegación principal"
-          className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md border-t-2 border-ink bg-card pb-[env(safe-area-inset-bottom)]"
         >
           <ul className="flex">
             {TABS.map(({ to, label, icon: Icon }) => (
@@ -137,7 +137,7 @@ export function NavShell() {
                     <>
                       <span
                         className={cn(
-                          'relative flex h-8 w-14 items-center justify-center rounded-full transition-colors',
+                          'relative flex h-8 w-14 items-center justify-center rounded-lg transition-colors',
                           isActive && 'bg-secondary'
                         )}
                       >

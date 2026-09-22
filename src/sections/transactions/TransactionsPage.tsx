@@ -16,8 +16,8 @@ import type { OrdersScope, TransactionRole, TransactionSummary } from './types'
  * same way on both screens.
  */
 const ROLE_TABS: { value: TransactionRole; label: string; activeClass: string }[] = [
-  { value: 'seller', label: 'Ventas', activeClass: 'bg-primary text-primary-foreground shadow-sm' },
-  { value: 'buyer', label: 'Compras', activeClass: 'bg-buy text-buy-ink shadow-sm' },
+  { value: 'seller', label: 'Ventas', activeClass: 'bg-primary text-primary-foreground' },
+  { value: 'buyer', label: 'Compras', activeClass: 'bg-buy text-buy-ink' },
 ]
 
 /**
@@ -75,7 +75,7 @@ export function TransactionsPage() {
         <ScopeToggle scope={scope} onChange={setScope} />
       </div>
 
-      <div role="tablist" aria-label="Tipo de pedido" className="flex gap-1 rounded-full bg-muted p-1">
+      <div role="tablist" aria-label="Tipo de pedido" className="flex gap-1 rounded-xl border-2 border-ink bg-muted p-1">
         {ROLE_TABS.map((tab) => (
           <button
             key={tab.value}
@@ -83,7 +83,7 @@ export function TransactionsPage() {
             aria-selected={role === tab.value}
             onClick={() => setRole(tab.value)}
             className={cn(
-              'flex-1 rounded-full py-1.5 text-sm font-medium transition-colors',
+              'flex-1 rounded-lg py-1.5 text-sm font-medium transition-colors',
               role === tab.value ? tab.activeClass : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -157,7 +157,7 @@ function ListSkeleton() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Cargando pedidos">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="h-24 animate-pulse rounded-2xl bg-muted" />
+        <div key={i} className="h-24 animate-box-wait rounded-2xl bg-muted" />
       ))}
     </div>
   )
@@ -167,7 +167,7 @@ function ListError({ onRetry }: { onRetry: () => void }) {
   return (
     <div
       role="alert"
-      className="flex flex-col items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4"
+      className="flex flex-col items-start gap-3 rounded-2xl border-2 border-ink border-destructive/40 bg-destructive/5 p-4"
     >
       <p className="text-sm text-destructive">No pudimos cargar tus pedidos.</p>
       <Button size="sm" variant="outline" onClick={onRetry}>
@@ -181,9 +181,9 @@ function PartialError({ onRetry }: { onRetry: () => void }) {
   return (
     <div
       role="alert"
-      className="flex items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-3"
+      className="flex items-center justify-between gap-3 rounded-xl border-2 border-ink bg-buy-soft p-3"
     >
-      <p className="text-sm text-amber-900">
+      <p className="text-sm text-buy-foreground">
         No pudimos cargar parte de tus pedidos. Puede que falten algunos.
       </p>
       <Button size="sm" variant="outline" onClick={onRetry}>
@@ -281,7 +281,7 @@ function EmptyState({
   // points at the only place the rest can be seen, using the same words as the
   // header toggle.
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-ink border-dashed p-8 text-center">
       <p className="text-sm text-muted-foreground">
         {role === 'buyer'
           ? 'No tienes compras ni solicitudes activas.'
@@ -299,7 +299,7 @@ function EmptyState({
 
 function EmptyMessage({ children }: { children: React.ReactNode }) {
   return (
-    <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+    <p className="rounded-2xl border-2 border-ink border-dashed p-8 text-center text-sm text-muted-foreground">
       {children}
     </p>
   )

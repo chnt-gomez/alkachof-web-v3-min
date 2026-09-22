@@ -120,7 +120,7 @@ export function ProductGrid() {
       </div>
 
       {items.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-ink border-dashed p-8 text-center">
           <p className="text-sm text-muted-foreground">Aún no tienes artículos en este catálogo.</p>
           <div className="flex flex-wrap justify-center gap-2">
             <Button size="sm" onClick={() => setAddingProduct(true)}>
@@ -136,7 +136,7 @@ export function ProductGrid() {
           {items.map((item) => (
             <li
               key={item._id}
-              className="flex items-stretch gap-3 overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-primary hover:shadow-md"
+              className="flex items-stretch gap-3 overflow-hidden rounded-2xl border-2 border-ink bg-card focus-within:ring-2 focus-within:ring-primary"
             >
               <button
                 className="flex min-w-0 flex-1 items-center gap-3 p-2 text-left focus:outline-none"
@@ -166,7 +166,7 @@ export function ProductGrid() {
                   <div className="flex flex-wrap items-center gap-1">
                     <ItemTypeChip item={item} />
                     {!isService(item) && item.outOfStock && (
-                      <p className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                      <p className="folio rounded-sm border border-destructive bg-destructive-soft px-1.5 py-0.5 uppercase text-destructive">
                         Sin existencias
                       </p>
                     )}
@@ -177,7 +177,7 @@ export function ProductGrid() {
                 type="button"
                 onClick={() => setDeletingItem(item)}
                 aria-label={`Eliminar ${item.name || (isService(item) ? 'servicio' : 'producto')}`}
-                className="flex shrink-0 items-center px-3 text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="flex shrink-0 items-center px-3 text-destructive transition-colors hover:bg-destructive-soft focus-visible:outline-none"
               >
                 <Trash2 size={16} />
               </button>

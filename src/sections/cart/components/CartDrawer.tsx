@@ -103,7 +103,7 @@ export function CartDrawer({ catalogId, isOpen, onClose, isOwner = false }: Prop
         >
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-1.5 text-foreground backdrop-blur-sm"
+            className="absolute right-3 top-3 z-10 rounded-full border-2 border-ink bg-card p-1.5 text-foreground"
             aria-label="Cerrar"
           >
             <X size={18} />
@@ -131,7 +131,7 @@ export function CartDrawer({ catalogId, isOpen, onClose, isOwner = false }: Prop
       >
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-1.5 text-foreground backdrop-blur-sm"
+          className="absolute right-3 top-3 z-10 rounded-full border-2 border-ink bg-card p-1.5 text-foreground"
           aria-label="Cerrar"
         >
           <X size={18} />
@@ -143,12 +143,12 @@ export function CartDrawer({ catalogId, isOpen, onClose, isOwner = false }: Prop
           {rejectedService && (
             <div
               role="alert"
-              className="flex flex-col gap-1 rounded-xl border border-amber-300 bg-amber-50 p-3"
+              className="flex flex-col gap-1 rounded-xl border-2 border-ink bg-buy-soft p-3"
             >
-              <p className="text-sm font-semibold text-amber-900">
+              <p className="text-sm font-semibold text-buy-foreground">
                 Quitamos «{rejectedService}» de tu carrito
               </p>
-              <p className="text-xs text-amber-800">
+              <p className="text-xs text-buy-foreground">
                 Es un servicio, y los servicios se solicitan al vendedor en lugar de comprarse.
                 No se hizo ningún cargo: puedes finalizar tu pedido con el resto.
               </p>
@@ -171,7 +171,7 @@ export function CartDrawer({ catalogId, isOpen, onClose, isOwner = false }: Prop
                 ))}
               </div>
 
-              <div className="border-t pt-3">
+              <div className="border-t-2 border-ink pt-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-muted-foreground">Subtotal</p>
                   <p className="text-lg font-bold">{formatPrice(subtotal)}</p>

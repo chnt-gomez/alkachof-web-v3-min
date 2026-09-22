@@ -123,7 +123,7 @@ export function InstagramImportDialog({ itemCount, onImported, onClose }: Props)
         {error && (
           <div
             role="alert"
-            className="flex items-start gap-2 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
+            className="flex items-start gap-2 rounded-xl bg-destructive-soft p-3 text-sm text-destructive"
           >
             <AlertCircle size={16} className="mt-0.5 shrink-0" />
             <div className="flex flex-col items-start gap-2">
@@ -202,7 +202,7 @@ export function InstagramImportDialog({ itemCount, onImported, onClose }: Props)
                 <p className="text-sm text-muted-foreground">Cargando tus publicaciones…</p>
               </div>
             ) : posts.length === 0 ? (
-              <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+              <p className="rounded-xl border-2 border-ink border-dashed p-6 text-center text-sm text-muted-foreground">
                 No encontramos publicaciones en tu Instagram.
               </p>
             ) : maxSelectable === 0 ? (
@@ -211,12 +211,12 @@ export function InstagramImportDialog({ itemCount, onImported, onClose }: Props)
                 point when the catalog is full — kept so a full catalog can never
                 render a feed offering "0 de 0 seleccionadas".
               */
-              <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+              <p className="rounded-xl border-2 border-ink border-dashed p-6 text-center text-sm text-muted-foreground">
                 Tu catálogo está lleno: {MAX_CATALOG_ITEMS} artículos es el máximo. Elimina alguno
                 para importar más fotos.
               </p>
             ) : importable.length === 0 ? (
-              <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+              <p className="rounded-xl border-2 border-ink border-dashed p-6 text-center text-sm text-muted-foreground">
                 Ya importaste todas las fotos de tu Instagram. Publica algo nuevo y vuelve aquí.
               </p>
             ) : (
@@ -253,7 +253,7 @@ export function InstagramImportDialog({ itemCount, onImported, onClose }: Props)
                 */}
                 <p
                   role="note"
-                  className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground"
+                  className="rounded-xl border-2 border-ink border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground"
                 >
                   <strong className="font-semibold text-foreground">
                     Solo puedes importar una vez cada {cooldownDays} días.
@@ -285,7 +285,7 @@ export function InstagramImportDialog({ itemCount, onImported, onClose }: Props)
       </div>
 
       {phase === 'browsing' && !privateAlias && importable.length > 0 && maxSelectable > 0 && (
-        <div className="sticky bottom-0 flex flex-col gap-2 border-t bg-background px-5 py-4">
+        <div className="sticky bottom-0 flex flex-col gap-2 border-t-2 border-ink bg-background px-5 py-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
               {selected.length} de {maxSelectable} seleccionadas

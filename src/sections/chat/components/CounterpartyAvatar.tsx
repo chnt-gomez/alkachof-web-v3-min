@@ -18,7 +18,7 @@ export function CounterpartyAvatar({
         src={resolveMediaUrl(summary.avatarUrl)}
         alt={alias}
         style={dimension}
-        className="shrink-0 rounded-full border object-cover"
+        className="shrink-0 rounded-full border-2 border-ink object-cover"
       />
     )
   }

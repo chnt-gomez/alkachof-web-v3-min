@@ -113,7 +113,7 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
             type="button"
             onClick={openChat}
             aria-label={role === 'buyer' ? `Enviar mensaje a ${header}` : `Enviar mensaje al comprador ${header}`}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none"
           >
             <MessageCircle size={20} />
           </button>
@@ -127,7 +127,7 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
 
         {status === 'loading' && (
           <div
-            className="h-24 animate-pulse rounded-xl bg-muted"
+            className="h-24 animate-box-wait rounded-xl bg-muted"
             aria-busy="true"
             aria-label="Cargando artículos"
           />
@@ -136,7 +136,7 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
         {status === 'error' && (
           <div
             role="alert"
-            className="flex flex-col items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/5 p-4"
+            className="flex flex-col items-start gap-2 rounded-xl border-2 border-ink border-destructive/40 bg-destructive/5 p-4"
           >
             <p className="text-sm text-destructive">No pudimos cargar los artículos.</p>
             <Button size="sm" variant="outline" onClick={reload}>
@@ -166,7 +166,7 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
           </ul>
         )}
 
-        <div className="flex items-center justify-between border-t pt-3">
+        <div className="flex items-center justify-between border-t-2 border-ink pt-3">
           <span className="text-sm font-medium text-muted-foreground">Total</span>
           <span className="text-lg font-bold text-primary">
             {formatPrice(transaction.totalAmount)}
@@ -174,7 +174,7 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
         </div>
 
         {nextStatuses.length > 0 && (
-          <div className="flex flex-col gap-2 border-t pt-3">
+          <div className="flex flex-col gap-2 border-t-2 border-ink pt-3">
             <span className="text-sm font-medium text-muted-foreground">Actualizar estado</span>
             {actionError && (
               <p role="alert" className="text-sm text-destructive">

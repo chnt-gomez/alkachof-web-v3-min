@@ -16,7 +16,7 @@ export function HomeTabs({ active, onSelect }: Props) {
     <div
       role="tablist"
       aria-label="Secciones de inicio"
-      className="flex gap-1 rounded-full bg-muted p-1"
+      className="flex gap-1 rounded-xl border-2 border-ink bg-muted p-1"
     >
       {HOME_TABS.map(({ value, label, activeClass }) => {
         const isActive = value === active
@@ -29,7 +29,7 @@ export function HomeTabs({ active, onSelect }: Props) {
             aria-controls={panelId(value)}
             onClick={() => onSelect(value)}
             className={cn(
-              'flex-1 rounded-full py-1.5 text-sm font-medium transition-colors',
+              'flex-1 rounded-lg py-1.5 text-sm font-medium transition-colors',
               isActive ? activeClass : 'text-muted-foreground hover:text-foreground',
             )}
           >

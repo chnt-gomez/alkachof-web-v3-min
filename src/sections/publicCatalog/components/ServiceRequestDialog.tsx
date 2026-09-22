@@ -66,7 +66,7 @@ export function ServiceRequestDialog({ item, onSubmit, onClose }: Props) {
             maxLength={NOTE_MAX_LENGTH}
             disabled={submitting}
             placeholder="Cuéntale qué necesitas: fechas, cantidad, tamaño, tu colonia… Entre más claro seas, mejor podrá cotizarte."
-            className="w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="input resize-none focus:outline-none"
           />
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
@@ -81,7 +81,7 @@ export function ServiceRequestDialog({ item, onSubmit, onClose }: Props) {
         </div>
       </div>
 
-      <div className="flex gap-3 border-t px-5 py-4">
+      <div className="flex gap-3 border-t-2 border-ink px-5 py-4">
         <Button variant="outline" className="flex-1" onClick={onClose} disabled={submitting}>
           Cancelar
         </Button>

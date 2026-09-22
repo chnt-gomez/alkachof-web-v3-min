@@ -62,7 +62,7 @@ export function EditProfileScreen({ profile, onSaved, onClose }: Props) {
         aria-label="Editar perfil"
         className="flex h-full w-full max-w-md flex-col bg-background"
       >
-        <header className="flex items-center justify-between border-b px-4 py-3">
+        <header className="flex items-center justify-between border-b-2 border-ink px-4 py-3">
           <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 hover:bg-muted">
             <X size={20} />
           </button>
@@ -99,12 +99,12 @@ export function EditProfileScreen({ profile, onSaved, onClose }: Props) {
         </div>
 
         {saveError && (
-          <p role="alert" className="border-t px-5 py-2 text-sm text-destructive">
+          <p role="alert" className="border-t-2 border-ink px-5 py-2 text-sm text-destructive">
             {saveError}
           </p>
         )}
 
-        <div className="flex gap-3 border-t px-5 py-4">
+        <div className="flex gap-3 border-t-2 border-ink px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>

@@ -118,14 +118,14 @@ const highlights = [
 
 export function AboutPage() {
   return (
-    <div className="flex min-h-dvh flex-col bg-gradient-to-b from-secondary via-background to-background px-5 py-10">
+    <div className="flex min-h-dvh flex-col bg-background px-5 py-10">
       <header className="flex justify-center">
         <BrandMark size="lg" />
       </header>
 
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-10 py-10">
         <section className="flex flex-col items-center gap-4 text-center">
-          <span className="rounded-full bg-accent px-4 py-1 text-sm font-medium text-accent-foreground">
+          <span className="rounded-sm border-2 border-ink bg-accent px-4 py-1 text-sm font-medium text-accent-foreground">
             Bienvenido a Alkachof
           </span>
           {/* TODO(UX): final hero headline */}
@@ -153,7 +153,7 @@ export function AboutPage() {
             ¿Ya tienes cuenta?{' '}
             <Link
               to="/login"
-              className="font-medium text-primary underline-offset-4 hover:underline"
+              className="font-medium text-primary underline decoration-2 underline-offset-4"
             >
               Iniciar sesión
             </Link>

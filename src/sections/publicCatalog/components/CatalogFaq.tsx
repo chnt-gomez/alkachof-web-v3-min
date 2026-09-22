@@ -56,7 +56,7 @@ function AskQuestionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-xl border bg-card p-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-xl border-2 border-ink bg-card p-3">
       <label htmlFor="new-question" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Haz una pregunta
       </label>
@@ -71,7 +71,7 @@ function AskQuestionForm({
         }
         rows={3}
         className={cn(
-          'w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary',
+          'input resize-none focus:outline-none',
           blockedClass,
         )}
         disabled={isSubmitting || isOwner}
@@ -93,7 +93,7 @@ function AskQuestionForm({
 
 function QuestionCard({ question }: { question: Question }) {
   return (
-    <li className="rounded-xl border bg-card p-3">
+    <li className="rounded-xl border-2 border-ink bg-card p-3">
       <p className="text-sm font-medium">{question.questionText}</p>
       <p className="mt-1 text-xs text-muted-foreground">{formatDate(question.createdOn)}</p>
       {question.questionAnswer ? (
@@ -178,7 +178,7 @@ export function CatalogFaq() {
       {isAuthenticated ? (
         <AskQuestionForm onSubmit={handleAsk} />
       ) : (
-        <p className="rounded-xl border border-dashed bg-card p-3 text-sm text-muted-foreground">
+        <p className="rounded-xl border-2 border-ink border-dashed bg-card p-3 text-sm text-muted-foreground">
           Inicia sesión para hacer una pregunta al vendedor.
         </p>
       )}

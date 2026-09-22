@@ -35,7 +35,7 @@ export function GuestCheckoutPrompt({
       >
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-1.5 text-foreground backdrop-blur-sm"
+          className="absolute right-3 top-3 z-10 rounded-full border-2 border-ink bg-card p-1.5 text-foreground"
           aria-label="Cerrar"
         >
           <X size={18} />

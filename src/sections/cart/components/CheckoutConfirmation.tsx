@@ -43,8 +43,8 @@ export function CheckoutConfirmation({ catalogId, lines, checkoutResult, onClose
   return (
     <div className="flex flex-col gap-6 p-5 animate-sheet-pop">
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="rounded-full bg-green-100 p-3">
-          <Check size={24} className="text-green-600" />
+        <div className="rounded-full border-2 border-ink bg-confirm-soft p-3">
+          <Check size={24} className="text-confirm" />
         </div>
         <h2 className="text-xl font-bold">¡Pedido enviado!</h2>
         <p className="text-sm text-muted-foreground">
@@ -66,7 +66,7 @@ export function CheckoutConfirmation({ catalogId, lines, checkoutResult, onClose
           </div>
         ))}
 
-        <div className="border-t pt-2">
+        <div className="border-t-2 border-ink pt-2">
           <div className="flex items-center justify-between font-bold">
             <p>Total</p>
             <p>{formatPrice(total)}</p>

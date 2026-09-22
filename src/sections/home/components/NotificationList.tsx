@@ -18,7 +18,7 @@ type Props = {
 export function NotificationList({ notifications, onSeen, onDelete }: Props) {
   if (notifications.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+      <p className="rounded-2xl border-2 border-ink border-dashed p-6 text-center text-sm text-muted-foreground">
         Nada por el momento
       </p>
     )
@@ -73,14 +73,13 @@ function NotificationRow({
 
   // The clickable area and the trash button are siblings, never nested — a
   // button inside a link is invalid and swallows the row's own click.
-  const interactiveArea = 'flex min-w-0 flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'
+  const interactiveArea = 'flex min-w-0 flex-1 focus-visible:outline-none'
 
   return (
     <div
       className={cn(
-        'flex items-stretch overflow-hidden rounded-2xl border shadow-sm transition-shadow',
+        'flex items-stretch overflow-hidden rounded-2xl border-2 border-ink',
         unread ? 'border-primary/30 bg-primary/5' : 'bg-card',
-        link && 'hover:shadow-md',
       )}
     >
       {/* The API ships a ready-to-use relative path in `metadata.navigationUrl`.
@@ -110,7 +109,7 @@ function NotificationRow({
         type="button"
         onClick={() => onDelete(notification._id)}
         aria-label={`Eliminar notificación: ${notification.message}`}
-        className="flex shrink-0 items-center px-3 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+        className="flex shrink-0 items-center px-3 text-muted-foreground transition-colors hover:bg-destructive-soft hover:text-destructive focus-visible:outline-none"
       >
         <Trash2 size={16} />
       </button>
