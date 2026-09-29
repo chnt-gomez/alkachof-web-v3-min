@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
+import { ApiError } from './apiError'
 import { clearPersistedCache } from './queryStorage'
 
 /**
@@ -28,8 +29,25 @@ export function createQueryClient(): QueryClient {
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         refetchOnMount: false,
-        // The library default is 3, so one dead endpoint becomes four requests.
-        retry: 1,
+        /**
+         * The library default is 3, so one dead endpoint becomes four requests.
+         * One retry, and only for failures a retry could plausibly fix.
+         *
+         * A 4xx is not one of them. By the time a query sees it, `api.ts` has
+         * already refreshed the token and been refused, or given up on reaching
+         * the server at all — and on an expired session that whole chain runs
+         * again on the retry, to be told the same thing. Measured on a dead
+         * session across four queries, retrying cost 16 requests instead of 8,
+         * and a second of skeleton on top: the library's default `retryDelay` is
+         * ~1000ms and this client does not override it.
+         *
+         * Status 0 is `api.ts`'s "could not reach the server", which is exactly
+         * the transient case a retry is for, so it is deliberately not excluded.
+         */
+        retry: (failureCount, error) => {
+          if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false
+          return failureCount < 1
+        },
       },
       mutations: { retry: 0 },
     },
