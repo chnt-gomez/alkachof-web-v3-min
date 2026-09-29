@@ -4,6 +4,58 @@ import { resetAppCache } from './queryClient'
 const PROACTIVE_REFRESH_BUFFER_MS = 30_000
 
 /**
+ * Deadlines. Nothing here had one, so a request that never answered held the
+ * screen for however long the OS took to give up on the socket — minutes, on a
+ * phone that walked out of coverage. `ProtectedRoute` blocks the whole tree on
+ * the profile query, so that time is spent looking at a skeleton.
+ *
+ * Three values rather than one, because the three cases differ:
+ *
+ * - A refresh is serialized *in front of* the request it authorises, so the
+ *   user waits it out and then waits again. It carries the shortest deadline.
+ * - Uploads carry real bytes. `resizeImage` lands a phone photo around 150 KB,
+ *   but a bad connection still needs room, and aborting a half-sent product
+ *   photo is a worse failure than a slow one.
+ */
+const REFRESH_TIMEOUT_MS = 8_000
+const REQUEST_TIMEOUT_MS = 15_000
+const UPLOAD_TIMEOUT_MS = 60_000
+
+/**
+ * `fetch` with a deadline.
+ *
+ * A plain `AbortController` rather than `AbortSignal.timeout`: no caller passes
+ * a signal of its own today, so there is nothing to merge, and this needs no
+ * `AbortSignal.any` support on the phones this runs on.
+ */
+async function fetchWithDeadline(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * What a refresh attempt learned.
+ *
+ * The distinction that matters is `rejected` vs `unreachable`. Both used to be
+ * `null`, and `null` ends the session — so a timeout or a dead tunnel logged the
+ * user out and sent them to /login to type a password they did not need. Only
+ * the server is allowed to say a session is over.
+ */
+type RefreshResult =
+  | { status: 'ok'; token: string }
+  | { status: 'rejected' }
+  | { status: 'unreachable' }
+
+/**
  * API origin, with any trailing slash removed.
  *
  * Every caller here joins with a path that already starts with `/`, so a var set
@@ -80,20 +132,40 @@ type ApiOptions = Omit<RequestInit, 'body'> & {
  * refreshed on the others' behalf. That was five POST /refresh for one expiry,
  * four of them spent learning what the fifth had already written.
  */
-let inFlightRefresh: Promise<string | null> | null = null
+let inFlightRefresh: Promise<RefreshResult> | null = null
 
-async function requestRefresh(): Promise<string | null> {
+async function requestRefresh(): Promise<RefreshResult> {
   const refreshToken = getRefreshToken()
-  if (!refreshToken) return null
-  const res = await fetch(`${BASE_URL}/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-  })
-  if (!res.ok) return null
-  const data = (await res.json()) as { token: string; refreshToken: string }
-  setTokens(data.token, data.refreshToken)
-  return data.token
+  // Nothing to exchange: this really is the end of the session.
+  if (!refreshToken) return { status: 'rejected' }
+  let res: Response
+  try {
+    res = await fetchWithDeadline(
+      `${BASE_URL}/refresh`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      },
+      REFRESH_TIMEOUT_MS,
+    )
+  } catch {
+    // Aborted, offline, DNS, TLS. We never got an answer, so we learned nothing
+    // about the token.
+    return { status: 'unreachable' }
+  }
+  // 5xx is the server failing, not the token being refused.
+  if (res.status >= 500) return { status: 'unreachable' }
+  if (!res.ok) return { status: 'rejected' }
+  try {
+    const data = (await res.json()) as { token: string; refreshToken: string }
+    setTokens(data.token, data.refreshToken)
+    return { status: 'ok', token: data.token }
+  } catch {
+    // A 200 we could not read, or a cookie that would not stick
+    // (`CookieWriteError`). Either way there is no usable new token.
+    return { status: 'unreachable' }
+  }
 }
 
 /**
@@ -102,12 +174,22 @@ async function requestRefresh(): Promise<string | null> {
  * Cleared on settle rather than kept: this dedupes *one expiry*, and the next
  * one an hour later must reach the server again rather than replay this answer.
  */
-export function refreshAccessToken(): Promise<string | null> {
+function sharedRefresh(): Promise<RefreshResult> {
   if (inFlightRefresh) return inFlightRefresh
   inFlightRefresh = requestRefresh().finally(() => {
     inFlightRefresh = null
   })
   return inFlightRefresh
+}
+
+/**
+ * The token, or null if the refresh did not produce one. `liveSocket.ts` reads
+ * it this way: it only needs something to hand the next handshake, and it
+ * already stops retrying on a null.
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  const result = await sharedRefresh()
+  return result.status === 'ok' ? result.token : null
 }
 
 /**
@@ -139,18 +221,34 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   }
 
   const send = (token: string | null): Promise<Response> =>
-    fetch(`${BASE_URL}${path}`, {
-      ...rest,
-      headers: buildHeaders(token),
-      body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
-    })
+    fetchWithDeadline(
+      `${BASE_URL}${path}`,
+      {
+        ...rest,
+        headers: buildHeaders(token),
+        body:
+          body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
+      },
+      isFormData ? UPLOAD_TIMEOUT_MS : REQUEST_TIMEOUT_MS,
+    )
 
   let token = getToken()
+  /**
+   * Whether a refresh in this call already failed to reach the server. One
+   * `api()` call has two refresh points — the proactive one below and the 401
+   * handler — and without this an unreachable server is waited out twice, so a
+   * hung /refresh cost two deadlines back to back rather than one.
+   */
+  let refreshUnreachable = false
   if (authenticated && token) {
     const expiry = getTokenExpiryMs(token)
     if (expiry !== null && expiry - Date.now() < PROACTIVE_REFRESH_BUFFER_MS) {
-      const refreshed = await refreshAccessToken()
-      if (refreshed) token = refreshed
+      const refreshed = await sharedRefresh()
+      // An unreachable server is not a reason to drop the token we hold: the
+      // buffer means it may still have seconds of life, and the request below is
+      // the thing that finds out.
+      if (refreshed.status === 'ok') token = refreshed.token
+      else if (refreshed.status === 'unreachable') refreshUnreachable = true
     }
   }
 
@@ -166,16 +264,26 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     const current = getToken()
     if (current && current !== token) {
       res = await send(current)
+    } else if (refreshUnreachable) {
+      // Already established, this call, that /refresh does not answer. Asking
+      // again only spends a second deadline to learn the same thing.
+      throw new ApiError('No pudimos contactar al servidor', 0)
     } else {
-      const newToken = await refreshAccessToken()
-      if (!newToken) {
+      const refreshed = await sharedRefresh()
+      if (refreshed.status === 'rejected') {
         clearTokens()
         // The session is over, and the cached rows belong to it — see
         // `resetAppCache`. This is the other end of `logout`.
         resetAppCache()
         throw new ApiError('Sesión expirada', 401)
       }
-      res = await send(newToken)
+      if (refreshed.status === 'unreachable') {
+        // We could not ask, so we do not know the session ended — and guessing
+        // wrong here is a logout the user did not earn. Fail this one request
+        // and leave the tokens alone.
+        throw new ApiError('No pudimos contactar al servidor', 0)
+      }
+      res = await send(refreshed.token)
     }
   }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError } from '@/lib/api'
 import { clearTokens, getToken, setTokens, SESSION_MARKER_KEY } from '@/lib/auth'
 import { queryKeys } from '@/lib/queryKeys'
 import { clearPersistedCache } from '@/lib/queryStorage'
@@ -33,19 +34,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const [hasSession, setHasSession] = useState<boolean>(() => Boolean(getToken()))
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: queryKeys.profile(),
     queryFn: fetchProfile,
     enabled: hasSession,
   })
 
-  // Preserved from the effect this replaced: a profile read that fails means the
-  // token is no good, so the session is dropped rather than left half-open.
+  /**
+   * A profile read the *server* refused means the token is no good, so the
+   * session is dropped rather than left half-open.
+   *
+   * Only the server's refusal counts. This used to fire on any error at all,
+   * which conflated "the token is no good" with "we could not ask" — a timeout
+   * or a dead tunnel destroyed the tokens and sent someone to /login to retype a
+   * password that was never the problem. `api.ts` now keeps the two apart and a
+   * request it could not deliver throws status 0.
+   *
+   * This does not stop the bounce to /login: `isAuthenticated` is derived from
+   * a loaded profile, so a failed read still lands there. What it buys is that
+   * the session survives it, and the next load picks it up without a password.
+   */
   useEffect(() => {
     if (!isError) return
+    const status = error instanceof ApiError ? error.status : null
+    if (status !== 401 && status !== 403) return
     clearTokens()
     setHasSession(false)
-  }, [isError])
+  }, [isError, error])
 
   /**
    * Another tab ended the session.
