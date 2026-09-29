@@ -68,7 +68,21 @@ type ApiOptions = Omit<RequestInit, 'body'> & {
   authenticated?: boolean
 }
 
-export async function refreshAccessToken(): Promise<string | null> {
+/**
+ * The refresh currently in flight, or null.
+ *
+ * Module scope, deliberately: the thing being guarded is the token pair in the
+ * cookies, which is shared by everything in the tab, so the guard has to be too.
+ *
+ * Without it every caller refreshed for itself. A protected page fans out five
+ * authenticated calls in one tick — profile, notifications, chat, catalog, news
+ * — and on a warm reload the persisted profile means none of them has already
+ * refreshed on the others' behalf. That was five POST /refresh for one expiry,
+ * four of them spent learning what the fifth had already written.
+ */
+let inFlightRefresh: Promise<string | null> | null = null
+
+async function requestRefresh(): Promise<string | null> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) return null
   const res = await fetch(`${BASE_URL}/refresh`, {
@@ -80,6 +94,28 @@ export async function refreshAccessToken(): Promise<string | null> {
   const data = (await res.json()) as { token: string; refreshToken: string }
   setTokens(data.token, data.refreshToken)
   return data.token
+}
+
+/**
+ * Exchange the refresh token for a new pair, joining a refresh already running.
+ *
+ * Cleared on settle rather than kept: this dedupes *one expiry*, and the next
+ * one an hour later must reach the server again rather than replay this answer.
+ */
+export function refreshAccessToken(): Promise<string | null> {
+  if (inFlightRefresh) return inFlightRefresh
+  inFlightRefresh = requestRefresh().finally(() => {
+    inFlightRefresh = null
+  })
+  return inFlightRefresh
+}
+
+/**
+ * Test-only. Vitest isolates per *file*, not per test, so without this one
+ * test's in-flight promise would satisfy the next one's refresh.
+ */
+export function __resetRefreshState(): void {
+  inFlightRefresh = null
 }
 
 async function readError(res: Response): Promise<{ message: string; body: unknown }> {
@@ -121,15 +157,26 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   let res = await send(token)
 
   if (res.status === 401 && authenticated) {
-    const newToken = await refreshAccessToken()
-    if (!newToken) {
-      clearTokens()
-      // The session is over, and the cached rows belong to it — see
-      // `resetAppCache`. This is the other end of `logout`.
-      resetAppCache()
-      throw new ApiError('Sesión expirada', 401)
+    // Deduping only covers callers that overlap at the moment of refresh. This
+    // request may instead have been *in flight* while another one refreshed, in
+    // which case it just 401'd on a token that is already superseded — and the
+    // shared promise has settled, so asking again would rotate the pair a second
+    // time for the same expiry. If the cookie moved under us, retry on what is
+    // there now.
+    const current = getToken()
+    if (current && current !== token) {
+      res = await send(current)
+    } else {
+      const newToken = await refreshAccessToken()
+      if (!newToken) {
+        clearTokens()
+        // The session is over, and the cached rows belong to it — see
+        // `resetAppCache`. This is the other end of `logout`.
+        resetAppCache()
+        throw new ApiError('Sesión expirada', 401)
+      }
+      res = await send(newToken)
     }
-    res = await send(newToken)
   }
 
   if (!res.ok) {
