@@ -86,6 +86,7 @@ describe('NavShell header', () => {
 
     expect(screen.getByRole('dialog', { name: 'Ayuda y contacto' })).toBeInTheDocument()
     expect(screen.getByText('admin@alkachof.mx')).toBeInTheDocument()
-    expect(screen.getByText('+52 33 2506 4128')).toBeInTheDocument()
+    // Email is the only support channel: the phone number was retired.
+    expect(screen.queryByText(/WhatsApp/i)).not.toBeInTheDocument()
   })
 })
