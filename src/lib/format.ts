@@ -38,3 +38,18 @@ export function formatRelative(iso: string): string {
   if (days < 7) return `hace ${days} d`
   return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })
 }
+
+/**
+ * A distance from the proximity search, in Spanish.
+ *
+ * The API rounds `distanceMeters` to 100 m deliberately (an exact distance from
+ * three chosen origins reconstructs an exact doorstep), and `0` is its way of
+ * saying "under 50 m" — never render it as "0 m". Nothing here implies a route:
+ * these are approximate coordinates, not an address.
+ */
+export function formatDistance(meters: number): string {
+  if (meters <= 0) return 'a menos de 50 m'
+  if (meters < 1000) return `a ${meters} m`
+  const km = meters / 1000
+  return `a ${km.toLocaleString('es-MX', { maximumFractionDigits: km < 10 ? 1 : 0 })} km`
+}

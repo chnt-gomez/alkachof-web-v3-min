@@ -1,5 +1,6 @@
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { SectionStatus } from '../hooks/useAsyncSection'
+import { MapSearchCard } from './MapSearchCard'
 import { SavedCatalogList } from './SavedCatalogList'
 import { SectionSkeleton, SectionError } from './SectionState'
 import { panelId } from '../homeTabs'
@@ -13,8 +14,8 @@ type Props = {
 }
 
 /**
- * The buy half of Home. Only holds saved catalogs today; this is the surface
- * discovery/browse would grow into.
+ * The buy half of Home: the doorway into map discovery, then the catalogs the
+ * user already follows.
  */
 export function ComprarPanel({ savedCatalogs }: Props) {
   return (
@@ -24,6 +25,8 @@ export function ComprarPanel({ savedCatalogs }: Props) {
       aria-label="Comprar"
       className="flex flex-col gap-6"
     >
+      <MapSearchCard />
+
       <section className="flex flex-col gap-3" aria-labelledby="home-saved-catalogs">
         <h2 id="home-saved-catalogs" className="text-lg font-semibold">
           Catálogos guardados

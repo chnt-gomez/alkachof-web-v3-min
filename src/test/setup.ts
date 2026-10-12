@@ -1,6 +1,7 @@
 import { afterEach } from 'vitest'
 import '@testing-library/jest-dom'
 import { clearTokens } from '@/lib/auth'
+import { clearLastLocation } from '@/lib/lastLocation'
 
 // Node 26 defines its own experimental `localStorage` global — unusable unless
 // the process was started with `--localstorage-file`. Because the name is
@@ -31,4 +32,11 @@ if (!URL.createObjectURL) {
 // reason. Global so the author of the next test cannot forget it; via
 // `clearTokens` so the cleanup follows the implementation if storage ever moves
 // again.
-afterEach(() => clearTokens())
+//
+// The map's remembered position is cleared for the same reason: a test that
+// obtains a fix would otherwise hand the next one a hint it never set, and the
+// map's fallback-centre behaviour would stop being observable.
+afterEach(() => {
+  clearTokens()
+  clearLastLocation()
+})
