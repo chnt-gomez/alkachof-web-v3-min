@@ -45,7 +45,8 @@ Protected (wrapped in `NavShell` + `ProtectedRoute`):
 - `/profile` → `ProfilePage`
 - `/chats` → `ChatListPage`
 
-Protected, **outside** `NavShell` — a full-screen conversation has no bottom tabs:
+Protected, **outside** `NavShell` — these own the viewport, so there are no bottom tabs:
+- `/map` → `MapSearchPage` (full-screen catalog search on a map)
 - `/chats/new` → `ChatThreadPage` (the unsaved draft; the static segment wins over the param, so a real chat id never collides with it)
 - `/chats/:chatId` → `ChatThreadPage`
 
@@ -152,6 +153,12 @@ could not log in). `src/lib/cookies.ts` owns that format and nothing else.
 - The persisted query cache (`alkachof.query`) lives in `localStorage` and stays
   there — it is megabytes at the wrong end of a 4 KB cookie limit, and unrelated
   to auth.
+- **`auth.ts` is not the only cookie owner any more.** `alk.lastLoc` (the map's
+  remembered position, `src/lib/lastLocation.ts`) is the second, and the split is
+  the one `cookies.ts` documents: that module owns the *format*, each caller owns
+  its own name, lifetime and meaning. It is not a credential, it is not cleared on
+  logout — it says nothing about who was signed in — and unlike `setTokens` its
+  write failure is swallowed.
 
 **Shipped:** `/profile`, the owner's catalog and its items, and `/instagram/status`,
 plus persistence across reloads. See `blueprint.LocalCaching.md` and
@@ -361,8 +368,9 @@ Key components and their file paths for quick reference:
 | `InstagramImportDialog` | `src/sections/catalog/components/InstagramImportDialog.tsx` |
 | `TransactionsPage` | `src/sections/transactions/TransactionsPage.tsx` |
 | `TransactionDetailDialog` | `src/sections/transactions/components/TransactionDetailDialog.tsx` |
+| `MapSearchPage` | `src/sections/mapSearch/MapSearchPage.tsx` |
 | UI primitives | `src/components/ui/` (`button.tsx`, `card.tsx`) |
-| Shared formatters | `src/lib/format.ts` (`formatPrice` cents→MXN, `formatDate` es-MX) |
+| Shared formatters | `src/lib/format.ts` (`formatPrice` cents→MXN, `formatDate` es-MX, `formatDistance` m/km) |
 
 ### Shopping cart section (`src/sections/cart/`)
 
@@ -548,6 +556,129 @@ scraper run for `cooldownDays`, and the API enforces it with a 429 on both
 The lookup is **exact-handle only**, so a partial name resolves to nothing —
 testing the wizard needs a real un-enrolled account and a real handle, and
 enrollment is permanent, so an account spent on a test is spent for good.
+
+### Location-based catalog search (`src/sections/mapSearch/`)
+
+A full-screen map for finding catalogs nearby, reached from a card at the top of Home's
+**Comprar** panel (`MapSearchCard`, in `src/sections/home/components/`). Design record:
+`blueprint.LocationBasedSearch.md`.
+
+Shops come from `GET /location/lookup` — public, no auth. Contract:
+`followup.LocationSearchApi.md`. The lookup is **one call per circle, not per drag**:
+`useNearbyCatalogs` holds the point a call was made at (`P`, the starting point) and the radius
+the **server echoed**, and asks again only when the map's centre leaves that circle.
+`useMapSearchLocation` owns the fix and feeds it in; every settled viewport goes through the same
+gate.
+
+- **`REFETCH_AT_FRACTION` is the whole rule.** `1` refetches exactly when the centre leaves the
+  loaded circle. The trade-off it accepts: at that moment the far half of the viewport is already
+  outside the loaded area, so a steady pan shows a thinning edge for the second the request takes.
+  The API's handover suggests 0.6–0.7 to keep a loaded margin, at the cost of more calls — one
+  constant, if that trade is re-made.
+- **Measure against `radiusMeters` from the response, never a local 7000.** The server clamps, and
+  the default *is* the contract — which is also why the client sends `lat`/`lng` and nothing else:
+  hardcoding `radius=7000` would mean a server-side change needs a client release.
+- **The client keeps its own 10 s floor between lookups** (`MIN_CALL_INTERVAL_MS`). The server's
+  budget is 6 per 60 s per IP and deliberately a different shape — Mexican carriers run CGNAT, so
+  many real users share one address. A lookup under the floor is **deferred, not dropped** (nothing
+  else will ask again until the user moves), and a newer viewport back inside the circle cancels
+  the deferred one.
+- **Coordinates are validated before they are sent.** A **400 counts against the rate budget**, so
+  six malformed calls would lock the client out for a minute.
+- **A 429 means "keep showing what you have".** Never an error state: the design is that a 7 km
+  circle is already in hand, so the map goes *"· sin actualizar"* and `P` stays put so the next pan
+  past it asks again. `availableAt` sets the floor; never retry tighter than the header says.
+- **A 404 is terminal** — proximity search is off on that deployment (`LOCATION_SEARCH_ENABLED`).
+  Say it once, never ask again, and offer no retry.
+- **`results.length` is the number to display. Never `total`** — it counts rows *before* the
+  active-seller filter, so it includes shops the API deliberately withheld. `truncated` is the only
+  honest "there is more"; it cannot be derived from the other two.
+- **An empty circle is a valid answer**, not a failure state.
+- **Results are not cached and not in `queryKeys`.** The gate here is geographic, not temporal, and
+  a persisted circle would keep drawing a seller who has since removed their pin.
+
+**The coordinates are approximate on purpose** — snapped to a ~110 m grid so a nano-seller's home
+address cannot be enumerated, and `distanceMeters` rounded to 100 m (`0` means "under 50 m").
+Three consequences the UI must keep:
+
+- **Never present a result as an address.** No "ubicado en", no reverse geocoding, and no "abrir
+  en mi app de mapas" anywhere on this screen — `CatalogLocationDialog` does offer that, but it
+  reads the catalog's *own* exact location, which the seller chose to publish.
+- **`shopIcon` is a badge, not a teardrop pin**, and nothing auto-zooms to a marker at street
+  level. A pointed pin claims a doorstep the data does not know. The round blue dot stays reserved
+  for "you are here".
+- **Two shops in one block collide on the same point.** `plotShops` pushes overlapping markers
+  onto a small deterministic ring (18 m, well inside the grid) so neither is unreachable. It never
+  de-duplicates by coordinate — `catalogId` is the identity.
+
+**A pin is the catalog's own image**, through `shopIcon(resolveMediaUrl(shop.image))`:
+
+- **`object-fit:contain`, never `cover`.** The golden rule holds at 40px exactly as `CatalogThumb`
+  holds it at 44 — which is also why the badge is a rounded square: a contained image inside a
+  circle is a thin band across the middle. A catalog with no image gets a bag glyph, drawn *behind*
+  the image so a url that 404s uncovers it.
+- **One icon object per url, cached in `mapIcons.ts`.** `Marker` compares `icon` by identity, so
+  building a fresh `divIcon` per render would tear down and rebuild every marker's DOM — with up to
+  200 shops on screen.
+- **Leaflet injects `html` through `innerHTML`**, so the url is `encodeURI`'d *and* html-escaped.
+  Both passes are needed: the first takes `"`/`<` out of play, the second stops a literal `&quot;`
+  in a url from being decoded back into a quote by the parser.
+- **The thumbnails are full-size catalog images** (the `catalogs` preset is 1600px) shown at 40px,
+  so they carry `loading="lazy"` and `decoding="async"` and off-screen pins do not download. A
+  thumbnail variant from the API is the real fix if a dense circle ever gets expensive.
+
+**Tapping a pin navigates straight to `/catalog/:catalogId`** — client-side, so coming back lands
+on the map with its circle still in hand. There is deliberately no intermediate card: the shop's
+own page already carries its image, description and items, so a card on the map would be a second,
+thinner copy of it. The pin's `title` is therefore the whole accessible name and carries the
+distance (`Pan de Ana, a 1.1 km`), which is the only place `distanceMeters` is shown.
+
+**The search field is still inert** (see below): `/location/lookup` has no `?q=`, and text search
+is a different index and a different feature.
+
+- **`MIN_ZOOM` (12) is an abuse guard, not a style choice.** It bounds how much ground one
+  viewport can cover (~14 km across), which is what keeps a pan-driven lookup proportionate to the
+  7 km circle it is gating — and it bounds the bill the screen already has: OSM's public tile
+  servers forbid heavy use, and a map at z=5 fetches tiles for a continent. Constants live in
+  `mapView.ts` with the arithmetic. **Zooming out is not a bigger radius**: the API accepts up to
+  50 km but a wider circle is a bigger, slower response, so the client stays on the 7 km default
+  and lets the user pan.
+- **There is deliberately no pan leash** (`maxBounds`). Panning to the next colonia is the
+  gesture this screen exists for, and panning does not make one query larger — it makes queries
+  more frequent, which is bounded by rate, not by a fence.
+- **The map renders in every location state**, centred on `DEFAULT_CENTER` at `MIN_ZOOM` until a
+  fix arrives. Never a blank screen and never a full-screen spinner: an empty map someone can
+  pan beats a spinner, and a cold GPS fix takes seconds.
+- **The recenter button never hides.** With a position known it is a pure map move; without one
+  it asks again — the only way back for someone who tapped "block" by reflex. `unsupported` is
+  terminal with **no** retry (same shape as `InstagramPrivateNotice`): a button that cannot
+  change its own outcome is worse than no button.
+- **`getCurrentPosition`, never `watchPosition`.** A watch drains battery to move a marker
+  nobody asked to move, which is why the button exists.
+- **The position is not a cache entry and is never sent.** Not in `queryKeys` (a GPS fix is
+  neither an API read nor something a mutation writes back), and there is nothing to send it to.
+- **The last fix is remembered in a cookie** (`alk.lastLoc`, owned by `src/lib/lastLocation.ts`),
+  so a cold start opens near the user instead of on the fallback centre. It is a **hint for the
+  first frame, not a location**: the live fix still arrives and the map flies to it, which turns a
+  cross-country flight into a short pan. Three rules hold it in place — only a real device fix is
+  ever written (never the fallback, never a viewport the user panned to), it is rounded to **3
+  decimals (~110 m)** because a cookie is also written into the web server's access log on every
+  page load, and it is **validated on read**, because `flyTo([NaN, NaN])` throws inside Leaflet and
+  would take the screen down over a cosmetic optimisation. `saveLastLocation` never throws: a hint
+  that cannot be stored costs one animation.
+- **The hint does not draw the position dot.** The blue dot means "you are here"; a remembered
+  position is where the map *looks*. It seeds `center`, never `coords`.
+- **The search field is present and `disabled`, with a caption saying so.** An enabled input
+  that accepts text and does nothing on Enter is the shape that produces bug reports. Its
+  `value`/`onChange` are already lifted into the page, so wiring a real query is a change in one
+  file. There is no `?q=` on `/location/lookup` — text search is a different index and a different
+  feature — so do not word it as a global name search.
+- **`src/lib/geolocation.ts` is the only module that asks for the device position**, and
+  `src/lib/mapIcons.ts` the only one that builds a marker. Both are shared with the catalog's
+  `LocationMapPicker`: the two screens must fail with the same sentence, and the reason Leaflet's
+  default icon renders *invisible* under Vite needs exactly one home. `getDeviceLocation()`
+  never rejects — it resolves `{ ok: false, reason }` so no caller has to guess which failure it
+  caught inside a `catch`.
 
 ### Chat section (`src/sections/chat/`)
 

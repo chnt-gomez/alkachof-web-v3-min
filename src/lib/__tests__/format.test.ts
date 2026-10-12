@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatItemPrice, formatPrice } from '../format'
+import { formatDistance, formatItemPrice, formatPrice } from '../format'
 import { isService } from '../item'
 
 describe('formatPrice', () => {
@@ -36,5 +36,21 @@ describe('isService', () => {
 
   it('fails safe on an unexpected value', () => {
     expect(isService({ type: 'servicio' as 'service' })).toBe(false)
+  })
+})
+
+describe('formatDistance', () => {
+  // The api rounds to 100 m and uses 0 for "under 50 m" — never "0 m".
+  it('reads zero as closer than the rounding can say', () => {
+    expect(formatDistance(0)).toBe('a menos de 50 m')
+  })
+
+  it('keeps metres under a kilometre', () => {
+    expect(formatDistance(900)).toBe('a 900 m')
+  })
+
+  it('switches to kilometres with one decimal, then whole ones', () => {
+    expect(formatDistance(1100)).toBe('a 1.1 km')
+    expect(formatDistance(12000)).toBe('a 12 km')
   })
 })
