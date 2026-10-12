@@ -11,6 +11,7 @@ import { ProfilePage } from '@/sections/profile/ProfilePage'
 import { TransactionsPage } from '@/sections/transactions/TransactionsPage'
 import { ChatListPage } from '@/sections/chat/ChatListPage'
 import { ChatThreadPage } from '@/sections/chat/ChatThreadPage'
+import { MapSearchPage } from '@/sections/mapSearch/MapSearchPage'
 import { LoginPage } from '@/sections/auth/LoginPage'
 import { SignupPage } from '@/sections/auth/SignupPage'
 import { RecoverPage } from '@/sections/auth/RecoverPage'
@@ -66,10 +67,13 @@ export function AppRouter() {
                         <Route path="/chats" element={<ChatListPage />} />
                       </Route>
                     </Route>
-                    {/* Full-screen conversation view — outside NavShell (no bottom tabs).
+                    {/* Full-screen views — outside NavShell (no bottom tabs).
+                        `/map` owns the viewport: the shell's bottom bar would cover
+                        the recenter button and Leaflet's attribution.
                         `/chats/new` is the unsaved draft; the static segment wins over
                         the `:chatId` param so a real chat id never collides with it. */}
                     <Route element={<ProtectedRoute />}>
+                      <Route path="/map" element={<MapSearchPage />} />
                       <Route path="/chats/new" element={<ChatThreadPage />} />
                       <Route path="/chats/:chatId" element={<ChatThreadPage />} />
                     </Route>

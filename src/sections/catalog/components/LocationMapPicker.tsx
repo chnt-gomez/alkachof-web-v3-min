@@ -1,27 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet'
-import L from 'leaflet'
+import type L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Navigation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PIN_ICON } from '@/lib/mapIcons'
+import { DEFAULT_CENTER, geolocationMessage, getDeviceLocation, type Coords } from '@/lib/geolocation'
 
-// Leaflet's default icon relies on bundled PNGs that don't resolve reliably under
-// Vite, leaving the marker invisible. A CSS-only div icon always renders.
-const PIN_ICON = L.divIcon({
-  // `leaflet-div-icon` (the default) draws a white box/border — an empty className
-  // drops it so only our styled dot shows.
-  className: '',
-  html:
-    '<span style="display:block;width:20px;height:20px;border-radius:9999px;' +
-    'background:var(--color-primary);border:2px solid var(--color-ink);"></span>',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-})
+// Re-exported for the dialog that drives this picker: the type belongs to the
+// shared geolocation module, but importers shouldn't have to know that.
+export type { Coords }
 
-export type Coords = { lat: number; lng: number }
-
-// Ciudad de México — a sensible fallback center before the user picks a point.
-const DEFAULT_CENTER: Coords = { lat: 19.4326, lng: -99.1332 }
 const OVERVIEW_ZOOM = 12
 const PIN_ZOOM = 16
 
@@ -42,26 +31,17 @@ export function LocationMapPicker({ value, onChange }: Props) {
   // the same coordinates are requested twice.
   const [flyTo, setFlyTo] = useState<{ coords: Coords; nonce: number } | null>(null)
 
-  function handleUseMyLocation() {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGeoError('Tu dispositivo no permite obtener la ubicación.')
-      return
-    }
+  async function handleUseMyLocation() {
     setLocating(true)
     setGeoError(null)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        onChange(coords)
-        setFlyTo({ coords, nonce: Date.now() })
-        setLocating(false)
-      },
-      () => {
-        setGeoError('No pudimos obtener tu ubicación. Revisa los permisos e inténtalo de nuevo.')
-        setLocating(false)
-      },
-      { enableHighAccuracy: true, timeout: 10_000 },
-    )
+    const result = await getDeviceLocation()
+    setLocating(false)
+    if (!result.ok) {
+      setGeoError(geolocationMessage(result.reason))
+      return
+    }
+    onChange(result.coords)
+    setFlyTo({ coords: result.coords, nonce: Date.now() })
   }
 
   const initialCenter = value ?? DEFAULT_CENTER

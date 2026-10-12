@@ -220,6 +220,19 @@ describe('HomePage', () => {
     expect(await screen.findByText(/aún no tienes catálogos guardados/i)).toBeInTheDocument()
   })
 
+  // The doorway must not wait behind the saved-catalog list: a user with no
+  // subscriptions is exactly the one who needs it.
+  it('offers the map doorway while saved catalogs are still loading', async () => {
+    vi.mocked(fetchSavedCatalogs).mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+    renderPage()
+    await openComprar(user)
+
+    const link = screen.getByRole('link', { name: /buscar catálogos en el mapa/i })
+    expect(link).toHaveAttribute('href', '/map')
+    expect(screen.getByLabelText('Cargando catálogos guardados')).toBeInTheDocument()
+  })
+
   it('surfaces a retryable error for a failed section without blanking the rest', async () => {
     vi.mocked(fetchNotifications).mockRejectedValueOnce(new Error('boom'))
     renderPage()
