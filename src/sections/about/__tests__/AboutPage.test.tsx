@@ -27,6 +27,45 @@ describe('AboutPage', () => {
     const cta = screen.getByRole('link', { name: 'Iniciar sesión' })
     expect(cta).toHaveAttribute('href', '/login')
   })
+
+  /**
+   * This page is served at both `/` and `/about`, and is the only page a
+   * non-JavaScript crawler ever reads in full (it is what the build
+   * prerenders). The assertions below pin the parts that exist for that reader
+   * rather than for a person — they look removable, and removing them is
+   * invisible until weeks later in a search index.
+   */
+  it('answers "what is Alkachof?" in plain prose a crawler can quote', () => {
+    renderPage()
+    expect(
+      screen.getByText(/catálogo digital gratuito para vendedores pequeños en México/i),
+    ).toBeInTheDocument()
+  })
+
+  it('declares / as canonical from both urls, so the two are one page', () => {
+    renderPage()
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://app.alkachof.mx/',
+    )
+  })
+
+  it('publishes the FAQ as structured data matching the visible questions', () => {
+    renderPage()
+
+    const script = document.querySelector('script[type="application/ld+json"]')
+    expect(script).not.toBeNull()
+
+    const data = JSON.parse(script!.textContent ?? '{}')
+    expect(data['@type']).toBe('FAQPage')
+    expect(data.mainEntity.length).toBeGreaterThan(0)
+
+    // Structured data that does not match the visible page is a policy
+    // violation, so every question in the payload must be on screen.
+    for (const entry of data.mainEntity) {
+      expect(screen.getByText(entry.name)).toBeInTheDocument()
+    }
+  })
 })
 
 describe('WordRandomizer', () => {

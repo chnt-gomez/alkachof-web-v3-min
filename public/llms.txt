@@ -1,0 +1,33 @@
+# Alkachof
+
+> Catálogo digital gratuito para vendedores pequeños en México. Un vendedor
+> publica sus productos o servicios con las fotos que ya tiene en el celular y
+> comparte su tienda con un enlace por WhatsApp, Instagram o un código QR.
+
+Alkachof está pensado para micro y pequeños negocios —cocineras, costureras,
+plomeros, artesanos, joyeros— que no tienen página web ni sistema de punto de
+venta. No hay planes, no hay comisión por venta y no se procesan pagos: el pago
+y la entrega se acuerdan directamente entre el vendedor y su cliente.
+
+Datos útiles:
+
+- Publicar es gratis y no requiere tarjeta.
+- Cada usuario tiene un catálogo, con un máximo de 25 artículos.
+- Un artículo puede ser un producto (se pide) o un servicio (se solicita).
+- Quien visita un catálogo puede verlo y armar su carrito sin crear cuenta;
+  la cuenta sólo se pide al confirmar el pedido.
+- Quien ya vende por Instagram puede importar las fotos de su cuenta pública.
+- El sitio y la aplicación están en español, para México.
+
+## Páginas
+
+- [Inicio](https://app.alkachof.mx/): qué es Alkachof y preguntas frecuentes.
+- [Acerca de](https://app.alkachof.mx/about): el mismo contenido, enlazado desde
+  versiones anteriores de la aplicación.
+- [Crear cuenta](https://app.alkachof.mx/signup)
+
+## Notas
+
+- El dominio alkachof.mx redirige a app.alkachof.mx, que es la dirección
+  canónica.
+- "Alkachof" no es "alcachofa": es el nombre de la plataforma, no la verdura.

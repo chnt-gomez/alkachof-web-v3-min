@@ -25,6 +25,7 @@ import { ChatProvider } from '@/sections/chat/context/ChatContext'
 import { CartProvider } from '@/sections/cart/context/CartContext'
 import { NavShell } from '@/components/NavShell'
 import { ProtectedRoute } from './ProtectedRoute'
+import { RootRoute } from './RootRoute'
 
 /** Retired route: forward to Pedidos, keeping `?highlight=` and `?role=`. */
 function RequestsRedirect() {
@@ -50,12 +51,19 @@ export function AppRouter() {
                     <Route path="/recover" element={<RecoverPage />} />
                     <Route path="/reset" element={<ResetPasswordPage />} />
                     <Route path="/verify" element={<VerifyPhonePage />} />
+                    {/* The public front door. `RootRoute` renders the landing
+                        page for a guest and `NavShell` for a seller, so `/`
+                        answers a stranger instead of redirecting to /login —
+                        the one thing that made the promoted host unrankable.
+                        See blueprint.SEO.md §4. */}
+                    <Route path="/" element={<RootRoute />}>
+                      <Route index element={<HomePage />} />
+                    </Route>
                     <Route element={<NavShell />}>
                       {/* Public: the visitor view of a catalog shares the app header
                           (guest variant) but is not behind ProtectedRoute. */}
                       <Route path="/catalog/:catalogId" element={<PublicCatalogPage />} />
                       <Route element={<ProtectedRoute />}>
-                        <Route path="/" element={<HomePage />} />
                         <Route path="/product/:id" element={<ProductPage />} />
                         <Route path="/catalog" element={<CatalogPage />} />
                         <Route path="/profile" element={<ProfilePage />} />

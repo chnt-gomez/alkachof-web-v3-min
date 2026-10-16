@@ -1,5 +1,11 @@
 <!doctype html>
-<html lang="en">
+<!--
+  `lang` is a machine-readable statement of who this is for, and every string in
+  the UI is Spanish (CLAUDE.md, *Language*). It shipped as `en` for a year,
+  which told search engines and screen readers to read Mexican Spanish as
+  English.
+-->
+<html lang="es-MX">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,9 +21,83 @@
       from a stale cache.
     -->
     <link rel="icon" type="image/svg+xml" href="/src/assets/alkachof-logo.svg" />
-    <title>Alkachof</title>
+    <link rel="apple-touch-icon" href="/logo-512.png" />
+
+    <!--
+      ── Findability ──────────────────────────────────────────────────────────
+      These are the defaults for `/`. `scripts/prerender.mjs` rewrites the title,
+      description and canonical per prerendered route at build time, and
+      `useDocumentMeta` (src/lib/seo.ts) rewrites them again on each client-side
+      navigation. Keep the three in step — see blueprint.SEO.md §4.
+
+      Never ship the bare brand as a title: `alkachof` is one letter from
+      `alcachofa` (artichoke) and engines substitute the vegetable unless the
+      category is sitting next to it.
+    -->
+    <title>Alkachof — catálogo digital gratis para vender por WhatsApp</title>
+    <meta
+      name="description"
+      content="Publica tu catálogo con las fotos de tu celular y compártelo por WhatsApp. Sin comisiones y sin planes: Alkachof es gratis para vendedores pequeños en México."
+    />
+    <link rel="canonical" href="https://app.alkachof.mx/" />
+    <meta name="theme-color" content="#79368C" />
+
+    <!--
+      Open Graph is read by WhatsApp, Instagram and Facebook to draw the preview
+      card on a pasted link. Google ignores it entirely — but a seller's whole
+      distribution is a pasted link, so this is the highest-traffic surface here.
+      `og:image` is absolute because a crawler cannot resolve a relative path.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Alkachof" />
+    <meta property="og:locale" content="es_MX" />
+    <meta property="og:title" content="Alkachof — catálogo digital gratis para vender por WhatsApp" />
+    <meta
+      property="og:description"
+      content="Publica tu catálogo con las fotos de tu celular y compártelo por WhatsApp. Sin comisiones y sin planes."
+    />
+    <meta property="og:url" content="https://app.alkachof.mx/" />
+    <meta property="og:image" content="https://app.alkachof.mx/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Alkachof — catálogo digital gratis para vender por WhatsApp" />
+    <meta
+      name="twitter:description"
+      content="Publica tu catálogo con las fotos de tu celular y compártelo por WhatsApp. Sin comisiones y sin planes."
+    />
+    <meta name="twitter:image" content="https://app.alkachof.mx/og.png" />
+
+    <!--
+      Structured data is not a ranking boost. It states facts in a form a
+      machine does not have to infer, which is what lets an assistant answer
+      "what is Alkachof?" with something other than a guess — the problem this
+      whole effort started from.
+      TODO(marketing): add `sameAs` with the real social profiles once they
+      exist. Third-party corroboration moves assistant answers more than
+      anything on this page (blueprint.SEO.md §7).
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Alkachof",
+        "url": "https://app.alkachof.mx/",
+        "logo": "https://app.alkachof.mx/logo-512.png",
+        "description": "Catálogo digital gratuito para vendedores pequeños en México. Publica con las fotos de tu celular y comparte tu tienda por WhatsApp.",
+        "areaServed": { "@type": "Country", "name": "México" },
+        "knowsLanguage": "es-MX"
+      }
+    </script>
   </head>
   <body>
+    <!--
+      `scripts/prerender.mjs` fills this div with the landing page's real HTML at
+      build time. It is what every crawler that does not run JavaScript reads —
+      social preview bots, ClaudeBot, GPTBot, PerplexityBot — and `createRoot()`
+      replaces it the moment React boots, so a user never sees it.
+      Shipping it empty is what made the served page one word long.
+    -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

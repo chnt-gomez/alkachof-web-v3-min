@@ -48,9 +48,12 @@ describe('NavShell header', () => {
   it('points the brand mark at the landing page and hides the profile for guests', () => {
     renderShell()
 
+    // `/`, not `/about`: the root answers both audiences now — the dashboard
+    // for a seller, the landing page for a guest — and it is the canonical
+    // url, which is where a brand's most-clicked internal link should point.
     expect(screen.getByRole('link', { name: /conoce la plataforma/i })).toHaveAttribute(
       'href',
-      '/about',
+      '/',
     )
     expect(screen.queryByRole('link', { name: 'Mi perfil' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /notificaciones/i })).not.toBeInTheDocument()
