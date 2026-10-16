@@ -8,6 +8,13 @@
       the `alkachof-version` plugin in vite.config.ts. They are not written by
       hand because a hand-written version is one someone forgets to bump.
     -->
+    <!--
+      The tab icon is the same file the app's `BrandMark` renders
+      (`src/assets/alkachof-logo.svg`), referenced through Vite so the build
+      fingerprints it: one logo, one source, and a replacement cannot be served
+      from a stale cache.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/src/assets/alkachof-logo.svg" />
     <title>Alkachof</title>
   </head>
   <body>
