@@ -54,10 +54,12 @@ export function NavShell() {
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b-2 border-ink bg-card">
         <div className="flex items-center justify-between px-4 py-2.5">
-          {/* Guests reach the shell through the public catalog, where "inicio"
-              is a protected route — send them to the landing page instead. */}
+          {/* `/` answers both audiences now — the dashboard for a seller, the
+              landing page for a guest — so the wordmark goes to the same place
+              for everyone. It is also the canonical URL, which is where a
+              brand's most-clicked internal link should point. */}
           <Link
-            to={isAuthenticated ? '/' : '/about'}
+            to="/"
             aria-label={isAuthenticated ? 'Alkachof — inicio' : 'Alkachof — conoce la plataforma'}
           >
             <BrandMark />

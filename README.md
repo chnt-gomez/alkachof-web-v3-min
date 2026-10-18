@@ -1,6 +1,11 @@
 # Alkachof Web
 
+**https://app.alkachof.mx**
+
 Small-screen-first e-commerce platform for very small sellers in Latin America.
+A seller publishes a catalog with the photos already on their phone and shares
+it with a link — no fees, no plan to choose, no store template to fill in.
+
 Vite + React 19 + TypeScript + Tailwind v4. See `CLAUDE.md` for the architecture
 notes the team works from.
 

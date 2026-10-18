@@ -2,8 +2,40 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/catalog/:catalogId",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|WhatsApp|Twitterbot|Slackbot|LinkedInBot|TelegramBot|Discordbot|Pinterest|redditbot|SkypeUriPreview|ClaudeBot|Claude-SearchBot|anthropic-ai|GPTBot|OAI-SearchBot|ChatGPT-User|PerplexityBot|Applebot|Bingbot|DuckAssistBot).*"
+        }
+      ],
+      "destination": "/api/catalog-preview?catalogId=:catalogId"
+    },
+    {
+      "source": "/join",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|WhatsApp|Twitterbot|Slackbot|LinkedInBot|TelegramBot|Discordbot|Pinterest|redditbot|SkypeUriPreview|ClaudeBot|Claude-SearchBot|anthropic-ai|GPTBot|OAI-SearchBot|ChatGPT-User|PerplexityBot|Applebot|Bingbot|DuckAssistBot).*"
+        }
+      ],
+      "destination": "/api/catalog-preview"
+    },
+    {
       "source": "/((?!assets/).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(index.html)?",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    },
+    {
+      "source": "/version.json",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     }
   ]
 }

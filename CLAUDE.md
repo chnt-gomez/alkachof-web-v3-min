@@ -33,11 +33,17 @@ Public, outside `NavShell`:
 - `/join` → `JoinPage`
 - `/login`, `/signup`, `/recover`, `/reset`, `/verify` → auth pages (the reset/verify code is typed into a form field, not read from a URL param)
 
+Split by session:
+- `/` → `RootRoute` — **`AboutPage` for a guest, `NavShell` + `HomePage` for a
+  seller.** It is not behind `ProtectedRoute`: `app.alkachof.mx` is the address
+  being promoted, and a root that redirects a stranger to `/login` cannot be
+  indexed, previewed or quoted. `AboutPage` is therefore served at two URLs and
+  both declare `/` as canonical. See *Findability* below.
+
 Public, inside `NavShell` (the header's guest variant):
 - `/catalog/:catalogId` → `PublicCatalogPage` (visitor view of a catalog by id)
 
 Protected (wrapped in `NavShell` + `ProtectedRoute`):
-- `/` → `HomePage`
 - `/catalog` → `CatalogPage` (owner's own catalog editor — resolved from the auth token, no id in the URL)
 - `/product/:id` → `ProductPage`
 - `/transactions` → `TransactionsPage` (the "Pedidos" tab — buyer/seller order history, product orders *and* service requests)
@@ -277,6 +283,62 @@ hold the three payloads it covers, under the `queryKeys.publicCatalog(id)` prefi
   another reason — belt and braces, not a guarantee. `followup.CatalogLocationStamp.md`
   is the ask to fix this properly; when it lands, delete `LOCATION_STALE_MS`, move
   the key under the `publicCatalog` prefix and allow the `location` scope on disk.
+
+### Findability (SEO, link previews, AI answers)
+
+Strategy and the measured before/after: `blueprint.SEO.md`. **`app.alkachof.mx`
+is the canonical host** — the address that gets ranked, shared and quoted.
+`alkachof.mx` is reserved for a company site and redirects here (an ops change,
+not in this repo).
+
+The problem this solves, in one number: the served HTML contained **one word**
+of readable text. Googlebot runs JavaScript, but the crawlers that matter most
+here do not — WhatsApp, Instagram and Facebook preview bots, `ClaudeBot`,
+`GPTBot`, `PerplexityBot` — so the entire product was, to them, the string
+"Alkachof". Everything below exists to put words in the file.
+
+- **`scripts/prerender.mjs` bakes `/` and `/about` into real HTML** at build
+  time, from the SSR bundle `vite.ssr.config.ts` produces. `npm run build` runs
+  client build → SSR build → prerender, in that order. It **fails the build on
+  failure**, deliberately: a silent no-op ships the one-word page again, and the
+  symptom only appears weeks later as a missing search result.
+- **Anything prerendered must render with no session, no browser and no API.**
+  That is the constraint on `AboutPage` and anything it imports. A hook that
+  reads auth, `localStorage` or the network either crashes the build or bakes a
+  signed-out error state into the HTML every crawler reads.
+- **`src/lib/seo.ts` owns the tags, and two things write them** — the prerender
+  at build time, `useDocumentMeta` at runtime. A client-side route change does
+  not refetch the document, so without the hook every route after the first
+  keeps the previous page's title. Changing a default means rebuilding, not
+  reloading.
+- **Never ship the bare brand as a `<title>`.** `alkachof` is one letter from
+  `alcachofa` — artichoke — and engines substitute the vegetable against a deep
+  commercial corpus. Every title pairs the name with the category.
+- **`public/robots.txt` does not block AI crawlers.** That is a decision, not an
+  oversight: for a brand nobody has heard of, being quotable is distribution.
+  Note it does **not** `Disallow: /catalog` — the prefix would take the public
+  `/catalog/:catalogId` view down with the owner's editor.
+- **`api/catalog-preview.ts` gives a shared catalog link its own preview card.**
+  `vercel.json` routes **only known crawler user-agents** there, so a real
+  visitor never pays the extra API hop. It fails open to the generic shell,
+  holds no token, and escapes every seller-authored value it interpolates — a
+  shop name is free text going into an HTML attribute. Googlebot is
+  deliberately absent from that list while catalog indexability is still an open
+  product decision (`blueprint.SEO.md` §10).
+- **`og:image` is never an Instagram `mediaUrl`** — expiring CDN links rot
+  silently. The catalog's own image, or the static card.
+- **`scripts/make-og-image.mjs` is run by hand, never in the build.** It shells
+  out to `qlmanage` and `sips`, which are macOS-only; wiring it into
+  `npm run build` would break the deploy. The PNGs are committed. It authors on
+  a **square** canvas and crops, because `qlmanage` fits the longest side — a
+  1200×630 source silently comes back zoomed 1.9× with the words off the edge.
+- **Static files beat the SPA rewrite on Vercel** (the filesystem is checked
+  first), which is why `public/` works at all. `/version.json` has always proved
+  it.
+
+Still open, and owned outside this repo: the apex/`www` redirect, Search Console
+and Bing verification, and the seller-education content. `blueprint.SEO.md` §12
+is the running order.
 
 ### Versioning
 
