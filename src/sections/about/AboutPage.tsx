@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom'
 import { Home, Megaphone, Import, Wifi } from 'lucide-react'
 import { BrandMark } from '@/components/BrandMark'
 import { Button } from '@/components/ui/button'
+import { useDocumentMeta } from '@/lib/seo'
 import { AboutHighlight } from './components/AboutHighlight'
+import { AboutFaq } from './components/AboutFaq'
 import { WordRandomizer } from './components/WordRandomizer'
 
 // TODO(content): final product/service list will be provided by the user.
@@ -116,7 +118,21 @@ const highlights = [
   },
 ]
 
+/**
+ * The product pitch — and, since `RootRoute` landed, the public front door.
+ *
+ * This component is served at **two** URLs: `/` to a signed-out visitor, and
+ * `/about`. Both declare `rel="canonical"` as `/`, so search engines count one
+ * page rather than two thin duplicates competing with each other. The second
+ * URL is kept because it is linked from outside and from older builds.
+ *
+ * It is also the page the build prerenders, which constrains it: it must render
+ * with no session, no API and no browser. Do not add a hook here that reads
+ * auth, storage or the network. See `blueprint.SEO.md` §5.
+ */
 export function AboutPage() {
+  useDocumentMeta({ canonicalPath: '/' })
+
   return (
     <div className="flex min-h-dvh flex-col bg-background px-5 py-10">
       <header className="flex justify-center">
@@ -137,6 +153,15 @@ export function AboutPage() {
           <p className="text-base text-muted-foreground">
             Alkachof es el mercado para micro y pequeños negocios. Conecta con vendedores locales, descubre productos y servicios y apoya a emprendedores de tu comunidad.
           </p>
+          {/* The sentence a search engine or an assistant can quote verbatim.
+              It is deliberately flat and declarative — a model lifts a fact, it
+              cannot lift a slogan — and it is the seller-side framing, which is
+              the acquisition channel this page is meant to win.
+              TODO(marketing): wording pending approval; keep it quotable. */}
+          <p className="text-base text-muted-foreground">
+            Si vendes comida, ropa, artesanías o cualquier servicio, publica tu catálogo gratis
+            con las fotos de tu celular y compártelo por WhatsApp. Sin comisiones y sin planes.
+          </p>
         </section>
 
         <section className="flex flex-col gap-3">
@@ -144,6 +169,8 @@ export function AboutPage() {
             <AboutHighlight key={highlight.title} {...highlight} />
           ))}
         </section>
+
+        <AboutFaq />
 
         <section className="flex flex-col gap-3">
           <Button asChild size="lg" className="w-full">

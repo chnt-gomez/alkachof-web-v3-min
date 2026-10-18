@@ -1,0 +1,29 @@
+# What a crawler may read. See blueprint.SEO.md §4.
+#
+# app.alkachof.mx is the canonical host — the address being promoted — so the
+# public surface is open and only the private one is closed.
+#
+# Note `/catalog` is NOT disallowed: the owner's editor at /catalog resolves from
+# the auth token and shows a stranger nothing, while /catalog/:catalogId is the
+# public visitor view a seller shares on purpose. A `Disallow: /catalog` prefix
+# would take the public view down with the private one.
+
+User-agent: *
+Disallow: /login
+Disallow: /signup
+Disallow: /recover
+Disallow: /reset
+Disallow: /verify
+Disallow: /profile
+Disallow: /transactions
+Disallow: /requests
+Disallow: /chats
+Disallow: /map
+Allow: /
+
+# AI crawlers are deliberately NOT blocked. For a brand nobody has heard of,
+# being quotable is distribution — blocking retrieval bots pays a training-data
+# posture out of an acquisition budget. This is a decision, not an oversight:
+# the parking page this host replaced blocked all of them by platform default.
+
+Sitemap: https://app.alkachof.mx/sitemap.xml
