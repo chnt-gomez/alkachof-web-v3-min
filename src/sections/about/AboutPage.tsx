@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Home, Megaphone, Import, Wifi } from 'lucide-react'
+import { Home, Megaphone, QrCode, Wifi } from 'lucide-react'
 import { BrandMark } from '@/components/BrandMark'
 import { Button } from '@/components/ui/button'
 import { useDocumentMeta } from '@/lib/seo'
@@ -102,9 +102,9 @@ const highlights = [
     description: 'Tus clientes están buscándote en línea. Crea tu perfil y empieza a vender hoy mismo.',
   },
   {
-    icon: Import,
-    title: 'Tráelo desde Instagram',
-    description: 'Autoriza tu cuenta de Instagram y trae tu catálogo de productos.',
+    icon: QrCode,
+    title: 'Comparte con un enlace',
+    description: 'Manda tu catálogo por WhatsApp o imprímelo como código QR. Tus clientes lo abren sin crear cuenta.',
   },
   {
     icon: Megaphone,

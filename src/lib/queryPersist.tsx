@@ -24,10 +24,6 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000
  *   removes the full-page skeleton. Revalidated in the background on every cold
  *   start, so a profile edited on another device is wrong for one paint rather
  *   than forever.
- * - `instagram/status` — the epic's original ask, and the one endpoint here
- *   guarding a **billed** call. Deliberately *not* revalidated: its `staleTime`
- *   already expires exactly at `nextAvailable`, so an earlier refetch is a
- *   request that cannot learn anything.
  * - `subscriptions` — owner-owned, and the list that decides which shops below
  *   are allowed on disk at all. It has to survive the reload the shops do.
  *
@@ -38,9 +34,8 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000
  *
  * Never persist: Pedidos, chat or notifications (other people write those, and
  * the feeds are unbounded); the catalog's **location** (editing it does not move
- * the freshness stamp, so nothing would catch a stale one); anything derived from
- * an Instagram `mediaUrl` (the CDN links expire); `/instagram/posts` (the billed
- * feed — on disk it would make a stale feed importable); tokens (own keys).
+ * the freshness stamp, so nothing would catch a stale one); anything built on a
+ * third-party CDN url (those links expire); tokens (own keys).
  *
  * **Never persist the news feed either**, and it is the sharpest version of the
  * owner-catalog problem: announcements expire on a server clock nobody here can
@@ -51,7 +46,6 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000
  */
 const PERSISTED_KEYS: readonly QueryKey[] = [
   queryKeys.profile(),
-  queryKeys.instagramStatus(),
   queryKeys.subscriptions(),
 ]
 
@@ -169,11 +163,8 @@ function restoreFromDisk(): boolean {
 /**
  * The app's query provider.
  *
- * Persistence behaves identically in every environment. It used to be disabled
- * when the client ran on mocks — module-level mock stores reset on reload and a
- * persisted `/instagram/status` would have contradicted them — but there are no
- * mocks any more, and a dev session that skipped persistence would never
- * exercise the boot path that depends on it.
+ * Persistence behaves identically in every environment — a dev session that
+ * skipped it would never exercise the boot path that depends on it.
  */
 export function AppQueryProvider({ children }: { children: ReactNode }) {
   // A `useState` initialiser runs once, synchronously, before children render —
@@ -193,8 +184,7 @@ export function AppQueryProvider({ children }: { children: ReactNode }) {
 
     // One background revalidate per cold start, for the profile only. The
     // restored row has already painted, so this refetch blocks nothing — it buys
-    // correctness without giving back the paint. The Instagram status is
-    // deliberately excluded: see the allowlist note above.
+    // correctness without giving back the paint.
     if (restored) void queryClient.invalidateQueries({ queryKey: queryKeys.profile() })
 
     return unsubscribe

@@ -195,7 +195,7 @@ At latitude 19.4° on a 390 px-wide phone:
 
 So the largest area one request can ever ask about is a ~15 km radius. That number is the one the
 API should cap on its side as well (§7) — the client's clamp is a courtesy, not a control, the same
-way `useInstagramAvailability` is a courtesy in front of the API's 429.
+way a client-side check is only ever a courtesy in front of the API's 429.
 
 The floor also protects the **tile** budget, which is the bill this screen already has: OSM's public
 tile servers forbid heavy use, and a map opened at z=5 fetches tiles for a continent. `minZoom`
@@ -262,7 +262,7 @@ Failure shows a dismissible notice over the top of the map — not a dialog, not
 | `unsupported` | `Tu dispositivo no permite obtener la ubicación.` | none — retrying changes nothing |
 | `located` | nothing | — |
 
-`unsupported` is terminal with no retry, the same shape as `InstagramPrivateNotice`: a button that
+`unsupported` is terminal with no retry: a button that
 cannot change its own outcome is worse than no button.
 
 Both strings are the ones `LocationMapPicker` ships today, which is the point of extracting
@@ -339,8 +339,7 @@ is one `{!enabled && …}` away from disappearing.
 
 **Do not word it as a search over everything.** `GET /location/lookup` has **no `?q=`** — text
 search is a different index and a different feature on the API side, so promising a global name
-search would promise an endpoint that does not exist. (Same failure mode as
-`InstagramProfilePicker`, where the UI must not read as a fuzzy name search the actors cannot do.)
+search would promise an endpoint that does not exist.
 
 ---
 

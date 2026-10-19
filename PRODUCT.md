@@ -38,11 +38,9 @@ completes an order without creating an account until the last step.
 ## Positioning
 
 **A zero-friction shop, in minutes.** An item may be published *blank* — a photo
-and nothing else. A price is optional (items import at 0 and are priced later,
-like any other unpriced item). A seller who already runs their shop out of
-Instagram imports that feed directly rather than retyping it. There is no
-setup wizard, no store template to fill in, no plan to choose, and no fee to
-start.
+and nothing else. A price is optional, so a seller can get their photos up first
+and price them later. There is no setup wizard, no store template to fill in, no
+plan to choose, and no fee to start.
 
 Neighboring products ask a small seller to behave like a retailer first —
 catalog structure, SKUs, prices, shipping tables, a payment integration — before
@@ -78,12 +76,6 @@ Confirmed and shipped:
   edits it at `/catalog`; visitors read it at `/catalog/:catalogId`.
 - **Items are products *or* services**, and the two carry distinct identity
   through the whole app — a service is *requested*, a product is *ordered*.
-- **Instagram import** reads a *public* profile through a scraper on the API
-  side. There is no Instagram SDK, no OAuth, and nothing Instagram-related in
-  the browser. A private account cannot be read at all. Enrollment is
-  **permanent** and ownership cannot be proven — the seller attests. Each
-  successful import holds the next run for 7 days, because every feed read is
-  billed.
 - **Cart is entirely client-side** (`localStorage`), has no route, and needs no
   account. Only checkout calls the backend, and that is the auth gate.
 - **Pedidos** shows both sides of the deal (Compras / Ventas), across product
@@ -102,8 +94,8 @@ Constraints that bind future work:
 - **Every environment runs against a real API**, dev included. There is no mock
   layer and no offline mode.
 - **The API owns the shapes the client cannot change** — notification deep-link
-  routes, the archive rule for the orders feed, the Instagram cooldown, the
-  item cap, the image bounds. The client mirrors; it never re-implements.
+  routes, the archive rule for the orders feed, the item cap, the image bounds.
+  The client mirrors; it never re-implements.
 - **Stored tokens are readable by JavaScript** by necessity (the client builds
   the `Authorization` header), so cookie storage buys expiry and cross-tab
   signalling, not XSS protection.

@@ -114,9 +114,9 @@ export default async function handler(request: Request): Promise<Response> {
       catalog.welcomeText?.trim() ||
       'Mira el catálogo, arma tu pedido y contacta directamente al vendedor.',
   )
-  // The catalog's own image, already an absolute URL minted by the API. Never an
-  // Instagram `mediaUrl`: those are expiring CDN links and a card built on one
-  // rots silently (CLAUDE.md, Instagram import).
+  // The catalog's own image, already an absolute URL minted by the API. Never a
+  // third-party CDN url: those links expire and a card built on one rots
+  // silently (CLAUDE.md, Findability).
   const image = catalog.image?.trim() || `${SITE_URL}/og.png`
   const canonical = `${SITE_URL}/catalog/${encodeURIComponent(catalogId)}`
 

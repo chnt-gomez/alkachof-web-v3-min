@@ -77,8 +77,9 @@ const mockItems: Item[] = [
 ]
 
 function renderPage() {
-  // A fresh client per render: the Instagram status is cached, and a client
-  // shared across tests would answer one test's query from another's write.
+  // A fresh client per render: the catalog and its items are cached, and a
+  // client shared across tests would answer one test's query from another's
+  // write.
   return render(
     withQueryClient(
       <ToastProvider>

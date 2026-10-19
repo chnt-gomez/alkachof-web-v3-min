@@ -24,12 +24,6 @@ type EditCatalogState = {
   updateItem: (itemId: string, patch: Partial<Item>, image?: File | null) => Promise<void>
   createItem: (data: NewItemData) => Promise<void>
   deleteItem: (itemId: string) => Promise<void>
-  /**
-   * Re-reads the item list. For creations this screen did not perform itself —
-   * an Instagram import returns only a summary of each new item, not the full
-   * `Item` rows the grid renders.
-   */
-  reloadItems: () => Promise<void>
 }
 
 const EditCatalogContext = createContext<EditCatalogState | null>(null)
@@ -41,10 +35,9 @@ const EditCatalogContext = createContext<EditCatalogState | null>(null)
  * items live under the keys in `queryKeys`, which Home reads too, so leaving this
  * screen and coming back costs nothing. What this provider owns is the *write*
  * side — every mutation here puts the row the API returned straight into the
- * cache rather than re-reading it.
- *
- * The one exception is `reloadItems`, and it is the only invalidation in the app.
- * See `CLAUDE.md` → Caching.
+ * cache rather than re-reading it. There is no invalidation here, and none in
+ * the app: every mutation already holds the row it changed. See `CLAUDE.md` →
+ * Caching.
  */
 export function EditCatalogProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
@@ -117,16 +110,6 @@ export function EditCatalogProvider({ children }: { children: React.ReactNode })
     )
   }
 
-  /**
-   * The app's only invalidation, and it earns it: an Instagram import creates
-   * items server-side that the 201 describes only in summary, so there is no row
-   * to write. Everything else here holds the API's own response already.
-   */
-  async function reloadItems() {
-    if (!catalog) return
-    await queryClient.invalidateQueries({ queryKey: itemsKey(catalog._id) })
-  }
-
   return (
     <EditCatalogContext.Provider
       value={{
@@ -140,7 +123,6 @@ export function EditCatalogProvider({ children }: { children: React.ReactNode })
         updateItem,
         createItem,
         deleteItem,
-        reloadItems,
       }}
     >
       {children}

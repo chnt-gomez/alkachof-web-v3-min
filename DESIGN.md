@@ -606,10 +606,9 @@ to the photograph's own aspect ratio.
 - **Don't** use a 1px border or a hairline divider anywhere.
 - **Don't** paint a page rosa because it needed a banner. Rosa is a role, not wallpaper.
 - **Don't** paint services in anything but añil, or a confirmed state in the primary.
-- **Don't** ship text below **11px**. Seven sites currently do (`NavShell.tsx:38,148`,
-  `AnnounceDialog.tsx:140`, `InstagramPostGrid.tsx:75,80`, `ProductGrid.tsx:157`,
-  `MessageBubble.tsx:38`); they predate this system, they are **drift, not a ramp step**, and new
-  work must not copy them.
+- **Don't** ship text below **11px**. Five sites currently do (`NavShell.tsx:38,150`,
+  `AnnounceDialog.tsx:140`, `ProductGrid.tsx:79`, `MessageBubble.tsx:22`); they predate this
+  system, they are **drift, not a ramp step**, and new work must not copy them.
 - **Don't** reduce a field below 16px — it zooms the viewport on iOS Safari.
 - **Don't** add a `ring` to express selection; it reads as a focus state the keyboard never set.
 - **Don't** apply the hard text-shadow on an amarillo field, or in ink on an ink field.
