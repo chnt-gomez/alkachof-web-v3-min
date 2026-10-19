@@ -22,7 +22,18 @@ import { fetchCatalogLocation, type CatalogLocation } from '../actions/fetchCata
  */
 const LOCATION_STALE_MS = 5 * 60 * 1000
 
-function hasValidCoords(loc: CatalogLocation): boolean {
+/**
+ * Whether the stored pair is usable as a point on a map.
+ *
+ * Exported because the discoverability toggle asks the same question: a shop
+ * cannot be listed without a point, and the control disables itself rather than
+ * spending a round trip to be told so. One copy of the range check, not two.
+ *
+ * It is **courtesy only**. What search actually indexes is a derived field the
+ * API does not expose, so a row can pass this and still be refused with a 409 —
+ * which is the answer that counts.
+ */
+export function hasValidCoords(loc: CatalogLocation): boolean {
   return (
     Number.isFinite(loc.lat) &&
     Number.isFinite(loc.lng) &&

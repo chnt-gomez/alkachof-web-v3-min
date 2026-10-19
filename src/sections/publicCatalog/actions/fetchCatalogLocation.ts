@@ -21,6 +21,21 @@ export type CatalogLocation = {
   neighborhood: string
   catalogId: string
   zoneId: string | null
+  /**
+   * Whether the seller opted this shop into `GET /location/lookup`, the one call
+   * behind `/map`. Owner-written through `setCatalogDiscoverable` and nothing
+   * else; publicly readable; `false` by default.
+   *
+   * **Always present.** The API sends a boolean even for rows written before the
+   * column existed, so there is no absent case to defend against — see
+   * `docs.OptInMapDiscoverable.frontend.md` §2.
+   *
+   * It governs search results and nothing more. This read is public and
+   * ungated, so the full address comes back either way and the catalog's own
+   * page still draws the exact pin. **Never describe it to a seller as
+   * privacy.**
+   */
+  is_discoverable: boolean
 }
 
 /** Reads a catalog's location. Public endpoint; returns `null` when unset. */

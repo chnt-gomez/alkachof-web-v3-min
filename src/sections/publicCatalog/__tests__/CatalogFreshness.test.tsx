@@ -137,7 +137,7 @@ const location = {
   additional_number: '',
   neighborhood: 'Centro',
   catalogId: CATALOG_ID,
-  zoneId: null,
+  zoneId: null, is_discoverable: false,
 }
 
 describe('public catalog freshness', () => {

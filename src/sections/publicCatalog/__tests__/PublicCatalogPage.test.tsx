@@ -890,7 +890,7 @@ describe('PublicCatalogPage location', () => {
     city: 'Oaxaca de Juárez',
     state: 'Oaxaca',
     catalogId: 'abc123',
-    zoneId: null,
+    zoneId: null, is_discoverable: false,
   }
 
   it('hides the map pin when the catalog has no location', async () => {
