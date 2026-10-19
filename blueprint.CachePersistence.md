@@ -12,17 +12,17 @@ overturned by a test.
 
 ## 0. Where we actually are
 
-Phases 1–4 took the sample session from 12 in-scope requests to **4**: one read each
-of `/profile`, `/catalog`, `/catalog/:id/items`, `/instagram/status`. That 4 is the
-floor for an in-memory cache — it dies with the tab.
+Phases 1–4 took the sample session from 12 in-scope requests to **3**: one read each
+of `/profile`, `/catalog` and `/catalog/:id/items`. That 3 is the floor for an
+in-memory cache — it dies with the tab.
 
 So the honest scope of Phase 5 is narrow:
 
 | | Today | With persistence |
 |---|---|---|
 | Navigating between screens | 0 requests | 0 |
-| **Reload / PWA cold start / OS killed the tab** | **4 requests** | 0–2 |
-| First boot on a device | 4 | 4 |
+| **Reload / PWA cold start / OS killed the tab** | **3 requests** | 0–1 |
+| First boot on a device | 3 | 3 |
 
 Everything Phase 5 can win happens at a **cold start**. How often that is for
 Alkachof's users is the one number that decides whether this is worth doing, and it
@@ -46,19 +46,12 @@ two motivations separate, because §3 shows they can be bought independently.
 
 ---
 
-## 1. Why the epic asked for this at all
+## 1. Why not a cookie
 
-Opportunity 1 said, verbatim: *"After a successful import, save the available date to
-a cookie or use TanStack Query to cache the available date."*
-
-Phases 1–2 satisfied the second half within a session. They do **not** satisfy the
-first half: reload the app and `/instagram/status` is read again. So the epic's
-opportunity 1 is, strictly, still open — and it is the one endpoint on the list that
-guards a **billed** call. That is the strongest single argument for Phase 5.
-
-(For the record: **a cookie is the wrong container.** It would be sent on every
-request to `api.alkachof.mx`, costs ~4 KB of the request budget on mobile data, and
-buys nothing localStorage does not. Where the epic says "cookie", read "on disk".)
+The epic's wording offers a cookie as one of the two containers. **It is the wrong
+one.** A cookie is sent on every request to `api.alkachof.mx`, costs ~4 KB of the
+request budget on mobile data, and buys nothing `localStorage` does not. Where the
+epic says "cookie", read "on disk".
 
 ---
 
@@ -74,27 +67,27 @@ localStorage blob; `shouldDehydrateQuery` limits which keys go in.
 |---|---|
 | Composes: adding a key to the allowlist later is one line | Adds a rehydration-type trap (R1) — the single most dangerous item on this list |
 | Removes the `isBooting` gate → instant paint | Puts seller data on disk, outliving the tab (R4) |
-| Closes the epic's opportunity 1 properly | Turns a multi-tab UI inconsistency into data on disk (R2) |
+| Wins the cold-start paint, which is the prize | Turns a multi-tab UI inconsistency into data on disk (R2) |
 | One mechanism, one place to reason about | Two new dependencies to keep current |
 | Library-maintained; restore, throttling and `maxAge` are solved | Two new dependencies |
 
-### Option B — targeted micro-persistence, Instagram date only
+### Option B — targeted micro-persistence, one value only
 
-No persister. A purpose-built `localStorage` key holding one ISO string, read as
-`initialData` for the status query.
+No persister. A purpose-built `localStorage` key holding a single value, read as
+`initialData` for the one query that needs it.
 
 | Pros | Cons |
 |---|---|
 | Minimal surface: one string, no dehydrate/rehydrate, no type trap | Bespoke machinery that does not compose — a second resource means a second copy of it |
 | No PII on disk | Does **not** fix the boot paint, which is the bigger prize |
 | Nothing to gate or disable anywhere | Hand-rolls what a maintained library already does (throttling, maxAge, versioning) |
-| Answers the epic's literal ask, and nothing more | We would likely still want A later, and then this is dead code |
+| Smallest possible change | We would likely still want A later, and then this is dead code |
 
 ### Option C — defer
 
 | Pros | Cons |
 |---|---|
-| No new risk. Phases 1–4 already delivered 12 → 4 | Opportunity 1 stays open; a reload still spends the guarded read |
+| No new risk. Phases 1–4 already delivered 12 → 3 | A reload still re-reads the profile on the blocking path |
 | The cold-start frequency may make this genuinely marginal | The `isBooting` skeleton stays on the critical path |
 
 ### Recommendation
@@ -128,11 +121,10 @@ They are not the same trade, and the right answer differs per resource:
 | Key | Recommend | Why |
 |---|---|---|
 | `['profile']` | **persist + revalidate** | It is on the blocking boot path, so the paint win is the whole point. The refetch is one cheap non-blocking call, and it keeps a profile edited on another device from being wrong forever. |
-| `['instagram','status']` | **persist + trust** | Its `staleTime` already encodes exactly when the answer can change (`nextAvailable`), so a revalidate before that date is a request that cannot learn anything. This is the epic's ask and the endpoint guarding a billed call. |
 | `['catalog','mine']` | **do not persist** (initially) | See D4. |
 | `['catalog',id,'items']` | **do not persist** (initially) | See R5 — the one that generates a support ticket. |
 
-Net effect of the recommendation: **cold start goes from 4 blocking requests to 3
+Net effect of the recommendation: **cold start goes from 3 blocking requests to 3
 non-blocking ones, and the skeleton disappears.** If the team wants the request count
 down instead, flip profile to "trust" — but make that choice deliberately.
 
@@ -145,7 +137,7 @@ down instead, flip profile to "trust" — but make that choice deliberately.
 | **D1** | Container | `localStorage` | Not cookies (sent on every API request, 4 KB budget, no upside). Not IndexedDB — async, and our payload is a few KB. |
 | **D2** | Mechanism | `PersistQueryClientProvider` + `createSyncStoragePersister` | Maintained; restore/throttle/`maxAge` solved. `experimental_createPersister` (per-query) is finer-grained but still experimental and we do not need per-query granularity — the allowlist gives it. |
 | **D3** | Cache version (`buster`) | **Auto-derive from the build**, via a `define` in `vite.config.ts` | See R1. A hand-maintained `CACHE_VERSION` const only works if every future author remembers to bump it when a cached type changes. Nobody will. Deriving it from the build makes the trap structurally impossible, at the cost of dropping the cache on each deploy — deploys are far rarer than sessions, so this is close to free. |
-| **D4** | Allowlist | `['profile']`, `['instagram','status']` only | The two where a stale read is harmless. Catalog and items are held back deliberately — see R5. Revisit with §7 once this is proven in production. |
+| **D4** | Allowlist | `['profile']` only | The one where a stale read is harmless. Catalog and items are held back deliberately — see R5. Revisit with §7 once this is proven in production. |
 | **D6** | `maxAge` | 24 h | Long enough to cover any realistic gap between sessions; short enough that a forgotten device does not serve week-old data. |
 | **D7** | Logout | Remove the persisted blob on **both** session-end paths | `logout` and `api.ts`'s 401 give-up. Phase 4 already showed these are easy to get subtly wrong. |
 | **D8** | Multi-tab | Add a `storage` listener on the token key | See R2. Small, and it fixes a bug that already exists. |
@@ -235,10 +227,8 @@ Restating, because an allowlist erodes one well-meaning line at a time:
 - **The public catalog, questions, Pedidos, chat, notifications.** Other people write
   those rows; their staleness is not ours to trade away, and Pedidos and chat are
   unbounded in size.
-- **Anything derived from `mediaUrl`** on an Instagram post. Those CDN links expire —
-  `CLAUDE.md` already forbids persisting them anywhere.
-- **`/instagram/posts`.** The billed feed. Caching it in memory is already forbidden;
-  on disk it would additionally make a stale feed importable.
+- **Anything built on a third-party CDN url.** Those links expire — `CLAUDE.md`
+  already forbids persisting them anywhere.
 - **Tokens.** They live in the `alk.token` / `alk.refreshToken` cookies
   (`blueprint.CookieStorage.md`) and never enter the blob.
 
@@ -277,7 +267,7 @@ npm i @tanstack/react-query-persist-client @tanstack/query-sync-storage-persiste
 Allowlist shape:
 
 ```ts
-const PERSISTED: ReadonlyArray<readonly unknown[]> = [queryKeys.profile(), queryKeys.instagramStatus()]
+const PERSISTED: ReadonlyArray<readonly unknown[]> = [queryKeys.profile()]
 // An allowlist, never "everything that succeeded". Adding a key here is a
 // decision about staleness, not a performance tweak — see D4 / R5.
 ```
@@ -306,8 +296,6 @@ vacuously is worse than none.
 ## 10. Definition of done
 
 - [ ] Cold start with a warm blob renders the app with **no** boot skeleton.
-- [ ] `/instagram/status` is not requested after a reload while a cooldown is
-      running, and the date is on screen before any network call resolves.
 - [ ] A deploy (new buster) discards the previous blob without a user-visible error.
 - [ ] Logging out leaves **nothing** in `localStorage` under the cache key — verified
       in the browser, not only in a test.

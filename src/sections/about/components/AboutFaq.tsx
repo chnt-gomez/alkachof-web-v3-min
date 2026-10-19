@@ -45,12 +45,6 @@ const FAQ_ITEMS = [
       'Instagram o lo imprimes como código QR. Tus clientes no necesitan crear una cuenta para verlo.',
   },
   {
-    question: '¿Puedo traer mis fotos de Instagram?',
-    answer:
-      'Sí. Si ya vendes por Instagram puedes importar las fotos de tu cuenta pública y ' +
-      'convertirlas en productos, en lugar de volver a subirlas una por una.',
-  },
-  {
     question: '¿Puedo ofrecer servicios y no solo productos?',
     answer:
       'Sí. Un producto se pide y un servicio se solicita: plomería, costura, banquetes, ' +

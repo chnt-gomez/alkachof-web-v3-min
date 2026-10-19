@@ -36,10 +36,10 @@ export type ApiErrorBody = {
 /**
  * The moment a 429 says the caller may try again, when the body carries one.
  *
- * Both the IP rate limiter and the per-seller Instagram cooldown answer with
- * this field, so a caller reads one shape rather than two — and since the wait
- * can be fifteen minutes or seven days, the date is what the UI must show. Null
- * when the server sent no date; say "más tarde" rather than inventing one.
+ * Every 429 the API sends carries this field when it knows the answer, so a
+ * caller reads one shape wherever it is rate-limited — and the date is what the
+ * UI must show. Null when the server sent no date; say "más tarde" rather than
+ * inventing one.
  */
 export function availableAtOf(err: unknown): string | null {
   if (!(err instanceof ApiError)) return null

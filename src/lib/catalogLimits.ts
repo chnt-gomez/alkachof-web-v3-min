@@ -3,8 +3,8 @@
  *
  * Mirrors the API's `CONSTANTS.CATALOG.MAX_ITEMS` in
  * `alkachof-api/api/constants/constants.js` (hoisted there as
- * `MAX_CATALOG_ITEMS`, because the Instagram import batch is sized from the same
- * number). **Keep the two in step** — same arrangement as `imagePresets.ts`.
+ * `MAX_CATALOG_ITEMS`). **Keep the two in step** — same arrangement as
+ * `imagePresets.ts`.
  *
  * The server is what enforces it: `catalogService.createItem` refuses the 26th
  * item with `Max items reached`. Everything here is courtesy — it exists so a

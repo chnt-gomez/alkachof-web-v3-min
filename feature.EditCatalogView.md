@@ -32,7 +32,7 @@ Components under `src/sections/catalog/components/`:
 - `CatalogHeader.tsx` — jumbotron, with the link through to the public view at `/catalog/:catalogId`.
 - `EditCatalogScreen.tsx` — the catalog form (alias, welcome text, description, delivery and payment
   options, image).
-- `ProductGrid.tsx` — `columns-2` masonry, "Agregar producto", and the Instagram import entry point.
+- `ProductGrid.tsx` — `columns-2` masonry, "Agregar artículo", the free-slot rows and the item cap.
 - `ItemFormDialog.tsx` — one dialog for both create and edit, including the image field.
 - `DeleteItemConfirm.tsx`, `LocationEditDialog.tsx`, `ShareCatalogDialog.tsx`, `AnnounceDialog.tsx` —
   the remaining owner actions.

@@ -8,8 +8,8 @@ import { clearPersistedCache } from './queryStorage'
  * Every default here is the opposite of the library's, deliberately. React Query
  * ships tuned for dashboards on a desk — refetch on focus, on reconnect, on
  * mount, retry three times. Alkachof runs on a phone on mobile data, and the
- * rows it caches (a seller's own catalog, their own profile, their Instagram
- * enrollment) change only through mutations this client performs. Those
+ * rows it caches (a seller's own catalog, their own items, their own profile)
+ * change only through mutations this client performs. Those
  * mutations write their response straight into the cache, so a focus- or
  * timer-driven refetch would spend a request to learn something we already hold.
  *
@@ -68,9 +68,9 @@ export const queryClient = createQueryClient()
  * Drops every cached row on the singleton above. **Security, not housekeeping.**
  *
  * Two users on one phone is an ordinary case for this product, and the cache
- * holds one seller's catalog, profile and Instagram state. It used to empty
- * itself because it was React state that died with the tree; a module-scope
- * client does not.
+ * holds one seller's catalog, items and profile. It used to empty itself
+ * because it was React state that died with the tree; a module-scope client
+ * does not.
  *
  * **For callers with no React context only** — today that is the 401 give-up
  * path in `api.ts`. Anything inside the tree must clear the client it was

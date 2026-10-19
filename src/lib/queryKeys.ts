@@ -18,13 +18,6 @@ export const queryKeys = {
   myCatalog: () => ['catalog', 'mine'] as const,
   /** The items of one catalog, owner view. */
   catalogItems: (catalogId: string) => ['catalog', catalogId, 'items'] as const,
-  /**
-   * `/instagram/status`, the section's only unmetered endpoint. The feed
-   * (`/instagram/posts`) is a billed scraper run and is deliberately **not**
-   * cached — see `fetchInstagramPosts`.
-   */
-  instagramStatus: () => ['instagram', 'status'] as const,
-
   /** The viewer's own subscription rows. Owner-owned: only this client writes them. */
   subscriptions: () => ['subscriptions'] as const,
 
