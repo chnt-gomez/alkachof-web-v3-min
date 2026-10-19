@@ -231,9 +231,11 @@ become a real feature, and if the client ignores it we will find out from a user
 
 A catalog is absent from `results` whenever any of these is true, and none of them is an error:
 
-- it has **no coordinates on file** — by far the most common case today. There is no map picker in
-  the client yet, so most sellers have never placed themselves. **This is the real constraint on the
-  feature, not the API**: until a picker ships, the map is mostly empty.
+- it has **no coordinates on file** — by far the most common case today. The picker shipped, but
+  most sellers have still never placed themselves. **This is the real constraint on the feature,
+  not the API.**
+- its owner **has not opted into being discoverable** (`location.is_discoverable`, default
+  `false`) — see `docs.OptInMapDiscoverable.frontend.md`
 - its **owner is not `active`** (banned, inactive, or signed up and never verified a phone)
 - its **location row was deleted**, or the seller **removed their pin** (see §7)
 - it is **outside the radius**
@@ -242,7 +244,9 @@ A catalog is absent from `results` whenever any of these is true, and none of th
 
 ## 7. The seller side — how a shop gets on the map, and off it
 
-The client half of this is the map picker, which does not exist yet. The API is ready for it.
+The client half of this is the map picker, which shipped. Getting onto the map now takes two
+separate acts: placing a pin, and opting in through
+`POST /location/{locationId}/discoverable` (`docs.OptInMapDiscoverable.frontend.md`).
 
 ```
 POST /location/catalog/{catalogId}      auth + catalog owner    create
@@ -304,9 +308,9 @@ mongoose only ever *creates* indexes.
 
 ## 9. Known limits, so you do not design around them
 
-- **No map picker, so the map is nearly empty.** The blocker is frontend work, not this API. A
-  prompt on the seller's dashboard for a catalog with no location is the obvious companion and does
-  not exist either.
+- **The map is nearly empty, now for two reasons.** The picker shipped; most sellers have still not
+  placed themselves, and a placed seller must also opt in. A prompt on the seller's dashboard for a
+  catalog that is unplaced — or placed and not listed — is the obvious companion and does not exist.
 - **`skip` paging shifts** if rows change between calls. Fine for a discovery feed; irrelevant while
   `truncated` is always false.
 - **`total` can differ from the paged set by a boundary row** — the page and the count use geo

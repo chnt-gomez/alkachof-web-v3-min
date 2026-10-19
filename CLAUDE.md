@@ -552,6 +552,45 @@ distance (`Pan de Ana, a 1.1 km`), which is the only place `distanceMeters` is s
 **The search field is still inert** (see below): `/location/lookup` has no `?q=`, and text search
 is a different index and a different feature.
 
+#### Being on the map is the seller's choice (`is_discoverable`)
+
+`/location/lookup` returns a catalog only when its owner opted in **and** the row has a usable
+pin. The flag lives on the **`Location`** resource, defaults to `false`, and the control is
+`DiscoverabilityToggle` in the catalog editor's *Ubicación* block. Contract:
+`docs.OptInMapDiscoverable.frontend.md`.
+
+- **"Off" is not privacy, and the copy must never say it is.** It removes the shop from one
+  endpoint's results. The public URL, the shared link and the QR keep working, and
+  `GET /location/catalog/:id` is **public and ungated** — so the full address stays readable and
+  `CatalogLocationDialog` still draws the exact pin on the shop's own page. That scope is
+  **settled**: a seller publishing their catalog's location chose to, and this flag is not about
+  taking it back. The destructive "take my address out of the product" control is still the
+  two-null update (`followup.LocationSearchApi.md` §7), and it is a different thing.
+- **Every seller starts off the map, and no migration will change that.** The flag defaults to
+  `false` and **there is no backfill** — nobody is opted into being published by default. So do not
+  build anything on an assumption that sellers arrive listed, and do not add a prompt nudging an
+  unplaced or unlisted seller: the catalog is their sandbox, and the editor showing the state plus
+  the way to change it is the whole of our job here. `docs.OptInMapDiscoverable.frontend.md` §9
+  records these as decisions.
+- **`setCatalogDiscoverable` is the only writer, and the flag is deliberately absent from
+  `LocationInput`.** The API refuses the key on create and ignores it on `/location/:id/update`;
+  keeping it off the address form's type is this client's half of that bargain, because a form
+  posts every field it holds and a flag riding along would take a seller off the map whenever they
+  fixed a typo in their street. `CatalogPage.test.tsx` pins the absence.
+- **The 409 copy is ours, keyed off the status.** Every message the API returns is English and
+  this is the one refusal a seller can cause, so `isMissingLocationError` reads
+  `ApiError.status`, never the string — the same rule as `isCodeDestroyedError`.
+- **Opting *out* is never gated.** `hasValidCoords` disables only the way *in*; a seller whose
+  coordinates are unusable is exactly the one who wants off the map, and the API agrees.
+- **The coordinate check is courtesy.** Search indexes a derived field the API does not expose, so
+  a row can pass `hasValidCoords` and still earn a 409. That answer is the one that counts.
+- **No new query key.** It rides `queryKeys.catalogLocation(id)` — already outside the
+  `publicCatalog` prefix, time-bounded, and never persisted, which is what stops a seller who
+  opted out on another device from reopening the editor to a switch that says *on*. The write does
+  `setQueryData`; there is still no invalidation in this app.
+- **The invitation line fires on first placement only**, not on every address save — nagging a
+  seller who is deliberately off the map is the failure mode that rule exists to prevent.
+
 - **`MIN_ZOOM` (12) is an abuse guard, not a style choice.** It bounds how much ground one
   viewport can cover (~14 km across), which is what keeps a pan-driven lookup proportionate to the
   7 km circle it is gating — and it bounds the bill the screen already has: OSM's public tile
