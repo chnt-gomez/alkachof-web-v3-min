@@ -102,7 +102,7 @@ the intended trade.
 | Catalog metadata edited | `POST /catalog/{id}/update` |
 | Catalog image uploaded / replaced / deleted | `POST /catalog/{id}/image`, `/image/delete` |
 | QR code first minted | (server-side, on the owner's first `GET /catalog`) |
-| Item created | `POST /catalog/{id}/new`, `/item/add`, Instagram import |
+| Item created | `POST /catalog/{id}/new`, `/item/add` |
 | Item updated | `POST /item/{itemId}/update` |
 | Item deleted | `POST /item/{itemId}/delete` |
 | **Question asked** — by any visitor, not just the owner | `POST /catalog/{id}/ask` |

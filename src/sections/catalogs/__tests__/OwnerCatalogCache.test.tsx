@@ -39,7 +39,6 @@ vi.mock('@/sections/home/actions/fetchNews')
 vi.mock('@/sections/catalog/actions/deleteItem')
 vi.mock('@/sections/publicCatalog/actions/fetchCatalogLocation')
 vi.mock('@/sections/publicCatalog/actions/fetchCatalogQuestions')
-vi.mock('@/sections/catalog/actions/fetchInstagramStatus')
 
 import { fetchMyCatalog } from '../actions/fetchMyCatalog'
 import { fetchCatalogItems } from '@/sections/catalog/actions/fetchCatalogItems'
@@ -50,7 +49,6 @@ import { fetchNews } from '@/sections/home/actions/fetchNews'
 import { deleteItem } from '@/sections/catalog/actions/deleteItem'
 import { fetchCatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
 import { fetchCatalogQuestions } from '@/sections/publicCatalog/actions/fetchCatalogQuestions'
-import { fetchInstagramStatus } from '@/sections/catalog/actions/fetchInstagramStatus'
 
 const mockCatalog: Catalog = {
   _id: 'cat1',
@@ -115,9 +113,6 @@ beforeEach(() => {
   vi.mocked(fetchCatalogItems).mockResolvedValue(mockItems)
   vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
   vi.mocked(fetchCatalogQuestions).mockResolvedValue([])
-  vi.mocked(fetchInstagramStatus).mockResolvedValue({
-    enrolled: false, available: true, nextAvailable: null, cooldownDays: 7,
-  })
   vi.mocked(deleteItem).mockResolvedValue(undefined)
 })
 

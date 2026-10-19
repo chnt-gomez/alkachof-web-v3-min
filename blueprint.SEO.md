@@ -262,9 +262,8 @@ untouched.
 - **`og:image` must be the catalog's own image**, as the absolute
   `api.alkachof.mx/img/<key>` URL the app already uses. A crawler cannot resolve
   a relative path and will not log in.
-- **Never put an Instagram `mediaUrl` in an `og:image`.** `CLAUDE.md` is
-  explicit that it is an expiring CDN link belonging in an `<img>` and nowhere
-  else; a preview card built on one rots silently.
+- **Never put a third-party CDN url in an `og:image`.** Those links expire, and
+  a preview card built on one rots silently.
 - **Public, unauthenticated API reads only** (`GET /catalog/:id`). The function
   holds no token and must never be given one.
 - **A failed or slow API read falls back to the generic shell.** A link that

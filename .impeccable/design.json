@@ -588,7 +588,7 @@
     ],
     "knownGaps": [
       "The Four-Slot Rule is documented as the contract, but two slots do not exist in src/index.css: --color-buy-foreground (text on the amarillo wash currently borrows accent-foreground) and --color-product-ink (text on filled rosa borrows primary-foreground, which is correct today only because product === primary). Both should be added when either role is next touched.",
-      "Seven surfaces ship text-[10px], below the 11px label floor: NavShell.tsx:38,148; AnnounceDialog.tsx:140; InstagramPostGrid.tsx:75,80; ProductGrid.tsx:157; MessageBubble.tsx:38. Recorded as drift, deliberately not canonized as a ramp step.",
+      "Five surfaces ship text-[10px], below the 11px label floor: NavShell.tsx:38,150; AnnounceDialog.tsx:140; ProductGrid.tsx:79; MessageBubble.tsx:22. Recorded as drift, deliberately not canonized as a ramp step.",
       "CatalogHeader.tsx:30 letters the owner's catalog name as `text-3xl font-bold` on the system stack with no display face and no offset shadow, while its public twin CatalogJumbotron.tsx:75 uses font-display with a 3px ink offset. The owner and visitor views of the same sign do not match."
     ]
   },
@@ -778,7 +778,7 @@
       "Don't use a 1px border or a hairline divider anywhere.",
       "Don't paint a page rosa because it needed a banner. Rosa is a role, not wallpaper.",
       "Don't paint services in anything but anil, or a confirmed state in the primary.",
-      "Don't ship text below 11px. Seven sites currently do (NavShell.tsx:38,148; AnnounceDialog.tsx:140; InstagramPostGrid.tsx:75,80; ProductGrid.tsx:157; MessageBubble.tsx:38); they predate this system, they are drift, not a ramp step, and new work must not copy them.",
+      "Don't ship text below 11px. Five sites currently do (NavShell.tsx:38,150; AnnounceDialog.tsx:140; ProductGrid.tsx:79; MessageBubble.tsx:22); they predate this system, they are drift, not a ramp step, and new work must not copy them.",
       "Don't reduce a field below 16px — it zooms the viewport on iOS Safari.",
       "Don't add a ring to express selection; it reads as a focus state the keyboard never set.",
       "Don't apply the hard text-shadow on an amarillo field, or in ink on an ink field.",

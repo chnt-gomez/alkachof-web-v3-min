@@ -111,8 +111,8 @@ Reads that **the owner also writes** go through `@tanstack/react-query`. Bluepri
 - **A mutation writes its response into the cache; it does not invalidate.** The
   mutations already return the updated row — put it in the cache with
   `setQueryData`. An invalidation is an admission that the server changed something
-  we cannot reconstruct; today that is exactly one path (the Instagram import
-  creating items, via `reloadItems`), and it should stay countable.
+  we cannot reconstruct; there is **no such path left in the app**, and a new one
+  needs a reason in the PR.
 - **Logout clears the cache** (`resetAppCache`, called from `logout` and from the
   401 give-up path in `api.ts`). Security, not housekeeping: the client is
   module-scope, so it outlives the React tree, and two users on one phone is an
@@ -166,8 +166,8 @@ could not log in). `src/lib/cookies.ts` owns that format and nothing else.
   logout — it says nothing about who was signed in — and unlike `setTokens` its
   write failure is swallowed.
 
-**Shipped:** `/profile`, the owner's catalog and its items, and `/instagram/status`,
-plus persistence across reloads. See `blueprint.LocalCaching.md` and
+**Shipped:** `/profile` and the owner's catalog and its items, plus persistence
+across reloads. See `blueprint.LocalCaching.md` and
 `blueprint.CachePersistence.md`.
 
 `AuthProvider` backs `profile` with a query but its `AuthState` is unchanged, so
@@ -191,41 +191,22 @@ spinner entirely.
 - `EditCatalogProvider` is an adapter over those entries, not a store. Its
   exported `EditCatalogState` is unchanged, so its six consumers were untouched.
 - **Every mutation there writes the API's response with `setQueryData`** —
-  create, update and delete included. `reloadItems` is the app's only
-  `invalidateQueries`, and it earns it: an Instagram import creates rows the 201
-  describes only in summary.
+  create, update and delete included. There is no `invalidateQueries` here, and
+  none in the app.
 - `useCatalogItems` is a dependent query — disabled until `useMyCatalog` yields
   an id. It reads the **authenticated** `/catalog/:id/items`; the public visitor
   view uses a different action and is not cached. Do not point it at this key.
 
-#### The Instagram status entry
-
-`useInstagramStatus.ts` owns the shared `/instagram/status` read. `ProductGrid`
-(via `useInstagramAvailability`) and the import dialog (via
-`useInstagramImport`) read the same entry, so the screen costs one status request
-instead of three.
-
-- **Freshness is the cooldown itself**: the entry stays fresh until
-  `nextAvailable` passes. The client's clock decides only when to re-read an
-  *unmetered* endpoint — it never decides whether the seller may import. The date
-  shown is still the server's string and the gate is still the API's 429.
-- **Every server answer about the gate is written into the cache** —
-  `enrollInstagram` ok/409, a 201 carrying `nextAvailable`, and a 429 from either
-  metered route. That is why `ProductGrid` does not refresh the status after an
-  import: the button is already disabled by the time the dialog reports back.
-- **`/instagram/posts` is never cached.** It is the billed scraper run, and
-  opening the dialog stays the only thing that reads it.
-
 #### Persistence (`src/lib/queryPersist.tsx`)
 
-The profile and the Instagram status survive a reload; nothing else does.
+The profile and the viewer's subscriptions survive a reload; nothing else does.
 
 - **`PERSISTED_KEYS` is an allowlist, never "everything that succeeded".** Adding a
   key is a decision about staleness, not a performance tweak. The **owner's own**
   catalog and items are held back: nothing gates them, so a product deleted on
   another device would render here forever. Never persist Pedidos, chat,
   notifications, the catalog's **location** (editing it does not move the freshness
-  stamp), an Instagram `mediaUrl`, or `/instagram/posts`.
+  stamp), or anything built on a third-party CDN url (those links expire).
 - **A *public* catalog persists only while the viewer subscribes to it** — see the
   freshness section below. Subscription is the bound on blob size; persisting every
   shop a visitor opens would need an LRU.
@@ -325,8 +306,8 @@ here do not — WhatsApp, Instagram and Facebook preview bots, `ClaudeBot`,
   shop name is free text going into an HTML attribute. Googlebot is
   deliberately absent from that list while catalog indexability is still an open
   product decision (`blueprint.SEO.md` §10).
-- **`og:image` is never an Instagram `mediaUrl`** — expiring CDN links rot
-  silently. The catalog's own image, or the static card.
+- **`og:image` is never a third-party CDN url** — those links expire and a card
+  built on one rots silently. The catalog's own image, or the static card.
 - **`scripts/make-og-image.mjs` is run by hand, never in the build.** It shells
   out to `qlmanage` and `sips`, which are macOS-only; wiring it into
   `npm run build` would break the deploy. The PNGs are committed. It authors on
@@ -427,7 +408,6 @@ Key components and their file paths for quick reference:
 | `PublicCatalogContext` | `src/sections/publicCatalog/context/PublicCatalogContext.tsx` |
 | `CartDrawer` | `src/sections/cart/components/CartDrawer.tsx` |
 | `GuestCheckoutPrompt` | `src/sections/cart/components/GuestCheckoutPrompt.tsx` |
-| `InstagramImportDialog` | `src/sections/catalog/components/InstagramImportDialog.tsx` |
 | `TransactionsPage` | `src/sections/transactions/TransactionsPage.tsx` |
 | `TransactionDetailDialog` | `src/sections/transactions/components/TransactionDetailDialog.tsx` |
 | `MapSearchPage` | `src/sections/mapSearch/MapSearchPage.tsx` |
@@ -479,145 +459,19 @@ The API leaves **finished** orders (`DELIVERED`/`REJECTED`/`RETURNED` for produc
 
 The client **never** applies the archive rule itself — the server owns it, in `api/util/orderFeedQuery.js`, and no copy of it exists here or should. Read the API if you need to know what counts as archived. Full contract: `followup.OrdersFeedPagination.md`.
 
-### Instagram import (`src/sections/catalog/`, Apify)
+### The catalog item cap
 
-"Importar de Instagram" in `ProductGrid` turns a seller's Instagram photos into
-catalog items. Contract: `followup.InstagramImportApi.md`. The whole flow lives in
-`InstagramImportDialog` over `useInstagramImport`, against five `/instagram/*`
-actions (`fetchInstagramStatus`, `searchInstagramProfiles`, `enrollInstagram`,
-`fetchInstagramPosts`, `importInstagramPosts`). `ProductGrid` itself calls
-`useInstagramAvailability` to decide whether to offer the button at all.
+A catalog holds at most **25 items**, products and services together.
 
-**The API reads *public profiles* through an Apify scraper — there is no SDK,
-no OAuth, and nothing Instagram-related in the browser.** No script is injected;
-the client only calls Alkachof's own `/instagram/*` routes. Instagram's Graph
-API is not an option to reach for: it reads media only for Business/Creator
-accounts linked to a Facebook Page, which Alkachof's nano/micro sellers do not
-have.
-
-Three consequences shape the whole screen:
-
-- **A private account cannot be read at all.** Not degraded — unavailable. It has
-  its own terminal screen (`InstagramPrivateNotice`) with no retry button,
-  because retrying does nothing until the seller changes a setting on Instagram.
-- **Ownership cannot be proven.** The control is policy: the seller attests, and
-  importing someone else's content is a terms violation. The engineering guard is
-  that enrollment is **permanent**.
-
-- **Every feed read is billed.** Apify charges per actor run, and nothing about a
-  request bounded how often a seller made one — importing, closing the dialog and
-  reopening it paid for another run immediately, with no ceiling. A **successful**
-  import now holds the seller's next run for `cooldownDays` (7). See *The
-  cooldown* below.
-
-**Enrollment is a three-screen wizard, once per account.** `useInstagramImport`
-is a phase machine — `checking → searching → picking → attesting → browsing` —
-with backward edges at every step, because only the final commit is irreversible.
-An enrolled seller skips all of it and lands on `browsing`.
-
-**The first screen is a lookup, not a search.** The API runs Apify's profile
-scraper, which takes exact usernames — neither actor does fuzzy name matching —
-so `/instagram/search` resolves one handle and returns zero or one candidate.
-`InstagramProfilePicker` is therefore a *confirmation card* rather than a list to
-choose from; it keeps the list shape so a future by-name lookup would not need a
-new component. **Do not word the UI as a name search** — it would promise
-something the actors cannot do.
-
-Rules this screen must keep:
-
-- **The linked handle is never displayed.** The API does not return it: `/status`
-  answers `{ enrolled }` and nothing more. There is no "conectado como @x" line,
-  and adding one would require an endpoint that does not and must not exist.
-- **`searchInstagramProfiles` is the only action that names an account**, and the
-  API refuses it once a row exists — a seller gets one lookup session in the
-  lifetime of their account. Never add a client-supplied profile to any other
-  call: `fetchInstagramPosts()` takes no arguments **on purpose**.
-- **The attestation checkbox is never pre-ticked**, and the commit stays disabled
-  until it is. The sentence comes from the API (`attestation.template` +
-  `placeholder`) and is rendered, never composed here — what gets stored has to
-  be what was displayed. The client sends `attested: true` and never the text.
-- **Say that enrollment is permanent** where the seller commits. There is no
-  unlink endpoint, and a wrong handle needs support to fix.
-- **Private candidates render but are not selectable** — dimmed, with the reason.
-  Hiding them makes the seller think their account was not found and retype the
-  same handle forever.
-- **`mediaUrl` is a CDN link that expires.** It goes into an `<img>` and nowhere
-  else: never persisted, never sent back to the API, never stored against an
-  item. The imported product's image is a separate copy in Alkachof's storage.
-- **Only `mediaType === 'IMAGE'` posts are selectable**, and already-imported
-  ones are disabled. Both stay visible but dimmed. (The API could import a
-  `VIDEO` through its poster frame; the client declines to, by product decision.)
-- **201 is not "everything landed".** Every selection comes back in `imported` or
-  `skipped`; `InstagramImportSuccess` shows both, and `skipReasonLabel` translates
-  the API's English reasons. Reopening the dialog is the fix for every skip
-  reason — it fetches fresh.
-- **An import ends the session.** `runImport` moves to the terminal `done` phase
-  and **does not re-read the feed**: refetching would spend a metered scraper run
-  repainting badges on a screen the seller is leaving. A clean import closes the
-  dialog itself after `AUTO_CLOSE_MS`; a **partial** one waits for a tap, because
-  the skipped list is the only place those reasons appear and a screen that
-  vanishes mid-read is worse than one extra tap. The success toast is fired
-  before the close so the confirmation outlives the dialog.
-- **The cap is the catalog's remaining space, never a number of its own.** A
-  seller may select every photo that still fits — `MAX_CATALOG_ITEMS` (25) minus
-  the items they already have — and the copy says both numbers when it is short,
-  because "elige hasta 22" with no reason reads as an arbitrary Instagram rule.
-  `remainingCatalogSlots` is the source; `ProductGrid` passes `itemCount` and
-  `useInstagramImport` clamps it against `MAX_POSTS_PER_IMPORT`, which *is* the
-  same 25 (the API's `INSTAGRAM.MAX_CONVERT_BATCH`). A smaller batch would refuse
-  photos the catalog had room for and make the seller wait a cooldown for the
-  rest, which is the one thing this screen must not do. One import at a time (it
-  runs for seconds and shares the upload rate budget).
-- **A full catalog closes the entry point.** `ProductGrid` disables "Importar de
-  Instagram" at 25 items and says why — opening the dialog is what spends the
-  billed scraper run, and a seller with nowhere to put an item can only reach a
-  screen with nothing selectable on it.
 - **`src/lib/catalogLimits.ts` mirrors the API's `CONSTANTS.CATALOG.MAX_ITEMS`**
-  (hoisted there as `MAX_CATALOG_ITEMS`, because the import batch is sized from
-  it). Keep the two in step — same arrangement as `imagePresets.ts`.
-- Imports use the API's defaults — name from the caption's first line, price 0 —
-  so a new item is priced afterwards like any other unpriced one.
-- **One bounded page, no "Cargar más", and no refresh control.** The scraper has
-  no resume cursor into Instagram, so a second page means re-scraping from the
-  top and paying again. **There is no refresh control**, and adding one would be
-  the only gesture on the screen that costs money while buying nothing — the feed
-  is fetched fresh on every open, and posts do not change between two taps. **Opening
-  the dialog is the only thing that reads the feed**, which is why `loadPosts` is
-  not exposed by `useInstagramImport`. Do not add a refresh, a poll or a
-  pull-to-refresh here.
-
-**The cooldown.** A successful import (≥1 item created) holds the seller's next
-scraper run for `cooldownDays`, and the API enforces it with a 429 on both
-`/posts` and `/convert`. What the client owes:
-
-- **Ask `/status` before offering the feature.** It is the one unmetered endpoint
-  — `useInstagramAvailability` calls it from `ProductGrid`, disables the button
-  and prints the date. This is the courtesy, not the control; a stale
-  `available: true` just meets the 429 one screen later. It **fails open**: a
-  status read that errors must not remove a working feature.
-- **Say it before the import, not after.** The browsing screen carries *"Solo
-  puedes importar una vez cada N días"* above the grid, because a seller gets one
-  pass and the photos they leave unselected wait a week. Learning that on the
-  success screen is learning it too late. `cooldownDays` comes from the API so
-  this copy cannot drift from the gate.
-- **A 429 is terminal.** `InstagramCooldownNotice`, with the date and no
-  "Reintentar" — same shape as the private-account screen, for a different
-  reason. Never compute the date locally; the client's clock is not what enforces
-  the gate.
-- **`InstagramImportSuccess` may not say "try again" when `summary.nextAvailable`
-  is set.** Every skip reason is fixed by refetching the feed, and a successful
-  import is exactly what blocks that refetch. Show the date instead.
-- **Only a successful import starts it**, so a batch that imported nothing leaves
-  the seller's next run intact — `nextAvailable` on the 201 says which happened.
-- **Known gap:** feed reads *before* a seller's first import are still ungated —
-  `nextAvailable` only moves on a successful import, so closing and reopening the
-  dialog pays for a fresh run each time. Removing the refresh button narrowed
-  this to two taps rather than one; closing it needs a second rule. See *Not
-  included* in the contract.
-
-The lookup is **exact-handle only**, so a partial name resolves to nothing —
-testing the wizard needs a real un-enrolled account and a real handle, and
-enrollment is permanent, so an account spent on a test is spent for good.
+  (hoisted there as `MAX_CATALOG_ITEMS`). Keep the two in step — same
+  arrangement as `imagePresets.ts`.
+- **The server is what enforces it**: `catalogService.createItem` refuses the
+  26th item. Everything in the client is courtesy — `remainingCatalogSlots`
+  exists so a seller is told what fits *before* they pick, rather than after.
+- `ProductGrid` spends it twice: the "Casilla libre" rows (up to four) and the
+  *"Quedan N de 25 casillas"* line, plus a sentence at the cap telling the
+  seller to delete something.
 
 ### Location-based catalog search (`src/sections/mapSearch/`)
 
@@ -713,8 +567,8 @@ is a different index and a different feature.
   pan beats a spinner, and a cold GPS fix takes seconds.
 - **The recenter button never hides.** With a position known it is a pure map move; without one
   it asks again — the only way back for someone who tapped "block" by reflex. `unsupported` is
-  terminal with **no** retry (same shape as `InstagramPrivateNotice`): a button that cannot
-  change its own outcome is worse than no button.
+  terminal with **no** retry: a button that cannot change its own outcome is worse than no
+  button.
 - **`getCurrentPosition`, never `watchPosition`.** A watch drains battery to move a marker
   nobody asked to move, which is why the button exists.
 - **The position is not a cache entry and is never sent.** Not in `queryKeys` (a GPS fix is

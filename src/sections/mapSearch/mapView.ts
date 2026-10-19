@@ -15,7 +15,7 @@
  *
  * So one request can never ask about more than a ~15 km radius. The same cap
  * belongs on the API side: this clamp is a courtesy, and a client cannot be the
- * control (same arrangement as `useInstagramAvailability` in front of a 429).
+ * control.
  *
  * It also bounds the bill this screen already has — OpenStreetMap's public tile
  * servers forbid heavy use, and a map opened at z=5 fetches tiles for a continent.
