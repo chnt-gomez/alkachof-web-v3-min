@@ -10,6 +10,7 @@ import { DeleteItemConfirm } from './DeleteItemConfirm'
 import { MAX_CATALOG_ITEMS, remainingCatalogSlots } from '@/lib/catalogLimits'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ItemImage } from '@/components/ItemImage'
 
 export function ProductGrid() {
   const { catalog, items, createItem, updateItem, deleteItem } = useEditCatalog()
@@ -67,19 +68,13 @@ export function ProductGrid() {
                 <span className="folio shrink-0 self-start pt-1">
                   {String(index + 1).padStart(2, '0')}
                 </span>
-                {item.imgPath ? (
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
-                    <img
-                      src={resolveMediaUrl(item.imgPath)}
-                      alt={item.name || 'Producto'}
-                      className="max-h-full w-full object-contain"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-muted text-center text-[10px] leading-tight text-muted-foreground">
-                    Sin imagen
-                  </div>
-                )}
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
+                  <ItemImage
+                    src={resolveMediaUrl(item.imgPath)}
+                    alt={item.name || 'Producto'}
+                    className="max-h-full w-full object-contain"
+                  />
+                </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <p className="line-clamp-2 text-sm font-medium leading-tight">
                     {item.name || (isService(item) ? 'Servicio sin nombre' : 'Producto sin nombre')}

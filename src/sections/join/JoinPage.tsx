@@ -10,6 +10,7 @@ import { fetchPublicCatalog, type Catalog } from '@/sections/publicCatalog/actio
 import { useCatalogSubscription } from '@/sections/publicCatalog/hooks/useCatalogSubscription'
 import { CatalogNotFound } from '@/sections/publicCatalog/components/CatalogNotFound'
 import { InvitationCard } from './components/InvitationCard'
+import { publicCatalogName } from '@/lib/catalogName'
 
 function JoinFrame({ children }: { children: React.ReactNode }) {
   return (
@@ -124,8 +125,8 @@ export function JoinPage() {
     <JoinFrame>
       <InvitationCard catalog={catalog} />
       <p className="text-center text-base text-foreground">
-        {catalog.alias} te quiere invitar a Alkachof para que veas su catálogo de productos y
-        servicios
+        {publicCatalogName(catalog.alias)} te quiere invitar a Alkachof para que veas su catálogo
+        de productos y servicios
       </p>
 
       {canSubscribe ? (

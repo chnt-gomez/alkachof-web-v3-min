@@ -13,6 +13,7 @@ import { useCatalogLocation } from '../hooks/useCatalogLocation'
 import { ShippingInfoDialog } from './ShippingInfoDialog'
 import { CatalogLocationDialog } from './CatalogLocationDialog'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { publicCatalogName } from '@/lib/catalogName'
 
 export function CatalogJumbotron() {
   // Owners can't message or subscribe to themselves; those buttons stay hidden
@@ -61,7 +62,7 @@ export function CatalogJumbotron() {
     navigate('/chats/new', {
       state: {
         toUserId: catalog.userId,
-        toAlias: catalog.alias,
+        toAlias: publicCatalogName(catalog.alias),
         prefill: '¡Hola! Vi tu catálogo en Alkachof y me gustaría recibir más información.',
       },
     })
@@ -76,7 +77,7 @@ export function CatalogJumbotron() {
     <section className="relative flex flex-col gap-4 rounded-xl border-2 border-ink bg-card p-5 text-foreground">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col items-start gap-2">
-          <h1 className="stamp stamp-mark text-2xl">{catalog.alias}</h1>
+          <h1 className="stamp stamp-mark text-2xl">{publicCatalogName(catalog.alias)}</h1>
           {catalog.welcomeText && (
             <p className="text-base text-foreground">{catalog.welcomeText}</p>
           )}
@@ -97,7 +98,10 @@ export function CatalogJumbotron() {
         <p className="text-sm text-muted-foreground">{catalog.description}</p>
       )}
 
-      <CatalogHeroImage src={resolveMediaUrl(catalog.image)} alt={catalog.alias} />
+      <CatalogHeroImage
+        src={resolveMediaUrl(catalog.image)}
+        alt={publicCatalogName(catalog.alias)}
+      />
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">

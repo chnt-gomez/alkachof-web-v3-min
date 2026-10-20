@@ -9,6 +9,7 @@ import { EditCatalogScreen } from './EditCatalogScreen'
 import { ShareCatalogDialog } from './ShareCatalogDialog'
 import { AnnounceDialog, formatAvailableAt } from './AnnounceDialog'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ownerCatalogName } from '@/lib/catalogName'
 
 export function CatalogHeader() {
   const { catalog, items } = useEditCatalog()
@@ -27,7 +28,7 @@ export function CatalogHeader() {
 
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
-            <h1 className="stamp stamp-mark text-2xl">{catalog.alias}</h1>
+            <h1 className="stamp stamp-mark text-2xl">{ownerCatalogName(catalog.alias)}</h1>
             {catalog.welcomeText && (
               <p className="text-base text-foreground">{catalog.welcomeText}</p>
             )}
@@ -47,7 +48,7 @@ export function CatalogHeader() {
 
         <CatalogHeroImage
           src={resolveMediaUrl(catalog.image)}
-          alt={catalog.alias}
+          alt={ownerCatalogName(catalog.alias)}
           hint="Toca el lápiz para agregar una imagen a tu catálogo."
         />
 

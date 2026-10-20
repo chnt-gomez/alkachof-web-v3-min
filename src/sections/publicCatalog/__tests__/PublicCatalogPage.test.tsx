@@ -878,6 +878,37 @@ describe('PublicCatalogPage catalog image', () => {
   })
 })
 
+describe('PublicCatalogPage item images', () => {
+  // `mockItems` is one item with an image and one without, which is exactly the
+  // pair this needs: the placeholder must fill the second and never touch the first.
+  it('shows the seller\'s own image, and the placeholder only where there is none', async () => {
+    const { container } = renderPage()
+    await screen.findByText('Bolsa tejida')
+
+    expect(container.querySelector('img[src="https://example.com/bolsa.jpg"]')).toBeInTheDocument()
+    expect(container.querySelectorAll('img[src="/item-placeholder.webp"]')).toHaveLength(1)
+  })
+
+  it('uses the placeholder for a service with no image too', async () => {
+    vi.mocked(fetchCatalogItems).mockResolvedValue([mockService])
+    const { container } = renderPage()
+    await screen.findByText('Corte de cabello')
+
+    expect(container.querySelectorAll('img[src="/item-placeholder.webp"]')).toHaveLength(1)
+  })
+
+  it('never substitutes the placeholder for an item that has its own image', async () => {
+    vi.mocked(fetchCatalogItems).mockResolvedValue([mockItems[0]])
+    const { container } = renderPage()
+    await userEvent.click(await screen.findByText('Bolsa tejida'))
+
+    // The card and the dialog it opens are the two slots this item renders in.
+    await screen.findByRole('heading', { name: 'Bolsa tejida' })
+    expect(container.querySelectorAll('img[src="https://example.com/bolsa.jpg"]')).toHaveLength(2)
+    expect(container.querySelector('img[src="/item-placeholder.webp"]')).toBeNull()
+  })
+})
+
 describe('PublicCatalogPage location', () => {
   const mockLocation = {
     _id: 'loc1',

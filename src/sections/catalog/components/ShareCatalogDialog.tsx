@@ -6,9 +6,11 @@ import { useToast } from '@/components/ui/useToast'
 import { copyText, copyTextSync } from '@/lib/clipboard'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
 import { catalogShareUrl } from '@/lib/shareUrl'
+import { publicCatalogName } from '@/lib/catalogName'
 
 type Props = {
   catalogId: string
+  /** The seller's raw alias — empty when they have not named the shop yet. */
   catalogName: string
   /** Public url of the catalog's QR code (`catalog.qr`); absent until the backend mints it. */
   qr?: string
@@ -53,8 +55,12 @@ export function ShareCatalogDialog({ catalogId, catalogName, qr, onClose }: Prop
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: catalogName,
-          text: `Mira mi catálogo en Alkachof: ${catalogName}`,
+          title: publicCatalogName(catalogName),
+          // The sentence already says "mi catálogo en Alkachof", so an unnamed
+          // shop drops the trailing name rather than repeating it back.
+          text: catalogName.trim()
+            ? `Mira mi catálogo en Alkachof: ${catalogName.trim()}`
+            : 'Mira mi catálogo en Alkachof',
           url: shareUrl,
         })
       } catch {
