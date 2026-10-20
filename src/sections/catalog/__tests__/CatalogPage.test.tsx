@@ -195,6 +195,45 @@ describe('CatalogPage', () => {
     expect(screen.getByText('Bienvenidos')).toBeInTheDocument()
   })
 
+  describe('the name placeholder', () => {
+    // The whole point of the fallback: it is drawn, never stored. A seller who
+    // opens the editor and saves anything else must not acquire it as a name.
+    const unnamed = { ...mockCatalog, alias: '' }
+
+    it('titles an unnamed catalog for its owner without storing that title', async () => {
+      vi.mocked(fetchMyCatalog).mockResolvedValue(unnamed)
+      const user = userEvent.setup()
+      renderPage()
+
+      expect(await screen.findByText('Mi Catálogo en Alkachof')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /editar catálogo/i }))
+      // The name field seeds from the raw alias, so it is empty — not primed
+      // with the fallback, which a save would then persist. It keeps its own
+      // example placeholder, which teaches a real name instead of offering ours.
+      const aliasInput = screen.getByPlaceholderText('Ej. Mi Tienda Artesanal')
+      expect(aliasInput).toHaveValue('')
+
+      await user.click(screen.getByRole('button', { name: 'Guardar' }))
+      await waitFor(() => expect(updateCatalog).toHaveBeenCalled())
+      expect(updateCatalog).toHaveBeenCalledWith('cat1', expect.objectContaining({ alias: '' }))
+    })
+
+    it('treats a whitespace-only alias as no name at all', async () => {
+      vi.mocked(fetchMyCatalog).mockResolvedValue({ ...mockCatalog, alias: '   ' })
+      renderPage()
+
+      expect(await screen.findByText('Mi Catálogo en Alkachof')).toBeInTheDocument()
+    })
+
+    it('never substitutes anything for a catalog that has a name', async () => {
+      renderPage()
+
+      expect(await screen.findByText('Tienda de Prueba')).toBeInTheDocument()
+      expect(screen.queryByText('Mi Catálogo en Alkachof')).not.toBeInTheDocument()
+    })
+  })
+
   it('renders catalog description and location', async () => {
     renderPage()
     expect(await screen.findByText('Descripción de prueba')).toBeInTheDocument()

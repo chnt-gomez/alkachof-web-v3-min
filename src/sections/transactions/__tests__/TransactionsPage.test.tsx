@@ -169,7 +169,7 @@ describe('TransactionsPage', () => {
     await renderAsBuyer()
 
     const card = await screen.findByRole('button', { name: /pedido de/i })
-    expect(within(card).getByText('Catálogo')).toBeInTheDocument()
+    expect(within(card).getByText('Catálogo en Alkachof')).toBeInTheDocument()
     // No id to resolve, so no batch lookup is attempted.
     expect(fetchCatalogSummaries).not.toHaveBeenCalled()
   })

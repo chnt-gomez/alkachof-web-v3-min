@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { broadcastCatalog } from '../actions/broadcastCatalog'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ItemImage } from '@/components/ItemImage'
 
 const MESSAGE_MAX = 280
 
@@ -130,17 +131,11 @@ export function AnnounceDialog({ catalogId, items, onCooldown, onClose }: Props)
                         selected ? 'border-primary ring-2 ring-primary' : 'border-input',
                       )}
                     >
-                      {item.imgPath ? (
-                        <img
-                          src={resolveMediaUrl(item.imgPath)}
-                          alt={item.name || 'Producto'}
-                          className="h-full w-full object-contain bg-muted"
-                        />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center bg-muted px-1 text-center text-[10px] text-muted-foreground">
-                          {item.name || 'Sin imagen'}
-                        </span>
-                      )}
+                      <ItemImage
+                        src={resolveMediaUrl(item.imgPath)}
+                        alt={item.name || 'Producto'}
+                        className="h-full w-full bg-muted object-contain"
+                      />
                       {selected && (
                         <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
                           <Check size={11} />

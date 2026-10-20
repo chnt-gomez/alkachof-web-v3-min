@@ -7,6 +7,7 @@ import { usePublicCatalog } from '../context/PublicCatalogContext'
 import { ProductDetailDialog } from './ProductDetailDialog'
 import type { Item } from '../actions/fetchCatalogItems'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ItemImage } from '@/components/ItemImage'
 
 const HIGHLIGHT_MS = 2600
 
@@ -99,19 +100,13 @@ export function CatalogItemList() {
               <span className="folio absolute left-1.5 top-1.5 z-10 rounded-sm border border-rule bg-card px-1">
                 {String(index + 1).padStart(2, '0')}
               </span>
-              {item.imgPath ? (
-                <div className="flex w-full items-center justify-center overflow-hidden bg-muted">
-                  <img
-                    src={resolveMediaUrl(item.imgPath)}
-                    alt={item.name}
-                    className="w-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-24 w-full items-center justify-center bg-muted text-muted-foreground text-xs">
-                  Sin imagen
-                </div>
-              )}
+              <div className="flex w-full items-center justify-center overflow-hidden bg-muted">
+                <ItemImage
+                  src={resolveMediaUrl(item.imgPath)}
+                  alt={item.name}
+                  className="w-full object-contain"
+                />
+              </div>
               <div className="flex flex-col gap-1 border-t-2 border-ink p-2.5">
                 <p className="line-clamp-2 text-sm font-medium leading-tight">{item.name}</p>
                 <p className="numeral rule-line pb-1 text-base text-primary">{formatItemPrice(item)}</p>

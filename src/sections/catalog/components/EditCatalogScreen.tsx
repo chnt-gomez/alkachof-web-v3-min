@@ -9,6 +9,7 @@ import { DiscoverabilityToggle } from './DiscoverabilityToggle'
 import type { CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
 import { useCatalogLocationQuery, hasValidCoords } from '@/sections/publicCatalog/hooks/useCatalogLocation'
 import { queryKeys } from '@/lib/queryKeys'
+import { ownerCatalogName } from '@/lib/catalogName'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import { DELIVERY_OPTIONS } from '@/components/CatalogOptionChips'
 
@@ -149,7 +150,7 @@ export function EditCatalogScreen({ onClose }: Props) {
               onDelete={deleteCatalogImage}
               onBusyChange={setImageBusy}
               preset="catalogs"
-              alt={catalog?.alias || 'Catálogo'}
+              alt={ownerCatalogName(catalog?.alias)}
               placeholder="Toca para agregar imagen del catálogo"
             />
           </Field>

@@ -385,5 +385,16 @@ describe('MyCatalogCard', () => {
     await screen.findByText('Tienda de Prueba')
     const img = container.querySelector('img[src="https://cdn.test/tienda.png"]')
     expect(img?.parentElement).toHaveClass('h-20', 'w-20')
+    // The placeholder is a fallback only: a catalog with an image never shows it.
+    expect(container.querySelector('img[src="/catalog-placeholder.webp"]')).toBeNull()
+  })
+
+  it('falls back to the shop placeholder when the catalog has no image', async () => {
+    vi.mocked(fetchMyCatalog).mockResolvedValue(sampleCatalog({ image: undefined }))
+    const { container } = renderPage()
+
+    await screen.findByText('Tienda de Prueba')
+    const img = container.querySelector('img[src="/catalog-placeholder.webp"]')
+    expect(img?.parentElement).toHaveClass('h-20', 'w-20')
   })
 })

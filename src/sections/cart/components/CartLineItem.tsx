@@ -3,6 +3,7 @@ import { formatPrice } from '@/lib/format'
 import { useCart } from '../context/CartContext'
 import type { CartLine } from '../types'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ItemImage } from '@/components/ItemImage'
 
 type Props = {
   line: CartLine
@@ -19,17 +20,11 @@ export function CartLineItem({ line, catalogId }: Props) {
   return (
     <div className="flex gap-3 rounded-lg border-2 border-ink bg-card p-3">
       <div className="h-24 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-        {line.imgPath ? (
-          <img
-            src={resolveMediaUrl(line.imgPath)}
-            alt={line.name}
-            className="h-full w-full object-contain"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-            Sin imagen
-          </div>
-        )}
+        <ItemImage
+          src={resolveMediaUrl(line.imgPath)}
+          alt={line.name}
+          className="h-full w-full object-contain"
+        />
       </div>
 
       <div className="flex flex-1 flex-col gap-1">
