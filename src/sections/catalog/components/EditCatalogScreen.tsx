@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button'
 import { ImageUploadField } from '@/components/ImageUploadField'
 import { useEditCatalog } from '../context/EditCatalogContext'
 import { LocationEditDialog } from './LocationEditDialog'
+import { DiscoverabilityToggle } from './DiscoverabilityToggle'
 import type { CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
-import { useCatalogLocationQuery } from '@/sections/publicCatalog/hooks/useCatalogLocation'
+import { useCatalogLocationQuery, hasValidCoords } from '@/sections/publicCatalog/hooks/useCatalogLocation'
 import { queryKeys } from '@/lib/queryKeys'
+import { ownerCatalogName } from '@/lib/catalogName'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import { DELIVERY_OPTIONS } from '@/components/CatalogOptionChips'
 
@@ -44,6 +46,15 @@ export function EditCatalogScreen({ onClose }: Props) {
 
   const queryClient = useQueryClient()
   const [editingLocation, setEditingLocation] = useState(false)
+  // Enables one line of copy under the toggle: the invitation to opt in.
+  //
+  // It is set only when a save made the catalog placeable for the FIRST time —
+  // not on every address edit. A location is created with `is_discoverable` off,
+  // so the seller who just got a usable pin is both the most likely to want the
+  // next tap and the least likely to know it is there; a seller who is
+  // deliberately off the map and fixing a typo in their street is neither, and
+  // nudging them every time would be nagging.
+  const [becamePlaceable, setBecamePlaceable] = useState(false)
 
   // The same cache entry the public catalog reads, so a seller who has just
   // looked at their own shop does not pay for it twice. Raw rather than
@@ -54,7 +65,11 @@ export function EditCatalogScreen({ onClose }: Props) {
   /** The API's own answer, written straight in — no refetch to confirm a save. */
   function handleLocationSaved(saved: CatalogLocation) {
     if (!catalog) return
+    const wasPlaceable = Boolean(location && hasValidCoords(location))
     queryClient.setQueryData(queryKeys.catalogLocation(catalog._id), saved)
+    if (!wasPlaceable && hasValidCoords(saved)) {
+      setBecamePlaceable(true)
+    }
   }
 
   function togglePay(val: Catalog['payOptions'][number]) {
@@ -135,7 +150,7 @@ export function EditCatalogScreen({ onClose }: Props) {
               onDelete={deleteCatalogImage}
               onBusyChange={setImageBusy}
               preset="catalogs"
-              alt={catalog?.alias || 'Catálogo'}
+              alt={ownerCatalogName(catalog?.alias)}
               placeholder="Toca para agregar imagen del catálogo"
             />
           </Field>
@@ -161,6 +176,17 @@ export function EditCatalogScreen({ onClose }: Props) {
                 <Pencil size={14} />
                 {location ? 'Editar ubicación' : 'Agregar ubicación'}
               </Button>
+
+              {/* In this block rather than in the dialog: a seller checks this
+                  state without editing anything, and the disabled case needs
+                  the button above sitting next to it. */}
+              {catalog && (
+                <DiscoverabilityToggle
+                  catalogId={catalog._id}
+                  location={location}
+                  justBecamePlaceable={becamePlaceable}
+                />
+              )}
             </div>
           </Field>
 

@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { ChevronRight, PackagePlus, Store, Tag } from 'lucide-react'
+import { ChevronRight, PackagePlus, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CatalogThumb } from '@/components/CatalogImage'
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ownerCatalogName } from '@/lib/catalogName'
 
 type Props = {
   catalog: Catalog
@@ -23,7 +24,7 @@ function itemLabel(count: number): string {
 
 export function MyCatalogCard({ catalog, itemCount }: Props) {
   const isBlank = !catalog.image && !catalog.alias
-  const title = isBlank ? BLANK_TITLE : catalog.alias
+  const title = isBlank ? BLANK_TITLE : ownerCatalogName(catalog.alias)
   const description = isBlank ? BLANK_DESCRIPTION : catalog.description
 
   return (
@@ -31,17 +32,11 @@ export function MyCatalogCard({ catalog, itemCount }: Props) {
       <Link
         to="/catalog"
         className="flex items-center gap-4 rounded-2xl border-2 border-primary bg-card p-4 transition-[box-shadow,transform]"
+        // Not the placeholder: "Abrir mi catálogo Mi Catálogo en Alkachof" stutters,
+        // and there is exactly one of these, so the bare label is unambiguous.
         aria-label={catalog.alias ? `Abrir mi catálogo ${catalog.alias}` : 'Abrir mi catálogo'}
       >
-        <CatalogThumb
-          src={resolveMediaUrl(catalog.image)}
-          size="lg"
-          fallback={
-            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground">
-              <Store size={34} />
-            </span>
-          }
-        />
+        <CatalogThumb src={resolveMediaUrl(catalog.image)} size="lg" />
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="truncate text-base font-semibold">{title}</span>
           {description && (

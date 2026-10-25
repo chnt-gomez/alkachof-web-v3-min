@@ -15,6 +15,7 @@ import { useOwnerGuard } from '../hooks/useOwnerGuard'
 import { ServiceRequestDialog } from './ServiceRequestDialog'
 import type { Item } from '../actions/fetchCatalogItems'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ItemImage } from '@/components/ItemImage'
 
 type Props = {
   item: Item
@@ -129,13 +130,12 @@ export function ProductDetailDialog({ item, onClose }: Props) {
           <X size={18} />
         </button>
 
-        {item.imgPath && (
-          <img
-            src={resolveMediaUrl(item.imgPath)}
-            alt={item.name}
-            className="w-full object-contain"
-          />
-        )}
+        <ItemImage
+          src={resolveMediaUrl(item.imgPath)}
+          alt={item.name}
+          className="w-full object-contain"
+          placeholderClassName="max-h-56"
+        />
 
         <div className="flex flex-col gap-3 p-5">
           <h2 className="text-xl font-bold leading-tight">{item.name}</h2>

@@ -16,6 +16,7 @@ import { allowedTransitions, TRANSITION_ACTION_LABEL } from './transitions'
 import { ConfirmReceiptDialog } from './ConfirmReceiptDialog'
 import type { TransactionRole, TransactionStatus, TransactionSummary } from '../types'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ItemImage } from '@/components/ItemImage'
 
 type Props = {
   transaction: TransactionSummary
@@ -149,7 +150,7 @@ export function TransactionDetailDialog({ transaction, role, header, onUpdated, 
           <ul className="flex flex-col gap-3">
             {data.map((line) => (
               <li key={line.id} className="flex items-start gap-3">
-                <img
+                <ItemImage
                   src={resolveMediaUrl(line.item.imgPath)}
                   alt={line.item.name}
                   className="w-16 shrink-0 rounded-lg object-contain"

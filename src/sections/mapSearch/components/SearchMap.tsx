@@ -8,9 +8,7 @@ import type { Coords } from '@/lib/geolocation'
 import { INITIAL_ZOOM, MAX_ZOOM, MIN_ZOOM } from '../mapView'
 import { plotShops } from '../plotShops'
 import type { NearbyCatalog } from '../actions/lookupNearbyCatalogs'
-
-/** What a nameless catalog is called on the map. */
-export const UNNAMED_SHOP = 'Catálogo sin nombre'
+import { publicCatalogName } from '@/lib/catalogName'
 
 type FlyTarget = { coords: Coords; nonce: number } | null
 
@@ -65,7 +63,7 @@ export function SearchMap({
           /* The badge carries no text, so `title` is the whole accessible name —
              and the distance has nowhere else to be shown now that a tap opens
              the catalog directly. */
-          title={`${shop.alias || UNNAMED_SHOP}, ${formatDistance(shop.distanceMeters)}`}
+          title={`${publicCatalogName(shop.alias)}, ${formatDistance(shop.distanceMeters)}`}
           eventHandlers={{ click: () => onOpenShop(shop) }}
         />
       ))}

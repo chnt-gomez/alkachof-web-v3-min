@@ -322,7 +322,7 @@ describe('MapSearchPage, the catalogs nearby', () => {
     renderPage()
 
     expect(
-      await screen.findByRole('button', { name: /catálogo sin nombre/i }),
+      await screen.findByRole('button', { name: 'Catálogo en Alkachof, a 1.1 km' }),
     ).toBeInTheDocument()
   })
 

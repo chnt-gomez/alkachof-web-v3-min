@@ -13,6 +13,7 @@ import { ItemFormDialog } from '@/sections/catalog/components/ItemFormDialog'
 import { DeleteItemConfirm } from '@/sections/catalog/components/DeleteItemConfirm'
 import type { Item } from '@/sections/publicCatalog/actions/fetchCatalogItems'
 import { resolveMediaUrl } from '@/lib/mediaUrl'
+import { ItemImage } from '@/components/ItemImage'
 
 export function ProductPage() {
   const { id } = useParams<{ id: string }>()
@@ -59,15 +60,14 @@ export function ProductPage() {
               {item.description && <CardDescription>{item.description}</CardDescription>}
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {item.imgPath ? (
-                <div className="flex w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
-                  <img src={resolveMediaUrl(item.imgPath)} alt={item.name || 'Producto'} className="w-full object-contain" />
-                </div>
-              ) : (
-                <div className="flex h-32 w-full items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground">
-                  Sin imagen
-                </div>
-              )}
+              <div className="flex w-full items-center justify-center overflow-hidden rounded-lg bg-muted">
+                <ItemImage
+                  src={resolveMediaUrl(item.imgPath)}
+                  alt={item.name || 'Producto'}
+                  className="w-full object-contain"
+                  placeholderClassName="max-h-56"
+                />
+              </div>
               {/* A service with no price still shows a line ("Precio a convenir"), so the
                   owner can see the item reads as quote-on-request to visitors. */}
               {(item.price > 0 || isService(item)) && (

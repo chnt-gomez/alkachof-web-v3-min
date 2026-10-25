@@ -107,6 +107,10 @@ export default async function handler(request: Request): Promise<Response> {
 
   if (!catalog) return serve(shell)
 
+  // An edge function is outside the Vite build, so it cannot import
+  // `PUBLIC_CATALOG_NAME` from `src/lib/catalogName.ts`. This literal is that
+  // constant's one copy — keep the two in step, same arrangement as
+  // `imagePresets.ts` and the API's CONSTANTS.
   const name = catalog.alias?.trim()
   const title = name ? `${name} — catálogo en Alkachof` : 'Catálogo en Alkachof'
   const description = clamp(

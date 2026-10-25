@@ -472,11 +472,14 @@ their pin.
 
 ### 7.7 The real constraint is on the seller side
 
-Most catalogs have **no coordinates on file**: there is no map picker in the seller UI yet, so
-until one ships the map is mostly empty, and that is not a client bug. The API half
-(`POST /location/catalog/:id`) is ready, and its three-state `lat`/`lng` semantics — absent leaves
-the pin alone, a pair moves it, two nulls remove it — are in §7 of the handover. That picker, and
-the dashboard prompt for a catalog with no location, is the obvious next story.
+Most catalogs have **no coordinates on file**, so the map is mostly empty and that is not a client
+bug. The picker shipped — `LocationMapPicker`, driven by `LocationEditDialog` from the catalog
+editor's *Ubicación* block — and with it the three-state `lat`/`lng` semantics in §7 of the
+handover: absent leaves the pin alone, a pair moves it, two nulls remove it.
+
+Since then a second gate landed: a located shop is returned only with `is_discoverable` set, which
+defaults off (`docs.OptInMapDiscoverable.frontend.md`). The dashboard prompt for a catalog that is
+unplaced — or placed and not listed — still does not exist and is the obvious next story.
 
 ---
 

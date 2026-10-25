@@ -96,7 +96,8 @@ describe('JoinPage', () => {
 
   it('renders the image placeholder when the catalog has no image', async () => {
     renderPage()
-    expect(await screen.findByLabelText('Este catálogo aún no tiene imagen')).toBeInTheDocument()
+    const img = await screen.findByRole('img', { name: 'Este catálogo aún no tiene imagen' })
+    expect(img).toHaveAttribute('src', '/catalog-placeholder.webp')
   })
 
   it('shows a guest a plain link to the catalog, and no Suscribirme button', async () => {

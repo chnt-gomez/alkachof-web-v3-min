@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchTransactions } from '../actions/fetchTransactions'
 import { fetchCatalogSummaries } from '../actions/fetchCatalogSummaries'
 import { fetchProfileSummaries } from '../actions/fetchProfileSummaries'
+import { PUBLIC_CATALOG_NAME, publicCatalogName } from '@/lib/catalogName'
 import type {
   OrdersScope,
   TransactionRole,
@@ -24,8 +25,7 @@ function appendNew<T extends { id: string }>(existing: T[], incoming: T[]): T[] 
   return [...existing, ...incoming.filter((row) => !held.has(row.id))]
 }
 
-/** Generic labels when a row's shop/buyer can't be resolved. */
-const CATALOG_FALLBACK = 'Catálogo'
+/** Generic label when a row's buyer can't be resolved; an unnamed shop uses PUBLIC_CATALOG_NAME. */
 const BUYER_FALLBACK = 'Comprador'
 
 export type TransactionsListStatus = 'loading' | 'ready' | 'error'
@@ -93,7 +93,7 @@ export function useTransactions({
           const summaries = await fetchCatalogSummaries(ids)
           setCatalogNames((prev) => {
             const next = { ...prev }
-            for (const id of ids) next[id] = summaries[id]?.alias || CATALOG_FALLBACK
+            for (const id of ids) next[id] = publicCatalogName(summaries[id]?.alias)
             return next
           })
         } else {
@@ -177,7 +177,9 @@ export function useTransactions({
   const headerFor = useCallback(
     (transaction: TransactionSummary): string => {
       if (role === 'buyer') {
-        return (transaction.catalogId && catalogNames[transaction.catalogId]) || CATALOG_FALLBACK
+        return (
+          (transaction.catalogId && catalogNames[transaction.catalogId]) || PUBLIC_CATALOG_NAME
+        )
       }
       return buyerNames[transaction.counterpartyId] || BUYER_FALLBACK
     },

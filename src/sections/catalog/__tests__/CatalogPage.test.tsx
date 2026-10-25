@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -19,6 +20,22 @@ vi.mock('../actions/broadcastCatalog')
 vi.mock('../actions/uploadCatalogImage')
 vi.mock('../actions/deleteCatalogImage')
 vi.mock('@/sections/publicCatalog/actions/fetchCatalogLocation')
+// Only the network call is mocked. `isMissingLocationError` stays real, so the
+// 409-means-"add a location" mapping is exercised rather than asserted twice.
+vi.mock('../actions/setCatalogDiscoverable', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../actions/setCatalogDiscoverable')>()),
+  setCatalogDiscoverable: vi.fn(),
+}))
+vi.mock('../actions/updateLocation')
+vi.mock('../actions/createLocation')
+// LocationEditDialog renders the Leaflet picker, which needs a sized DOM jsdom
+// does not provide. Same stub LocationMapPicker.test.tsx uses.
+vi.mock('react-leaflet', () => ({
+  MapContainer: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  TileLayer: () => null,
+  Marker: () => null,
+  useMapEvents: () => ({ flyTo: vi.fn() }),
+}))
 // Mocked so the optimize phase can be held open; defaults to a pass-through in
 // beforeEach so every other test sees the file it picked.
 vi.mock('@/lib/resizeImage', () => ({ resizeImage: vi.fn() }))
@@ -38,6 +55,11 @@ import { deleteItem } from '../actions/deleteItem'
 import { broadcastCatalog } from '../actions/broadcastCatalog'
 import { uploadCatalogImage } from '../actions/uploadCatalogImage'
 import { deleteCatalogImage } from '../actions/deleteCatalogImage'
+import { setCatalogDiscoverable } from '../actions/setCatalogDiscoverable'
+import { updateLocation } from '../actions/updateLocation'
+import { createLocation } from '../actions/createLocation'
+import { ApiError } from '@/lib/api'
+import type { CatalogLocation } from '@/sections/publicCatalog/actions/fetchCatalogLocation'
 
 const mockCatalog: Catalog = {
   _id: 'cat1',
@@ -51,6 +73,22 @@ const mockCatalog: Catalog = {
   locationZip: '68000',
   deliveryDates: [],
   deliveryLocations: [],
+}
+
+/** A located catalog, off the map — the state every existing seller starts in. */
+const mockLocation: CatalogLocation = {
+  _id: 'loc1',
+  lat: 19.432608,
+  lng: -99.133209,
+  street_name: 'Av. Insurgentes Sur',
+  city: 'Ciudad de México',
+  state: 'CDMX',
+  number: '300',
+  additional_number: '',
+  neighborhood: 'Roma Norte',
+  catalogId: 'cat1',
+  zoneId: null,
+  is_discoverable: false,
 }
 
 const mockItems: Item[] = [
@@ -120,6 +158,12 @@ beforeEach(() => {
   vi.mocked(broadcastCatalog).mockResolvedValue({ ok: true })
   vi.mocked(uploadCatalogImage).mockResolvedValue(withImage('https://cdn.test/cat1_123.png'))
   vi.mocked(deleteCatalogImage).mockResolvedValue(mockCatalog)
+  vi.mocked(setCatalogDiscoverable).mockImplementation(async (_id, isDiscoverable) => ({
+    ...mockLocation,
+    is_discoverable: isDiscoverable,
+  }))
+  vi.mocked(updateLocation).mockResolvedValue(mockLocation)
+  vi.mocked(createLocation).mockResolvedValue(mockLocation)
 })
 
 /** The API omits `image` entirely when unset, so build the present case explicitly. */
@@ -149,6 +193,45 @@ describe('CatalogPage', () => {
     renderPage()
     expect(await screen.findByText('Tienda de Prueba')).toBeInTheDocument()
     expect(screen.getByText('Bienvenidos')).toBeInTheDocument()
+  })
+
+  describe('the name placeholder', () => {
+    // The whole point of the fallback: it is drawn, never stored. A seller who
+    // opens the editor and saves anything else must not acquire it as a name.
+    const unnamed = { ...mockCatalog, alias: '' }
+
+    it('titles an unnamed catalog for its owner without storing that title', async () => {
+      vi.mocked(fetchMyCatalog).mockResolvedValue(unnamed)
+      const user = userEvent.setup()
+      renderPage()
+
+      expect(await screen.findByText('Mi Catálogo en Alkachof')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /editar catálogo/i }))
+      // The name field seeds from the raw alias, so it is empty — not primed
+      // with the fallback, which a save would then persist. It keeps its own
+      // example placeholder, which teaches a real name instead of offering ours.
+      const aliasInput = screen.getByPlaceholderText('Ej. Mi Tienda Artesanal')
+      expect(aliasInput).toHaveValue('')
+
+      await user.click(screen.getByRole('button', { name: 'Guardar' }))
+      await waitFor(() => expect(updateCatalog).toHaveBeenCalled())
+      expect(updateCatalog).toHaveBeenCalledWith('cat1', expect.objectContaining({ alias: '' }))
+    })
+
+    it('treats a whitespace-only alias as no name at all', async () => {
+      vi.mocked(fetchMyCatalog).mockResolvedValue({ ...mockCatalog, alias: '   ' })
+      renderPage()
+
+      expect(await screen.findByText('Mi Catálogo en Alkachof')).toBeInTheDocument()
+    })
+
+    it('never substitutes anything for a catalog that has a name', async () => {
+      renderPage()
+
+      expect(await screen.findByText('Tienda de Prueba')).toBeInTheDocument()
+      expect(screen.queryByText('Mi Catálogo en Alkachof')).not.toBeInTheDocument()
+    })
   })
 
   it('renders catalog description and location', async () => {
@@ -675,5 +758,221 @@ describe('CatalogPage catalog image', () => {
     await waitFor(() => expect(deleteCatalogImage).toHaveBeenCalledWith('cat1'))
     expect(await screen.findByRole('img', { name: /aún no tiene imagen/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /quitar imagen/i })).not.toBeInTheDocument()
+  })
+  // Opt-in map discoverability. Contract:
+  // `docs.OptInMapDiscoverable.frontend.md`.
+  describe('map discoverability', () => {
+    const TOGGLE = 'Permitir que me encuentren en el mapa'
+    const NEEDS_PIN = 'Agrega una ubicación con un punto en el mapa para poder aparecer.'
+
+    // LocationMapPicker's "use my location" button is the only way to place a
+    // pin with Leaflet stubbed, and the address dialog will not save without
+    // one. Same stub LocationMapPicker.test.tsx uses.
+    beforeEach(() => {
+      Object.defineProperty(globalThis.navigator, 'geolocation', {
+        configurable: true,
+        value: {
+          getCurrentPosition: (success: PositionCallback) =>
+            success({ coords: { latitude: 19.432608, longitude: -99.133209 } } as GeolocationPosition),
+        },
+      })
+    })
+
+    async function openEditor(user: ReturnType<typeof userEvent.setup>) {
+      await screen.findByText('Tienda de Prueba')
+      await user.click(screen.getByRole('button', { name: 'Editar catálogo' }))
+      return screen.findByRole('checkbox', { name: TOGGLE })
+    }
+
+    it('renders the toggle off and writable for a located catalog', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue(mockLocation)
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+
+      expect(toggle).not.toBeChecked()
+      expect(toggle).toBeEnabled()
+      expect(
+        screen.getByText(
+          'Tu catálogo no aparece en el mapa. Tu enlace y tu código QR siguen funcionando igual.',
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it('renders the toggle on when the catalog opted in', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue({ ...mockLocation, is_discoverable: true })
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+
+      expect(toggle).toBeChecked()
+      expect(screen.queryByText(/no aparece en el mapa/i)).not.toBeInTheDocument()
+    })
+
+    // Rendered, not hidden: a hidden control teaches nobody that the map exists.
+    it('renders the toggle disabled with a reason when the catalog has no location', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue(null)
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+
+      expect(toggle).toBeDisabled()
+      expect(screen.getByText(NEEDS_PIN)).toBeInTheDocument()
+    })
+
+    it('renders the toggle disabled when the stored coordinates are out of range', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue({ ...mockLocation, lat: 999 })
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+
+      expect(toggle).toBeDisabled()
+      expect(screen.getByText(NEEDS_PIN)).toBeInTheDocument()
+    })
+
+    // The API allows the exit from any state, and so must the UI: a seller whose
+    // coordinates are unusable is exactly one who wants off the map.
+    it('lets a catalog with unusable coordinates still opt out', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue({
+        ...mockLocation,
+        lat: 999,
+        is_discoverable: true,
+      })
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+      expect(toggle).toBeEnabled()
+
+      await user.click(toggle)
+      expect(setCatalogDiscoverable).toHaveBeenCalledWith('loc1', false)
+    })
+
+    it('flips the toggle before the request resolves and sends the opt-in', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue(mockLocation)
+      let release!: (location: CatalogLocation) => void
+      vi.mocked(setCatalogDiscoverable).mockReturnValue(
+        new Promise<CatalogLocation>((resolve) => {
+          release = resolve
+        }),
+      )
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+      await user.click(toggle)
+
+      expect(setCatalogDiscoverable).toHaveBeenCalledWith('loc1', true)
+      expect(toggle).toBeChecked()
+      expect(screen.getByText('Guardando…')).toBeInTheDocument()
+
+      release({ ...mockLocation, is_discoverable: true })
+      await waitFor(() => expect(screen.queryByText('Guardando…')).not.toBeInTheDocument())
+      expect(toggle).toBeChecked()
+    })
+
+    // A 409 is the one refusal a seller can cause. Its Spanish copy is ours and
+    // is keyed off the status — the API's own message is English.
+    it('rolls back and explains when the API refuses for want of a pin', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue(mockLocation)
+      vi.mocked(setCatalogDiscoverable).mockRejectedValue(
+        new ApiError('A location with valid coordinates is required', 409, {
+          message: 'A location with valid coordinates is required',
+        }),
+      )
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+      await user.click(toggle)
+
+      expect(
+        await screen.findByText('Agrega una ubicación en el mapa antes de aparecer.'),
+      ).toBeInTheDocument()
+      // The English the API sent must not reach the seller.
+      expect(screen.queryByText(/valid coordinates/i)).not.toBeInTheDocument()
+      expect(toggle).not.toBeChecked()
+    })
+
+    it('rolls back with a generic message on any other failure', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue(mockLocation)
+      vi.mocked(setCatalogDiscoverable).mockRejectedValue(new Error('Error de red'))
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+      await user.click(toggle)
+
+      expect(
+        await screen.findByText('No se pudo cambiar tu visibilidad en el mapa.'),
+      ).toBeInTheDocument()
+      expect(toggle).not.toBeChecked()
+    })
+
+    // This client's half of the no-clobber bargain. The API ignores the key on
+    // /update, but a body that carries it is still a bug worth catching here:
+    // it would mean the flag had leaked back onto the address form's type.
+    it('does not send is_discoverable when the address form is saved', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue({ ...mockLocation, is_discoverable: true })
+      const user = userEvent.setup()
+      renderPage()
+
+      await openEditor(user)
+      await user.click(screen.getByRole('button', { name: /editar ubicación/i }))
+      await user.click(await screen.findByRole('button', { name: 'Guardar ubicación' }))
+
+      await waitFor(() => expect(updateLocation).toHaveBeenCalled())
+      const [locationId, body] = vi.mocked(updateLocation).mock.calls[0]
+      expect(locationId).toBe('loc1')
+      expect(body).not.toHaveProperty('is_discoverable')
+    })
+
+    // A location is created with the flag off, so the seller who has just become
+    // placeable gets the invitation rather than silence.
+    it('invites the opt-in once a save makes the catalog placeable', async () => {
+      // Starts with an unusable pin, which is the state the toggle is disabled
+      // in — then the address form fixes it.
+      vi.mocked(fetchCatalogLocation).mockResolvedValue({ ...mockLocation, lat: 999 })
+      const user = userEvent.setup()
+      renderPage()
+
+      const toggle = await openEditor(user)
+      expect(toggle).toBeDisabled()
+      expect(
+        screen.queryByText('Ya tienes ubicación. ¿Quieres que te encuentren en el mapa?'),
+      ).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /editar ubicación/i }))
+      // The dialog refuses to save without a usable pin, so this has to place
+      // one — which is the real flow a seller in this state goes through.
+      await user.click(await screen.findByRole('button', { name: /usar mi ubicación actual/i }))
+      await user.click(await screen.findByRole('button', { name: 'Guardar ubicación' }))
+
+      expect(
+        await screen.findByText('Ya tienes ubicación. ¿Quieres que te encuentren en el mapa?'),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: TOGGLE })).toBeEnabled()
+    })
+
+    // The other half of that rule: a seller who is deliberately off the map and
+    // editing their street must not be nagged about the map every time.
+    it('does not invite the opt-in when an already-placed catalog edits its address', async () => {
+      vi.mocked(fetchCatalogLocation).mockResolvedValue(mockLocation)
+      const user = userEvent.setup()
+      renderPage()
+
+      await openEditor(user)
+      await user.click(screen.getByRole('button', { name: /editar ubicación/i }))
+      await user.click(await screen.findByRole('button', { name: 'Guardar ubicación' }))
+
+      await waitFor(() => expect(updateLocation).toHaveBeenCalled())
+      expect(
+        screen.queryByText('Ya tienes ubicación. ¿Quieres que te encuentren en el mapa?'),
+      ).not.toBeInTheDocument()
+    })
   })
 })
