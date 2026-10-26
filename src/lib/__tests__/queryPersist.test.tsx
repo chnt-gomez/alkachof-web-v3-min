@@ -41,6 +41,9 @@ const mockCatalog: Catalog = {
   deliveryLocations: [],
 }
 
+/** The stamp the showcase payload below was built from. */
+const SHOWCASE_STAMP = '2026-10-26T14:22:31.004Z'
+
 function Probe() {
   const { profile, isBooting, logout } = useAuth()
   // Not allowlisted — here to prove it stays out of the blob.
@@ -312,6 +315,37 @@ describe('query persistence', () => {
 
       await waitFor(() => expect(JSON.stringify(readBlob())).toContain(SHOP))
       expect(JSON.stringify(readBlob())).not.toContain('"stamp"')
+    })
+
+    /* --- The newest-catalogs showcase ------------------------------------ */
+
+    // A public list this user does not own, allowed on disk because it is gated
+    // twice over: the stamp catches an addition, and its own `staleTime` catches
+    // the removal the stamp cannot see.
+    it('persists the newest-catalogs showcase', async () => {
+      await bootAndPersist()
+      queryClient.setQueryData(['newest', 'list'], {
+        catalogs: [{ catalogId: 'new1', alias: 'Pan de Ana', createdOn: SHOWCASE_STAMP }],
+        updated: SHOWCASE_STAMP,
+      })
+
+      await waitFor(() => expect(JSON.stringify(readBlob())).toContain('Pan de Ana'))
+    })
+
+    // Same reason as the catalog stamp above: restored, the live value would
+    // equal the payload's own, the gate would see no change and the server would
+    // never be asked. The gate's loop guard is a note about that live value, so
+    // it stays off disk with it.
+    it('never persists the showcase stamp or the gate guard', async () => {
+      await bootAndPersist()
+      queryClient.setQueryData(['newest', 'list'], { catalogs: [], updated: SHOWCASE_STAMP })
+      queryClient.setQueryData(['newest', 'stamp'], { updated: 'live-stamp-value' })
+      queryClient.setQueryData(['newest', 'checked'], 'checked-stamp-value')
+
+      await waitFor(() => expect(JSON.stringify(readBlob())).toContain(SHOWCASE_STAMP))
+      const serialised = JSON.stringify(readBlob())
+      expect(serialised).not.toContain('live-stamp-value')
+      expect(serialised).not.toContain('checked-stamp-value')
     })
   })
 
