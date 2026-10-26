@@ -199,7 +199,8 @@ spinner entirely.
 
 #### Persistence (`src/lib/queryPersist.tsx`)
 
-The profile and the viewer's subscriptions survive a reload; nothing else does.
+The profile, the viewer's subscriptions and the newest-catalogs showcase survive a
+reload; nothing else does.
 
 - **`PERSISTED_KEYS` is an allowlist, never "everything that succeeded".** Adding a
   key is a decision about staleness, not a performance tweak. The **owner's own**
@@ -207,6 +208,11 @@ The profile and the viewer's subscriptions survive a reload; nothing else does.
   another device would render here forever. Never persist Pedidos, chat,
   notifications, the catalog's **location** (editing it does not move the freshness
   stamp), or anything built on a third-party CDN url (those links expire).
+- **A gate is what earns a key its place on disk, not ownership.** The
+  newest-catalogs showcase is a public list and is persisted anyway, because it is
+  gated twice over — see below. Its two companions are held back for the same
+  reason the catalog's live stamp is: a restored live stamp equals the payload's
+  own, and a gate that sees no change never asks.
 - **A *public* catalog persists only while the viewer subscribes to it** — see the
   freshness section below. Subscription is the bound on blob size; persisting every
   shop a visitor opens would need an LRU.
@@ -264,6 +270,49 @@ hold the three payloads it covers, under the `queryKeys.publicCatalog(id)` prefi
   another reason — belt and braces, not a guarantee. `followup.CatalogLocationStamp.md`
   is the ask to fix this properly; when it lands, delete `LOCATION_STALE_MS`, move
   the key under the `publicCatalog` prefix and allow the `location` scope on disk.
+
+#### The newest-catalogs showcase (`GET /newest`)
+
+Contract: `docs.NewestCatalogs.frontend.md`. Design record: `blueprint.NewestCatalogs.md`.
+The 25 newest shops on the platform, rendered on Home's Comprar tab. Both endpoints are
+public and ignore a token, so both actions pass `authenticated: false`.
+
+`useNewestCatalogs` (`src/sections/home/hooks/`) owns the gate and **mirrors
+`usePublicCatalogFreshness`** — same situation, same answer: a list this user does not
+write, made cacheable by a ~60-byte `GET /newest/updated`. Everything that is load-bearing
+there is load-bearing here: `refetchOnMount` and `refetchOnWindowFocus` overridden **on**
+for the stamp, `retry: 0`, **no interval poll**, and comparison for **inequality, never
+ordering**. Three things are its own:
+
+- **The row carries everything a card shows** — `alias`, `image`, `createdOn` — so there is
+  **no follow-up read per catalog**. Fanning out `GET /catalog/:id` 25 times would spend the
+  global rate budget (600 / 15 min, which `/newest` is counted by and `/newest/updated` is
+  exempt from) on data already in hand, and none of those calls would be gated.
+- **There is no `newestSynced` key, deliberately.** The public catalog needs one because
+  `GET /catalog/:id` returns no stamp; `GET /newest` carries its own `updated`, so the
+  baseline is a field of the payload — durable because the payload is persisted, and unable
+  to drift out of step with it.
+- **A removal does not move the stamp**, which is the newest row's `createdOn`, and a
+  deletion cannot move a maximum forward. So the payload also carries a **1-hour
+  `staleTime`** plus the `refetchOnMount` override — the same remedy, for the same reason, as
+  `useCatalogLocation`'s time bound. Do not try to detect removals properly: there is no
+  endpoint for it and none is planned. Do not hand-roll a `fetchedAt` either; React Query
+  dehydrates `dataUpdatedAt`, so the bound survives a reload on its own.
+
+`queryKeys.newestChecked()` is a **loop guard, not a baseline**: the list and the stamp are
+computed independently, so a stamp taken from a row the list filters out would never
+reconcile, and an unguarded gate would refetch on every mount and focus forever. It holds
+the live value already acted on, in the cache rather than a `useRef`, because Home remounts
+on every visit to `/`. `NewestCatalogsFreshness.test.tsx` pins it.
+
+The payload key is `['newest', 'list']` and **not `['newest']`**: `invalidateQueries` matches
+by prefix, so a root-keyed payload would drag the stamp into every refetch. The gate also
+passes `exact: true` — there is one payload here, so there is no subtree to invalidate.
+
+There is **no error case on either endpoint**. An empty showcase answers `200` with the
+epoch as its stamp; that is an ordinary comparison token, never "not found". A failed stamp
+read changes nothing and a failed list refetch keeps the rows in hand — the section reads
+`data` before `isError`, so the error block only appears when there is nothing to show.
 
 ### Findability (SEO, link previews, AI answers)
 
@@ -411,6 +460,7 @@ Key components and their file paths for quick reference:
 | `TransactionsPage` | `src/sections/transactions/TransactionsPage.tsx` |
 | `TransactionDetailDialog` | `src/sections/transactions/components/TransactionDetailDialog.tsx` |
 | `MapSearchPage` | `src/sections/mapSearch/MapSearchPage.tsx` |
+| `NewestCatalogList` | `src/sections/home/components/NewestCatalogList.tsx` |
 | UI primitives | `src/components/ui/` (`button.tsx`, `card.tsx`) |
 | Shared formatters | `src/lib/format.ts` (`formatPrice` cents→MXN, `formatDate` es-MX, `formatDistance` m/km) |
 
@@ -716,6 +766,35 @@ the contract, and do not start calling it.
 
 There is **no admin composer and never will be.** The API has no write route to build one against,
 deliberately — an announcement reaches every user at once. Do not scaffold one.
+
+### Newest catalogs showcase
+
+The 25 newest shops on the platform, under *Catálogos guardados* on Home's **Comprar** tab.
+Design record: `blueprint.NewestCatalogs.md`; the caching rules are in the Caching section
+above, and they are most of the feature.
+
+**No page, no route and no section folder** — like the news feed, it is a Home block:
+`actions/fetchNewestCatalogs.ts`, `hooks/useNewestCatalogs.ts` and
+`components/NewestCatalogList.tsx`, all in `src/sections/home/`. Promoting it to
+`src/sections/newestCatalogs/` is the move for the day it gets a route of its own, and not
+before.
+
+- **A blank name and a missing image are the normal case, not an error.** A catalog enters
+  the showcase when its owner verifies their phone, before they have necessarily named or
+  photographed it. Rows go through `publicCatalogName` (the **public** voice — the owner's
+  "Mi" would be someone else's shop) and `CatalogThumb`'s own placeholder, and **neither
+  fallback is ever written back**. `image` goes through `resolveMediaUrl`.
+- **An empty showcase is a valid answer**, not a failure state: a new environment, one where
+  the backend's backfill has not run, or a production where every listed seller is
+  deactivated at once.
+- **A card links to `/catalog/:catalogId`**, never `/join?catalogId=…` — that one is for a
+  cold arrival scanning a printed QR, and someone already inside the app is not that.
+- **All 25 rows, no client-side cap and no "ver todos".** The cap is the server's and the
+  response is the whole list; there is no pagination and nothing to page to.
+- **The showcase is not gated on `is_discoverable`** — that is the map's flag and the map's
+  only. A seller cannot opt out of the showcase; nothing in the UI may imply they can.
+- **Not on `AboutPage`.** Anything prerendered must render with no session, no browser and
+  **no API** (see *Findability*), so putting a live list there would fail the build.
 
 ### Environment
 

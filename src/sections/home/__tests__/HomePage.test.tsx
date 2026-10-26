@@ -26,6 +26,7 @@ vi.mock('@/sections/notifications/actions/fetchNotifications', async (importOrig
 }))
 vi.mock('../actions/fetchSavedCatalogs')
 vi.mock('../actions/fetchNews')
+vi.mock('../actions/fetchNewestCatalogs')
 
 import { fetchMyCatalog } from '@/sections/catalogs/actions/fetchMyCatalog'
 import { fetchCatalogItems } from '@/sections/catalog/actions/fetchCatalogItems'
@@ -34,6 +35,8 @@ import { fetchNotifications } from '@/sections/notifications/actions/fetchNotifi
 import { fetchSavedCatalogs } from '../actions/fetchSavedCatalogs'
 import { fetchNews } from '../actions/fetchNews'
 import type { News } from '../actions/fetchNews'
+import { fetchNewestCatalogs, fetchNewestUpdated } from '../actions/fetchNewestCatalogs'
+import type { NewestCatalogRow } from '../actions/fetchNewestCatalogs'
 
 const sampleCatalog = (overrides: Partial<Catalog> = {}): Catalog => ({
   _id: 'cat1',
@@ -67,6 +70,17 @@ const sampleNews = (overrides: Partial<News> = {}): News => ({
   date: new Date().toISOString(),
   title: 'Nuevas opciones de pago',
   message: 'Ya puedes aceptar transferencias.',
+  ...overrides,
+})
+
+/** The showcase stamp the mocked list and the mocked check agree on. */
+const NEWEST_STAMP = '2026-10-26T14:22:31.004Z'
+
+const sampleNewest = (overrides: Partial<NewestCatalogRow> = {}): NewestCatalogRow => ({
+  catalogId: 'new1',
+  alias: 'Pan de Ana',
+  image: 'https://cdn.test/pan.webp',
+  createdOn: new Date().toISOString(),
   ...overrides,
 })
 
@@ -114,6 +128,8 @@ beforeEach(() => {
   vi.mocked(fetchNotifications).mockResolvedValue([])
   vi.mocked(fetchNews).mockResolvedValue([])
   vi.mocked(fetchSavedCatalogs).mockResolvedValue([])
+  vi.mocked(fetchNewestCatalogs).mockResolvedValue({ catalogs: [], updated: NEWEST_STAMP })
+  vi.mocked(fetchNewestUpdated).mockResolvedValue({ updated: NEWEST_STAMP })
 })
 
 afterEach(() => {
@@ -321,6 +337,127 @@ describe('HomePage tabs', () => {
     await openComprar(user)
 
     expect(screen.getByRole('tab', { name: 'Comprar' })).toHaveClass('bg-buy', 'text-buy-ink')
+  })
+})
+
+/*
+  The showcase block. Its caching rules live in `NewestCatalogsFreshness.test.tsx`;
+  what is pinned here is what Comprar renders, and that a blank, pictureless shop
+  is an ordinary row rather than a hole in the list.
+*/
+describe('HomePage newest catalogs', () => {
+  it('renders the newest catalogs linking to their public view', async () => {
+    vi.mocked(fetchNewestCatalogs).mockResolvedValue({
+      catalogs: [
+        sampleNewest({ catalogId: 'new1', alias: 'Pan de Ana' }),
+        sampleNewest({ catalogId: 'new2', alias: 'Flores Lupita' }),
+      ],
+      updated: NEWEST_STAMP,
+    })
+    const user = userEvent.setup()
+    renderPage()
+    await openComprar(user)
+
+    expect(await screen.findByRole('heading', { name: 'Catálogos nuevos' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /ver catálogo pan de ana/i })).toHaveAttribute(
+      'href',
+      '/catalog/new1',
+    )
+    expect(screen.getByRole('link', { name: /ver catálogo flores lupita/i })).toHaveAttribute(
+      'href',
+      '/catalog/new2',
+    )
+  })
+
+  // A catalog enters the showcase when its owner verifies a phone, which is
+  // before they have necessarily named or photographed it. Both fallbacks are
+  // render-time only — nothing is ever written back to the row.
+  it('names and illustrates a shop its owner has not filled in yet', async () => {
+    vi.mocked(fetchNewestCatalogs).mockResolvedValue({
+      catalogs: [sampleNewest({ catalogId: 'blank', alias: '', image: undefined })],
+      updated: NEWEST_STAMP,
+    })
+    const user = userEvent.setup()
+    const { container } = renderPage()
+    await openComprar(user)
+
+    expect(await screen.findByText('Catálogo en Alkachof')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /ver catálogo catálogo en alkachof/i })).toHaveAttribute(
+      'href',
+      '/catalog/blank',
+    )
+
+    const img = container.querySelector('img[src="/catalog-placeholder.webp"]')
+    expect(img).not.toBeNull()
+    // Decorative: the row already names the shop in its link label, so a screen
+    // reader must not hear "no image" on every blank row of the list.
+    expect(img).toHaveAttribute('alt', '')
+    // The artwork's own background, painted behind it so the letterboxing a
+    // square slot leaves is invisible.
+    expect(img?.parentElement).toHaveStyle({ backgroundColor: '#fdedda' })
+  })
+
+  // The contract says `image` can be *absent*, but a blank string is what tends
+  // to arrive instead, and an empty `src` renders a broken-image glyph rather
+  // than falling back. A whitespace alias is the same shape of problem: it would
+  // leave a hole where the title goes.
+  it('treats a blank image url and a whitespace name as missing', async () => {
+    vi.mocked(fetchNewestCatalogs).mockResolvedValue({
+      catalogs: [sampleNewest({ catalogId: 'blank2', alias: '   ', image: '' })],
+      updated: NEWEST_STAMP,
+    })
+    const user = userEvent.setup()
+    const { container } = renderPage()
+    await openComprar(user)
+
+    expect(await screen.findByText('Catálogo en Alkachof')).toBeInTheDocument()
+    expect(container.querySelector('img[src="/catalog-placeholder.webp"]')).not.toBeNull()
+    expect(container.querySelector('img[src=""]')).toBeNull()
+  })
+
+  // An empty showcase is a valid answer — a new environment, or one where the
+  // backend's backfill has not run. Never an error state.
+  it('shows the empty showcase message when there are none', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await openComprar(user)
+
+    expect(await screen.findByText(/todavía no hay catálogos nuevos/i)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('does not read the showcase or its stamp until Comprar is opened', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Tienda de Prueba')
+
+    expect(fetchNewestCatalogs).not.toHaveBeenCalled()
+    expect(fetchNewestUpdated).not.toHaveBeenCalled()
+
+    await openComprar(user)
+
+    await waitFor(() => expect(fetchNewestCatalogs).toHaveBeenCalledTimes(1))
+  })
+
+  it('surfaces a retryable error without blanking the rest of the panel', async () => {
+    vi.mocked(fetchNewestCatalogs).mockRejectedValueOnce(new Error('boom'))
+    vi.mocked(fetchSavedCatalogs).mockResolvedValue([
+      sampleCatalog({ _id: 'saved1', userId: 'other', alias: 'Dulces La Abuela' }),
+    ])
+    const user = userEvent.setup()
+    renderPage()
+    await openComprar(user)
+
+    expect(await screen.findByText(/no pudimos cargar los catálogos nuevos/i)).toBeInTheDocument()
+    expect(screen.getByText('Dulces La Abuela')).toBeInTheDocument()
+
+    vi.mocked(fetchNewestCatalogs).mockResolvedValue({
+      catalogs: [sampleNewest({ catalogId: 'new1', alias: 'Pan de Ana' })],
+      updated: NEWEST_STAMP,
+    })
+    await user.click(screen.getByRole('button', { name: /reintentar/i }))
+
+    expect(await screen.findByText('Pan de Ana')).toBeInTheDocument()
   })
 })
 

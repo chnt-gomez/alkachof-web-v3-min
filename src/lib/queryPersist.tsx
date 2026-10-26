@@ -26,6 +26,14 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000
  *   than forever.
  * - `subscriptions` — owner-owned, and the list that decides which shops below
  *   are allowed on disk at all. It has to survive the reload the shops do.
+ * - `newestCatalogs` — the public showcase on Comprar. Not owned by this user,
+ *   and allowed here for the same reason the subscribed shops below are: it is
+ *   gated. `GET /newest/updated` catches an addition on the next mount or focus,
+ *   and its own `staleTime` catches the one thing that stamp cannot see — a
+ *   removal, which cannot move a maximum forward. Its companions are held back
+ *   on purpose: the **live** stamp restored from disk would equal the payload's
+ *   own and silence the gate, and the gate's loop guard is a note about that
+ *   live value. See `useNewestCatalogs`.
  *
  * The **owner's own** catalog and items are still held back. Nothing gates them:
  * a persisted list never refetches, so a product deleted on another device would
@@ -47,6 +55,7 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000
 const PERSISTED_KEYS: readonly QueryKey[] = [
   queryKeys.profile(),
   queryKeys.subscriptions(),
+  queryKeys.newestCatalogs(),
 ]
 
 /**

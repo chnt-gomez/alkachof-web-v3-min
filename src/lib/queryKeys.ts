@@ -68,6 +68,52 @@ export const queryKeys = {
    */
   catalogLocation: (catalogId: string) => ['catalog', 'location', catalogId] as const,
 
+  /* --- The newest-catalogs showcase --------------------------------------
+   *
+   * Public, global, and not owned by this user — the same position the public
+   * catalog is in, so the same shape of answer: a ~60-byte `GET /newest/updated`
+   * is what makes the list cacheable, and a time bound catches the one thing
+   * that stamp cannot see (a removal — see `useNewestCatalogs`).
+   *
+   * Nested under one root for readability only: the three are **siblings**. The
+   * list is `['newest', 'list']` and not `['newest']` because `invalidateQueries`
+   * matches by prefix — keyed at the root, every list invalidation would also
+   * refetch the stamp and get the same value back, which is one wasted request
+   * per change, forever.
+   */
+  /**
+   * The 25 rows, plus the stamp they were built from. The only one of the three
+   * that is persisted: it is gated two ways (the stamp for an addition, a
+   * `staleTime` for a removal).
+   *
+   * There is deliberately no `newestSynced` companion. The public catalog needs
+   * one because `GET /catalog/:id` returns no stamp, so its baseline has to be
+   * inferred and stored beside it; `GET /newest` carries its own `updated`, so
+   * the baseline is a field of this payload — durable because this is persisted,
+   * and incapable of drifting out of step because there is nothing to keep in
+   * step with.
+   */
+  newestCatalogs: () => ['newest', 'list'] as const,
+  /**
+   * The showcase stamp as the server currently reports it. **Never persisted**:
+   * restored, it would equal the payload's own stamp, the gate would see no
+   * change, and the server would never be asked — which is the one thing it must
+   * always do.
+   */
+  newestStamp: () => ['newest', 'stamp'] as const,
+  /**
+   * The live stamp the gate has already refetched against — a loop guard, not a
+   * baseline.
+   *
+   * The two endpoints are computed independently, so if they ever disagree
+   * permanently (a row the list filters out but the stamp was taken from), an
+   * unguarded gate would refetch on every mount and focus forever. Held here
+   * rather than in a `useRef` because Home remounts on every visit to "/".
+   * Never persisted: that would silence the gate in the case it exists for, and
+   * rebuilding it costs at most one request per cold start.
+   */
+  newestChecked: () => ['newest', 'checked'] as const,
+
   /* --- Deliberately absent: the news feed ---------------------------------
    *
    * TODO(cache): admin announcements stay on component state (`useAsyncSection`
