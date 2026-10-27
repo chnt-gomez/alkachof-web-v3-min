@@ -57,7 +57,78 @@ Two small indexed reads for the route that is meant to be polled, which is still
 far inside what `Cache-Control: max-age=30` and the rate-limit exemption were
 sized for.
 
-Nothing else changes: same response shapes, same semantics, same `max-age`.
+Same response shapes and the same `max-age`. The **semantics of `updated` do
+change**, which is the one part of this that is a contract edit rather than an
+implementation detail — see the next section.
+
+### Where it belongs in your layering
+
+Not in `newestCatalogRepository`: the max now spans two collections, and a
+repository reaching outside its own scope is the first thing your §C forbids.
+`newestCatalogService` is already the composition point (it reaches Catalog and
+User through their services), so it belongs there, reading `CatalogUpdated`
+through `catalogUpdatedService`.
+
+That service currently exposes only `getCatalogUpdated(catalogId)`, a
+single-catalog read, so this needs one batched addition beside it — something
+like `getLatestUpdatedAmong(catalogIds)` over a `latestAmong` in
+`catalogUpdatedRepository`: one `$in`, sorted `updated: -1`, `limit 1`. One
+indexed read, no N+1, and it keeps the cross-collection knowledge in the service
+layer where the rest of this feature's composition already lives.
+
+### Two invariants the change must not break
+
+**1. Take the max over the UNFILTERED rows, in both endpoints.** This is the one
+way to get this wrong and not notice. Today the two agree by construction:
+`getNewestCatalogs` derives `updated` from `rows[0].createdOn` *before* the
+active-owner filter, and `getNewestUpdated` reads the unfiltered maximum. Keep
+that. If the new max is taken over only the rows that survive the filter, the two
+endpoints disagree permanently whenever the newest row's owner is inactive — and
+a permanent disagreement is worse than the bug we are reporting. Our loop guard
+(`queryKeys.newestChecked`) stops that becoming a request loop, but the cached
+list would then never reconcile at all.
+
+**2. The stamp may now step backward, and that is fine.** A prune, or an edited
+shop ageing off the list, changes which ids the max covers, so the value can
+decrease. Harmless for us — the gate compares `!==`, never `>`, exactly so that
+the server's wall clock is allowed to misbehave — but please write it into the
+contract, because it is what rules `>` out for any future consumer. The
+equal-`max-age` invariant your controller comment defends is untouched by this,
+but it now depends on a second collection, so re-check it if the two reads ever
+get different cache windows.
+
+## Why redefining `updated` is safe
+
+Because **no consumer treats it as a timestamp.** The only operations on it
+anywhere in this client are `live === held` in `useNewestCatalogs` and the same
+comparison in `usePublicCatalogFreshness`. It is never rendered, never formatted,
+never ordered. Recency on the cards comes from each row's own `createdOn`, which
+this ask does not touch.
+
+So `updated` is already an opaque change token in practice, and widening what
+moves it breaks nothing that exists. That is what makes this a redefinition
+rather than a new field — and why we are **not** asking for `displayUpdated`
+alongside it. A second token would mean two comparisons on our side and would
+leave the old field with no consumer.
+
+For the same reason, please **do not** fix this by bumping a showcase row's
+`createdOn` on edit. It would move the row to the head of the list, so an edit
+would reorder "newest" — changing the meaning of the list is a far bigger
+contract change than changing the meaning of its stamp.
+
+### The three places the old meaning is written down
+
+All of them say "added", and all three need to change with the code:
+
+| Where | What it says today |
+|---|---|
+| `swagger.js` → `NewestCatalogsUpdatedResponse.updated` | *"When a shop was last **ADDED** to the showcase."* The removal caveat beside it stays true and should stay. |
+| `newestCatalogController.js` → `/newest/updated` description | *"Derived from the newest **row**, so it cannot disagree with the list it describes."* Still derived, and still cannot disagree — but no longer from one row. |
+| `newestCatalogService.getNewestUpdated` docblock | Argues the single-row derivation at length, including the deletion case. Worth amending rather than replacing: the argument is right, its scope just widens. |
+
+Plus `docs.NewestCatalogs.frontend.md` §4 and `followup.NewestCatalogsApi.md` on
+your side. We have already amended our copy of §4 to record that a removal is not
+the stamp's only blind spot.
 
 ## Why this is not the thing you declined
 
