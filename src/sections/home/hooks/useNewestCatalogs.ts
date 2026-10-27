@@ -14,23 +14,43 @@ const STAMP_STALE_MS = 30_000
  * How long the showcase may be trusted without re-reading it.
  *
  * The stamp below does the real work: it catches an **addition** on the next
- * mount or focus. This is the backstop for the one thing it cannot see. The
- * stamp is the newest row's `createdOn`, and a removal cannot move a maximum
- * forward — so when a shop leaves the showcase (its owner banned, its catalog
- * deleted) the stamp does not move, and a client holding a persisted copy would
- * keep drawing that card until the next shop is added.
+ * mount or focus. This is the backstop for the two things it cannot see, both of
+ * which follow from the stamp being `max(createdOn)` over the listed rows:
+ *
+ * - **A removal.** A deletion cannot move a maximum forward, so when a shop
+ *   leaves the showcase (its owner banned, its catalog deleted) the stamp does
+ *   not move, and a client holding a persisted copy would keep drawing that card
+ *   until the next shop is added.
+ * - **An edit to a listed shop.** Naming a catalog or uploading its image moves
+ *   that catalog's *own* stamp but no `createdOn`, so the showcase stamp sits
+ *   still. A shop enters the list the moment its owner verifies their phone —
+ *   before it has a name or a picture — so the row every client caches first is
+ *   the placeholder one, and the real name arrives outside the gate. This bound
+ *   is the only thing that corrects it. `followup.NewestCatalogsStamp.md` is the
+ *   ask to bring display data under the stamp; when it lands, this value can go
+ *   **up**, because the gate will be doing the work it is sized for.
  *
  * Same remedy and the same reasoning as `LOCATION_STALE_MS` in
  * `useCatalogLocation`, which carries a time bound precisely because a location
- * edit does not move the catalog's stamp either. An hour is generous: the list
- * changes a few times a day at most, and a shorter value buys nothing but
- * requests against a budget the list shares with the whole app.
+ * edit does not move the catalog's stamp either.
+ *
+ * **Ten minutes, and it is a deliberate overpay.** The list itself changes a few
+ * times a day, so for the removal case alone an hour was generous and this is
+ * ~6x the requests for nothing. It is priced for the *edit* case instead: a
+ * seller naming and photographing their shop does it in one sitting, so ten
+ * minutes is about the longest window in which the placeholder card is still in
+ * front of the person who just fixed it. The cost is one `GET /newest` per
+ * Comprar visit for every user, which is what the stamp read was meant to save —
+ * that is the trade, and it is temporary. **Raise this back towards an hour the
+ * day `followup.NewestCatalogsStamp.md` lands** and the gate covers edits
+ * properly; leaving a workaround in place after its reason is gone is how a
+ * constant becomes folklore.
  *
  * Unlike that one, this query **is** persisted, so the window survives a reload
  * on its own — React Query dehydrates `dataUpdatedAt` with the row. Never
  * hand-roll a `fetchedAt` field.
  */
-const NEWEST_MAX_AGE_MS = 60 * 60 * 1000
+const NEWEST_MAX_AGE_MS = 10 * 60 * 1000
 
 /** The showcase payload. Internal: every caller goes through the gate below, so
  *  nothing can read these rows without the check that keeps them honest. */

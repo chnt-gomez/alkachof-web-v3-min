@@ -185,7 +185,7 @@ queryKeys.newestCatalogs(),
 **Only the list.** Adding a key here is a decision about staleness, so, for the record:
 
 - The list **is** safe on disk, because it is gated two ways — the stamp catches an addition within
-  30 seconds of the next mount or focus, and the hour bound catches a removal (§5.3).
+  30 seconds of the next mount or focus, and the time bound catches a removal (§5.3).
 - Its `image` urls are minted and served by the API itself, so this is not the "built on a
   third-party CDN url" case the allowlist forbids. The public catalog payloads already persist the
   same kind of url.
@@ -202,7 +202,7 @@ from another tab). The showcase is public data that says nothing about who was s
 nothing here needs that — but it is the existing boundary and this feature does not get an
 exemption from it. The cost is one refetch after a logout.
 
-### 5.3 The hour bound, and the sharp edge it covers
+### 5.3 The time bound, and the two sharp edges it covers
 
 `updated` is the newest row's `createdOn`, and **a removal cannot move a maximum forward**. When a
 shop leaves the showcase — its owner banned, its catalog deleted — the stamp may not move at all,
@@ -227,17 +227,50 @@ So the payload is bounded by time as well:
  * because the list changes a few times a day at most, and a shorter value buys
  * nothing but requests.
  *
+ * [Shipped at an hour; **now 10 minutes** — see "The second edge" below. The
+ * reasoning in this paragraph still holds for the removal case, which is what
+ * it was written for; the shorter value is priced for the edit case.]
+ *
  * Unlike that one, this query **is** persisted, so the window survives a
  * reload on its own: React Query dehydrates `dataUpdatedAt` with the row.
  * Do not hand-roll a `fetchedAt` field.
  */
-const NEWEST_MAX_AGE_MS = 60 * 60 * 1000
+const NEWEST_MAX_AGE_MS = 10 * 60 * 1000
 ```
 
 **Do not try to detect removals properly.** There is no endpoint for it and none is planned; the
 API deliberately will not fabricate a stamp movement for a deletion, because a stamp two different
 causes can write is a stamp that starts disagreeing with its list. The time bound is the agreed
 answer on both sides.
+
+#### The second edge: an edit to a listed shop
+
+Found after shipping, and it is the one with the higher hit rate. The stamp is `max(createdOn)`, so
+**naming a catalog or uploading its image does not move it either** — those writes move that
+catalog's *own* `CatalogUpdated` stamp, which the showcase does not read.
+
+A shop joins the list the moment its owner verifies their phone, which is before it has a name or a
+picture (§5 of the handover is explicit that this is the normal case). So the row every client
+caches *first* is the placeholder one, the real name and photo arrive outside the gate, and this
+hour bound is the only thing that corrects it. Worse than the removal case in two ways: it happens
+to every new seller rather than to the rare ban, and the person most likely to be looking is the
+seller who just fixed it — the catalog editor and *Mi catálogo* show the real name immediately, one
+tab away from a showcase card that does not.
+
+Unlike the removal, this one **is** fixable at the stamp, and asking is strictly better than
+shortening the bound: `followup.NewestCatalogsStamp.md` asks for
+`max(max(createdOn), max(CatalogUpdated.updated) over the listed ids)`, which stays derived, adds no
+write path, and needs no client release — the deployed gate picks it up.
+
+**Interim, shipped 2026-10-27: the bound is 10 minutes, not an hour.** Priced for the edit case
+rather than the removal one — a seller names and photographs their shop in one sitting, and ten
+minutes is about the longest window in which the placeholder card is still in front of the person
+who just fixed it. For removals alone this is ~6x the requests for no gain, and it spends on every
+Comprar visit for every user exactly what the 30-byte stamp read exists to save. That is a
+deliberate overpay with an end date: **raise it back towards an hour the day the stamp ask lands.**
+The alternative we rejected was having `EditCatalogContext` patch the matching row in
+`['newest','list']` from the mutation response — in-idiom, but it fixes only the editing seller's
+own device and becomes dead weight on the same day.
 
 ### 5.4 The hook
 

@@ -292,12 +292,23 @@ ordering**. Three things are its own:
   `GET /catalog/:id` returns no stamp; `GET /newest` carries its own `updated`, so the
   baseline is a field of the payload — durable because the payload is persisted, and unable
   to drift out of step with it.
-- **A removal does not move the stamp**, which is the newest row's `createdOn`, and a
-  deletion cannot move a maximum forward. So the payload also carries a **1-hour
-  `staleTime`** plus the `refetchOnMount` override — the same remedy, for the same reason, as
-  `useCatalogLocation`'s time bound. Do not try to detect removals properly: there is no
-  endpoint for it and none is planned. Do not hand-roll a `fetchedAt` either; React Query
-  dehydrates `dataUpdatedAt`, so the bound survives a reload on its own.
+- **The stamp is `max(createdOn)`, so it misses two things** — a **removal** (a deletion
+  cannot move a maximum forward) and an **edit to a listed shop** (naming a catalog or
+  uploading its image moves that catalog's own stamp, not this one). So the payload also
+  carries a `staleTime` plus the `refetchOnMount` override — the same remedy, for the same
+  reason, as `useCatalogLocation`'s time bound. Do not hand-roll a `fetchedAt` either;
+  React Query dehydrates `dataUpdatedAt`, so the bound survives a reload on its own.
+  The removal is **not** fixable: there is no endpoint for it and none is planned, so do not
+  try to detect one. The edit **is**, at the stamp — `followup.NewestCatalogsStamp.md` asks
+  for it and the deployed gate needs no change to pick it up.
+- **`NEWEST_MAX_AGE_MS` is 10 minutes, and that is a temporary overpay.** An hour was the
+  shipped value and is still the right one for the removal case; ten minutes is priced for
+  the edit case, so the placeholder card corrects itself while the seller who just fixed it
+  is still looking. It costs one `GET /newest` per Comprar visit per user — the thing the
+  30-byte stamp read exists to save. **Raise it back towards an hour the day the stamp ask
+  lands.** It is the only lever to touch before then; never the gate, and do not patch rows
+  into `['newest','list']` from the catalog editor's mutations — that fixes one device and
+  dies on the same day.
 
 `queryKeys.newestChecked()` is a **loop guard, not a baseline**: the list and the stamp are
 computed independently, so a stamp taken from a row the list filters out would never
