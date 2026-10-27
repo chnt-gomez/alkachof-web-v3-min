@@ -151,6 +151,18 @@ Everything else transfers unchanged, including the parts that are load-bearing:
 
 ## 4. The sharp edge: a removal does not move the stamp
 
+> **Amendment, from the client side.** A removal is not the *only* thing the stamp misses. Because
+> it is `max(createdOn)`, an **edit to a listed catalog** — the seller naming their shop or
+> uploading its image — does not move it either, and that is the common case rather than the rare
+> one: a shop joins the list at phone verification, before it has either. The time bound below is
+> doing that work too, badly. `followup.NewestCatalogsStamp.md` is the ask to fix it at the stamp;
+> `blueprint.NewestCatalogs.md` §5.3 records the reasoning.
+>
+> Consequence for the code below: `NEWEST_MAX_AGE_MS` **ships at 10 minutes, not the hour this
+> section recommends.** The recommendation is sound for the removal case it was written for; the
+> shorter value is the interim price of covering edits with a clock. It goes back up when the
+> stamp ask lands.
+
 `updated` is the newest row's `createdOn`, and **a deletion cannot move a maximum forward.** So when
 a shop leaves the showcase — its owner was banned, its catalog was deleted — the stamp does not
 change and a stamp-only gate will never notice.
