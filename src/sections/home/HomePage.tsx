@@ -5,6 +5,7 @@ import { useNotifications } from '@/sections/notifications/useNotifications'
 import { fetchSavedCatalogs } from './actions/fetchSavedCatalogs'
 import { fetchNews } from './actions/fetchNews'
 import { useAsyncSection, type SectionStatus } from './hooks/useAsyncSection'
+import { useNewestCatalogs } from './hooks/useNewestCatalogs'
 import { readTab, type HomeTab } from './homeTabs'
 import { HomeTabs } from './components/HomeTabs'
 import { MisCosasPanel } from './components/MisCosasPanel'
@@ -71,6 +72,31 @@ export function HomePage() {
     opened.comprar,
   )
 
+  /*
+    The public showcase, gated by its own freshness stamp rather than by
+    `useAsyncSection` — it is the one block here this user does not own, and the
+    only one that is cached and persisted. `useNewestCatalogs` holds those
+    rules; this adapter only bends its query into the shape the panel's other
+    sections already have.
+  */
+  const comprarOpen = opened.comprar
+  const newestQuery = useNewestCatalogs(comprarOpen)
+
+  const newestCatalogs = useMemo(() => {
+    const data = newestQuery.data?.catalogs ?? null
+    // An unopened tab is `idle`, not `loading` — it has not been asked for. And
+    // data comes before the error: a failed *refetch* over rows we still hold
+    // is not something the user needs to be told about.
+    const status: SectionStatus = !comprarOpen
+      ? 'idle'
+      : data
+        ? 'ready'
+        : newestQuery.isError
+          ? 'error'
+          : 'loading'
+    return { status, data, reload: () => void newestQuery.refetch() }
+  }, [comprarOpen, newestQuery])
+
   return (
     <div className="flex flex-col gap-6 p-5">
       {/* The card's printed head: stock above the rule, manila below it, so
@@ -87,7 +113,7 @@ export function HomePage() {
       {tab === 'mis-cosas' ? (
         <MisCosasPanel myCatalog={myCatalog} notifications={notifications} news={news} />
       ) : (
-        <ComprarPanel savedCatalogs={savedCatalogs} />
+        <ComprarPanel savedCatalogs={savedCatalogs} newestCatalogs={newestCatalogs} />
       )}
     </div>
   )
