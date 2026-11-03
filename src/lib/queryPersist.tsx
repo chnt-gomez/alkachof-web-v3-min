@@ -26,7 +26,7 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000
  *   than forever.
  * - `subscriptions` — owner-owned, and the list that decides which shops below
  *   are allowed on disk at all. It has to survive the reload the shops do.
- * - `newestCatalogs` — the public showcase on Comprar. Not owned by this user,
+ * - `newestCatalogs` — the public showcase on Mis cosas. Not owned by this user,
  *   and allowed here for the same reason the subscribed shops below are: it is
  *   gated. `GET /newest/updated` catches an addition on the next mount or focus,
  *   and its own `staleTime` catches the one thing that stamp cannot see — a

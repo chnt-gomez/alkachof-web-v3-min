@@ -78,16 +78,19 @@ export function HomePage() {
     only one that is cached and persisted. `useNewestCatalogs` holds those
     rules; this adapter only bends its query into the shape the panel's other
     sections already have.
+
+    It rides `misCosasOpen` with the rest of that panel, which is the tab Home
+    lands on — so unlike the blocks behind Comprar, this one is normally asked
+    for on arrival. The stamp is what keeps that affordable.
   */
-  const comprarOpen = opened.comprar
-  const newestQuery = useNewestCatalogs(comprarOpen)
+  const newestQuery = useNewestCatalogs(misCosasOpen)
 
   const newestCatalogs = useMemo(() => {
     const data = newestQuery.data?.catalogs ?? null
     // An unopened tab is `idle`, not `loading` — it has not been asked for. And
     // data comes before the error: a failed *refetch* over rows we still hold
     // is not something the user needs to be told about.
-    const status: SectionStatus = !comprarOpen
+    const status: SectionStatus = !misCosasOpen
       ? 'idle'
       : data
         ? 'ready'
@@ -95,7 +98,7 @@ export function HomePage() {
           ? 'error'
           : 'loading'
     return { status, data, reload: () => void newestQuery.refetch() }
-  }, [comprarOpen, newestQuery])
+  }, [misCosasOpen, newestQuery])
 
   return (
     <div className="flex flex-col gap-6 p-5">
@@ -111,9 +114,14 @@ export function HomePage() {
       />
 
       {tab === 'mis-cosas' ? (
-        <MisCosasPanel myCatalog={myCatalog} notifications={notifications} news={news} />
+        <MisCosasPanel
+          myCatalog={myCatalog}
+          notifications={notifications}
+          news={news}
+          newestCatalogs={newestCatalogs}
+        />
       ) : (
-        <ComprarPanel savedCatalogs={savedCatalogs} newestCatalogs={newestCatalogs} />
+        <ComprarPanel savedCatalogs={savedCatalogs} />
       )}
     </div>
   )

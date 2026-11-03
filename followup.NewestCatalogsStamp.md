@@ -173,13 +173,13 @@ there for removals, and it is a loose fit:
 
 - The payload carries `staleTime: NEWEST_MAX_AGE_MS` plus a
   `refetchOnMount: true` override, so the placeholder card self-corrects on the
-  next visit to Home's *Comprar* tab once the bound expires. **We have dropped
+  next visit to Home once the bound expires. **We have dropped
   that bound from an hour to 10 minutes** to narrow the window, which is the
   whole of what we can do from here.
 - It also self-corrects, earlier and by luck, the next time **any** seller is
   activated: that moves `max(createdOn)`, and the refetch it triggers picks up
   every other row's current `alias` and `image` along with the new one.
-- There is no manual refresh. `ComprarPanel` wires `onRetry` to the error branch
+- There is no manual refresh. `MisCosasPanel` wires `onRetry` to the error branch
   only, so a user holding stale-but-present rows has no way to ask again — by
   design, and correct as long as the gate is trustworthy.
 
@@ -187,12 +187,13 @@ So a brand-new shop is advertised to the whole platform under a placeholder name
 and a placeholder picture, including to the seller who just fixed it. On their
 device the catalog editor and Home's *Mi catálogo* tile show the real name
 immediately (they write `queryKeys.myCatalog()` from the mutation response), so
-the showcase card one tab away is visibly, confusingly wrong. For a seller's
+the showcase card is visibly, confusingly wrong at the foot of the same screen. For a seller's
 first ten minutes on the product, that card is the product.
 
 **What the 10 minutes costs you**, so it is not a surprise in your traffic: the
 bound now expires between most visits, so `GET /newest` is fetched on roughly
-every mount of the Comprar tab rather than once an hour. That is ~6x the list
+every mount of Home — and the showcase sits on the panel Home lands on — rather
+than once an hour. That is ~6x the list
 reads, on a list that changes a few times a day — we are paying it to cover a
 case the stamp should cover, and the 30-byte `/newest/updated` read it was
 supposed to replace is now largely redundant. It is the reason this ask is worth

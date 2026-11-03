@@ -39,9 +39,10 @@ const STAMP_STALE_MS = 30_000
  * ~6x the requests for nothing. It is priced for the *edit* case instead: a
  * seller naming and photographing their shop does it in one sitting, so ten
  * minutes is about the longest window in which the placeholder card is still in
- * front of the person who just fixed it. The cost is one `GET /newest` per
- * Comprar visit for every user, which is what the stamp read was meant to save —
- * that is the trade, and it is temporary. **Raise this back towards an hour the
+ * front of the person who just fixed it. The cost is one `GET /newest` per Home
+ * visit for every user — and Home lands on the panel this block is on, so that
+ * is close to one per app open, which is what the stamp read was meant to save.
+ * That is the trade, and it is temporary. **Raise this back towards an hour the
  * day `followup.NewestCatalogsStamp.md` lands** and the gate covers edits
  * properly; leaving a workaround in place after its reason is gone is how a
  * constant becomes folklore.
@@ -86,8 +87,9 @@ function useNewestCatalogsQuery(enabled = true) {
  * live-updating "new shops" ticker is a product decision with a cost, not a
  * default.
  *
- * `enabled` is Home's `opened.comprar`: a user who never opens the buy tab
- * spends neither request.
+ * `enabled` is Home's `opened['mis-cosas']`: the showcase sits on the panel
+ * Home lands on, so in practice both requests are spent on arrival. A visitor
+ * who deep-links straight to Comprar and never comes back spends neither.
  */
 export function useNewestCatalogs(enabled = true) {
   const queryClient = useQueryClient()

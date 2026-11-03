@@ -71,7 +71,7 @@ function renderHome() {
       <ToastProvider>
         <AuthProvider>
           <NotificationsProvider>
-            <MemoryRouter initialEntries={['/?tab=comprar']}>
+            <MemoryRouter initialEntries={['/']}>
               <Routes>
                 <Route path="/" element={<HomePage />} />
               </Routes>
@@ -83,7 +83,7 @@ function renderHome() {
   )
 }
 
-/** Opens Home on Comprar, waits for the rows, and lets the gate settle. */
+/** Opens Home on Mis cosas, waits for the rows, and lets the gate settle. */
 async function visit() {
   const view = renderHome()
   await screen.findByText('Pan de Ana')

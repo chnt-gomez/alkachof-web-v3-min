@@ -1,9 +1,7 @@
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { SectionStatus } from '../hooks/useAsyncSection'
-import type { NewestCatalogRow } from '../actions/fetchNewestCatalogs'
 import { MapSearchCard } from './MapSearchCard'
 import { SavedCatalogList } from './SavedCatalogList'
-import { NewestCatalogList } from './NewestCatalogList'
 import { SectionSkeleton, SectionError } from './SectionState'
 import { panelId } from '../homeTabs'
 
@@ -15,19 +13,17 @@ type Section<T> = {
 
 type Props = {
   savedCatalogs: Section<Catalog[]>
-  newestCatalogs: Section<NewestCatalogRow[]>
 }
 
 /**
  * The buy half of Home: the doorway into map discovery, then the catalogs the
- * user already follows, then the newest shops on the platform.
+ * user already follows.
  *
- * The showcase goes last because the first two blocks are about this user — one
- * is where they are, the other is who they follow — and it is the only block
- * here that always has something in it. A user with no subscriptions and an
- * empty circle on the map still has somewhere to go.
+ * Both blocks are about this user — one is where they are, the other is who
+ * they follow. The platform-wide showcase lives on *Mis cosas*, the panel Home
+ * opens on.
  */
-export function ComprarPanel({ savedCatalogs, newestCatalogs }: Props) {
+export function ComprarPanel({ savedCatalogs }: Props) {
   return (
     <div
       id={panelId('comprar')}
@@ -52,29 +48,6 @@ export function ComprarPanel({ savedCatalogs, newestCatalogs }: Props) {
         )}
         {savedCatalogs.status === 'ready' && savedCatalogs.data && (
           <SavedCatalogList catalogs={savedCatalogs.data} />
-        )}
-      </section>
-
-      <section className="flex flex-col gap-3" aria-labelledby="home-newest-catalogs">
-        <div className="flex flex-col gap-0.5">
-          <h2 id="home-newest-catalogs" className="text-lg font-semibold">
-            Catálogos nuevos
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Las tiendas más recientes en Alkachof
-          </p>
-        </div>
-        {newestCatalogs.status === 'loading' && (
-          <SectionSkeleton label="Cargando catálogos nuevos" />
-        )}
-        {newestCatalogs.status === 'error' && (
-          <SectionError
-            message="No pudimos cargar los catálogos nuevos."
-            onRetry={newestCatalogs.reload}
-          />
-        )}
-        {newestCatalogs.status === 'ready' && newestCatalogs.data && (
-          <NewestCatalogList catalogs={newestCatalogs.data} />
         )}
       </section>
     </div>

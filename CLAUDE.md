@@ -274,8 +274,9 @@ hold the three payloads it covers, under the `queryKeys.publicCatalog(id)` prefi
 #### The newest-catalogs showcase (`GET /newest`)
 
 Contract: `docs.NewestCatalogs.frontend.md`. Design record: `blueprint.NewestCatalogs.md`.
-The 25 newest shops on the platform, rendered on Home's Comprar tab. Both endpoints are
-public and ignore a token, so both actions pass `authenticated: false`.
+The 25 newest shops on the platform, rendered at the foot of Home's **Mis cosas** tab, below
+the news. Both endpoints are public and ignore a token, so both actions pass
+`authenticated: false`.
 
 `useNewestCatalogs` (`src/sections/home/hooks/`) owns the gate and **mirrors
 `usePublicCatalogFreshness`** — same situation, same answer: a list this user does not
@@ -304,7 +305,8 @@ ordering**. Three things are its own:
 - **`NEWEST_MAX_AGE_MS` is 10 minutes, and that is a temporary overpay.** An hour was the
   shipped value and is still the right one for the removal case; ten minutes is priced for
   the edit case, so the placeholder card corrects itself while the seller who just fixed it
-  is still looking. It costs one `GET /newest` per Comprar visit per user — the thing the
+  is still looking. It costs one `GET /newest` per Home visit per user — and Home lands on
+  the panel this block sits on, so that is close to one per app open, which is the thing the
   30-byte stamp read exists to save. **Raise it back towards an hour the day the stamp ask
   lands.** It is the only lever to touch before then; never the gate, and do not patch rows
   into `['newest','list']` from the catalog editor's mutations — that fixes one device and
@@ -780,9 +782,9 @@ deliberately — an announcement reaches every user at once. Do not scaffold one
 
 ### Newest catalogs showcase
 
-The 25 newest shops on the platform, under *Catálogos guardados* on Home's **Comprar** tab.
-Design record: `blueprint.NewestCatalogs.md`; the caching rules are in the Caching section
-above, and they are most of the feature.
+The 25 newest shops on the platform, the last block on Home's **Mis cosas** tab — the panel
+Home lands on — below *Noticias*. Design record: `blueprint.NewestCatalogs.md`; the caching
+rules are in the Caching section above, and they are most of the feature.
 
 **No page, no route and no section folder** — like the news feed, it is a Home block:
 `actions/fetchNewestCatalogs.ts`, `hooks/useNewestCatalogs.ts` and

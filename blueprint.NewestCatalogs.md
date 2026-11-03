@@ -1,12 +1,12 @@
-# Blueprint — Newest catalogs showcase (Comprar)
+# Blueprint — Newest catalogs showcase (Mis cosas)
 
 **Status:** implemented. This is the design record; `CLAUDE.md` holds the operative rules (§11
 lists the edits it took).
 **Source:** `feature.NewestCatalogs.md`.
 **Contract:** `docs.NewestCatalogs.frontend.md` — the backend handover. The API is implemented and
 live; there is no flag.
-**Scope:** one new block on Home's **Comprar** tab, two new public reads, three new cache keys, one
-new persisted key. **No route, no page, no section folder, no mutation.**
+**Scope:** one new block on Home's **Mis cosas** tab, two new public reads, three new cache keys,
+one new persisted key. **No route, no page, no section folder, no mutation.**
 
 The backend's own plan is also called `blueprint.NewestCatalogs.md` and lives in `alkachof-api`.
 This file is the client half; where the two disagree, §4 and §5.3 say so explicitly.
@@ -15,21 +15,24 @@ This file is the client half; where the two disagree, §4 and §5.3 say so expli
 
 ## 1. What it is
 
-A public showcase of the 25 most recently opened shops, newest first, rendered as a list under
-**Catálogos guardados** on the Comprar tab of Home.
+A public showcase of the 25 most recently opened shops, newest first, rendered as the last block
+on the Mis cosas tab of Home, below **Noticias**.
 
 ```
-ComprarPanel
-├─ <MapSearchCard />              # unchanged — the doorway into /map
-├─ Catálogos guardados            # unchanged — the shops this user follows
-└─ Catálogos nuevos               # NEW — the 25 newest shops on the platform
+MisCosasPanel
+├─ Mi catálogo                    # unchanged — this seller's own shop
+├─ Notificaciones                 # unchanged — the live list
+├─ Noticias                       # unchanged — admin announcements
+└─ Catálogos nuevos               # the 25 newest shops on the platform
 ```
 
-It answers the empty-state problem Comprar has today: a user with no subscriptions and no shop
-nearby sees a dashed box telling them they have nothing, and a map that may be empty in their
-colonia. The showcase is the one block on that tab that always has something in it.
+It goes last because the three blocks above it are this user's own — their shop, what happened to
+it, what they are being told — and this one belongs to nobody, which is also why its freshness is
+gated by a stamp rather than by `useAsyncSection`. Mis cosas is the panel Home lands on, so it is
+the floor of the first screen of the app: whatever else is empty, there is always somewhere to go
+from here.
 
-Two things make it cheap enough to put on a tab people open constantly:
+Two things make it cheap enough to put on the panel every session opens on:
 
 - **One request returns every row it needs.** The payload carries the name and the image — §4.
 - **A ~60-byte question gates the refetch.** `GET /newest/updated` is the same stamp pattern
@@ -51,7 +54,7 @@ src/sections/home/
 ├── actions/fetchNewestCatalogs.ts      # NEW — both reads + both types
 ├── hooks/useNewestCatalogs.ts          # NEW — the two queries, the gate, the section adapter
 ├── components/NewestCatalogList.tsx    # NEW — presentational; rows + empty state
-├── components/ComprarPanel.tsx         # one added section
+├── components/MisCosasPanel.tsx        # one added section
 └── HomePage.tsx                        # one added hook call, one added prop
 ```
 
@@ -266,7 +269,8 @@ write path, and needs no client release — the deployed gate picks it up.
 rather than the removal one — a seller names and photographs their shop in one sitting, and ten
 minutes is about the longest window in which the placeholder card is still in front of the person
 who just fixed it. For removals alone this is ~6x the requests for no gain, and it spends on every
-Comprar visit for every user exactly what the 30-byte stamp read exists to save. That is a
+Home visit for every user — close to one per app open, since Home lands on this panel — exactly
+what the 30-byte stamp read exists to save. That is a
 deliberate overpay with an end date: **raise it back towards an hour the day the stamp ask lands.**
 The alternative we rejected was having `EditCatalogContext` patch the matching row in
 `['newest','list']` from the mutation response — in-idiom, but it fixes only the editing seller's
@@ -350,8 +354,9 @@ export function useNewestCatalogs(enabled = true) {
 }
 ```
 
-`enabled` is `opened.comprar`: a user who never opens the buy tab spends neither request, and the
-restored blob is simply never read.
+`enabled` is `opened['mis-cosas']`: the showcase sits on the panel Home lands on, so in practice
+both requests are spent on arrival. A visitor who deep-links straight to Comprar and never comes
+back spends neither, and the restored blob is simply never read.
 
 ### 5.5 Two deliberate differences from the catalog version
 
@@ -394,17 +399,17 @@ The rules, in order of how likely they are to be got wrong:
 
 ### 6.1 The section adapter
 
-`ComprarPanel` already takes `{ status, data, reload }` for `savedCatalogs`. Keep that shape so the
-panel stays homogeneous — `HomePage` builds it from the query exactly as it already does for
-`myCatalog`:
+`MisCosasPanel` already takes `{ status, data, reload }` for `myCatalog` and `news`. Keep that
+shape so the panel stays homogeneous — `HomePage` builds it from the query exactly as it already
+does for those two:
 
 ```ts
-const newest = useNewestCatalogs(opened.comprar)
+const newest = useNewestCatalogs(misCosasOpen)
 
 const newestSection = useMemo(() => {
   const data = newest.data?.catalogs ?? null
   // An unopened tab is `idle`, not `loading` — it has not been asked for.
-  const status: SectionStatus = !opened.comprar
+  const status: SectionStatus = !misCosasOpen
     ? 'idle'
     // Data first: a failed *refetch* over rows we still hold is not an error
     // the user needs to see.
@@ -414,7 +419,7 @@ const newestSection = useMemo(() => {
         ? 'error'
         : 'loading'
   return { status, data, reload: () => void newest.refetch() }
-}, [opened.comprar, newest])
+}, [misCosasOpen, newest])
 ```
 
 ### 6.2 Assume a blank, pictureless shop
@@ -493,7 +498,8 @@ once. Build it as a dashed box in the shape `SavedCatalogList` already uses for 
 | Row link label | `Ver catálogo {nombre}` |
 | Unnamed shop | `Catálogo en Alkachof` (from `PUBLIC_CATALOG_NAME`) |
 
-*Novedades* is not used: that word is already the news feed's territory on the other tab. Nothing
+*Novedades* is not used: that word is already the news feed's territory, and the feed sits
+directly above this block. Nothing
 here says "cerca de ti" or implies proximity — this is newest anywhere, and nearby shops are the
 map's job.
 
@@ -505,12 +511,15 @@ map's job.
 
 `vi.mock('../actions/fetchNewestCatalogs')` beside the existing action mocks.
 
-1. Opening Comprar renders the heading and one row per catalog, linking to `/catalog/:id`.
-2. A row with `alias: ''` renders *"Catálogo en Alkachof"*, and a row with no `image` renders the
+1. Opening Home renders the heading and one row per catalog, linking to `/catalog/:id`.
+2. The `<h2>`s read *Mi catálogo, Notificaciones, Noticias, Catálogos nuevos* in document order —
+   the placement, pinned, because nothing else here would notice the block moving.
+3. A row with `alias: ''` renders *"Catálogo en Alkachof"*, and a row with no `image` renders the
    placeholder — the two normal-case fallbacks of §6.2.
-3. An empty `catalogs` array renders the empty state, not the error block.
-4. **Neither read fires while the user is on Mis cosas.** The `enabled` gate, pinned.
-5. A rejected `fetchNewestCatalogs` renders the error block with a working `Reintentar`, and does
+4. An empty `catalogs` array renders the empty state, not the error block.
+5. **Neither read fires while the user is on Comprar.** The `enabled` gate, pinned — a deep link to
+   `/?tab=comprar` is the only way to observe it, since Home otherwise lands on this panel.
+6. A rejected `fetchNewestCatalogs` renders the error block with a working `Reintentar`, and does
    not blank the rest of the panel.
 
 ### `src/sections/home/__tests__/NewestCatalogsFreshness.test.tsx` — new suite
@@ -548,7 +557,7 @@ Beside the existing "never persists the live freshness stamp":
 4. `hooks/useNewestCatalogs.ts` — the queries and the gate. Suite §8.2 here; it is the part with
    the real rules in it.
 5. `components/NewestCatalogList.tsx` — rows, fallbacks, empty state.
-6. `ComprarPanel.tsx` + `HomePage.tsx` — the section and the adapter. Cases §8.1 here.
+6. `MisCosasPanel.tsx` + `HomePage.tsx` — the section and the adapter. Cases §8.1 here.
 7. `CLAUDE.md` (§11).
 
 Steps 1–4 are the feature; 5–6 are a list. Verify against a real API on the test ids in
