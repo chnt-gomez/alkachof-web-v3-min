@@ -342,8 +342,9 @@ describe('HomePage tabs', () => {
 
 /*
   The showcase block. Its caching rules live in `NewestCatalogsFreshness.test.tsx`;
-  what is pinned here is what Comprar renders, and that a blank, pictureless shop
-  is an ordinary row rather than a hole in the list.
+  what is pinned here is what Mis cosas renders — the panel Home lands on, under
+  the notifications — and that a blank, pictureless shop is an ordinary row
+  rather than a hole in the list.
 */
 describe('HomePage newest catalogs', () => {
   it('renders the newest catalogs linking to their public view', async () => {
@@ -354,9 +355,7 @@ describe('HomePage newest catalogs', () => {
       ],
       updated: NEWEST_STAMP,
     })
-    const user = userEvent.setup()
     renderPage()
-    await openComprar(user)
 
     expect(await screen.findByRole('heading', { name: 'Catálogos nuevos' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /ver catálogo pan de ana/i })).toHaveAttribute(
@@ -369,6 +368,20 @@ describe('HomePage newest catalogs', () => {
     )
   })
 
+  // The floor of the landing panel: the three blocks above it are this user's
+  // own, and this one belongs to nobody. Pinned by document order, because
+  // nothing else here would notice the block moving.
+  it('sits last on the panel, below the news', async () => {
+    renderPage()
+    await screen.findByRole('heading', { name: 'Catálogos nuevos' })
+
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((node) => node.textContent)
+
+    expect(headings).toEqual(['Mi catálogo', 'Notificaciones', 'Noticias', 'Catálogos nuevos'])
+  })
+
   // A catalog enters the showcase when its owner verifies a phone, which is
   // before they have necessarily named or photographed it. Both fallbacks are
   // render-time only — nothing is ever written back to the row.
@@ -377,9 +390,7 @@ describe('HomePage newest catalogs', () => {
       catalogs: [sampleNewest({ catalogId: 'blank', alias: '', image: undefined })],
       updated: NEWEST_STAMP,
     })
-    const user = userEvent.setup()
     const { container } = renderPage()
-    await openComprar(user)
 
     expect(await screen.findByText('Catálogo en Alkachof')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /ver catálogo catálogo en alkachof/i })).toHaveAttribute(
@@ -406,9 +417,7 @@ describe('HomePage newest catalogs', () => {
       catalogs: [sampleNewest({ catalogId: 'blank2', alias: '   ', image: '' })],
       updated: NEWEST_STAMP,
     })
-    const user = userEvent.setup()
     const { container } = renderPage()
-    await openComprar(user)
 
     expect(await screen.findByText('Catálogo en Alkachof')).toBeInTheDocument()
     expect(container.querySelector('img[src="/catalog-placeholder.webp"]')).not.toBeNull()
@@ -418,38 +427,36 @@ describe('HomePage newest catalogs', () => {
   // An empty showcase is a valid answer — a new environment, or one where the
   // backend's backfill has not run. Never an error state.
   it('shows the empty showcase message when there are none', async () => {
-    const user = userEvent.setup()
     renderPage()
-    await openComprar(user)
 
     expect(await screen.findByText(/todavía no hay catálogos nuevos/i)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('does not read the showcase or its stamp until Comprar is opened', async () => {
+  // Home lands on Mis cosas, so the usual case is that both reads happen on
+  // arrival. A visitor deep-linked to Comprar pays for neither until they come
+  // back — which is the only way to observe the gate from here.
+  it('does not read the showcase or its stamp until Mis cosas is opened', async () => {
     const user = userEvent.setup()
-    renderPage()
-    await screen.findByText('Tienda de Prueba')
+    renderPage('/?tab=comprar')
+    await screen.findByRole('heading', { name: 'Catálogos guardados' })
 
     expect(fetchNewestCatalogs).not.toHaveBeenCalled()
     expect(fetchNewestUpdated).not.toHaveBeenCalled()
 
-    await openComprar(user)
+    await user.click(screen.getByRole('tab', { name: 'Mis cosas' }))
 
     await waitFor(() => expect(fetchNewestCatalogs).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(fetchNewestUpdated).toHaveBeenCalledTimes(1))
   })
 
   it('surfaces a retryable error without blanking the rest of the panel', async () => {
     vi.mocked(fetchNewestCatalogs).mockRejectedValueOnce(new Error('boom'))
-    vi.mocked(fetchSavedCatalogs).mockResolvedValue([
-      sampleCatalog({ _id: 'saved1', userId: 'other', alias: 'Dulces La Abuela' }),
-    ])
     const user = userEvent.setup()
     renderPage()
-    await openComprar(user)
 
     expect(await screen.findByText(/no pudimos cargar los catálogos nuevos/i)).toBeInTheDocument()
-    expect(screen.getByText('Dulces La Abuela')).toBeInTheDocument()
+    expect(screen.getByText('Tienda de Prueba')).toBeInTheDocument()
 
     vi.mocked(fetchNewestCatalogs).mockResolvedValue({
       catalogs: [sampleNewest({ catalogId: 'new1', alias: 'Pan de Ana' })],

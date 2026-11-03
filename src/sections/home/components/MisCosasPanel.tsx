@@ -2,8 +2,10 @@ import type { NotificationsState } from '@/sections/notifications/notificationsC
 import type { Catalog } from '@/sections/publicCatalog/actions/fetchPublicCatalog'
 import type { SectionStatus } from '../hooks/useAsyncSection'
 import type { News } from '../actions/fetchNews'
+import type { NewestCatalogRow } from '../actions/fetchNewestCatalogs'
 import { MyCatalogCard } from './MyCatalogCard'
 import { NotificationList } from './NotificationList'
+import { NewestCatalogList } from './NewestCatalogList'
 import { NewsList } from './NewsList'
 import { SectionSkeleton, SectionError } from './SectionState'
 import { panelId } from '../homeTabs'
@@ -18,10 +20,20 @@ type Props = {
   myCatalog: Section<{ catalog: Catalog; itemCount: number }>
   notifications: NotificationsState
   news: Section<News[]>
+  newestCatalogs: Section<NewestCatalogRow[]>
 }
 
-/** The seller's own half of Home: their catalog, their notifications, the news. */
-export function MisCosasPanel({ myCatalog, notifications, news }: Props) {
+/**
+ * The landing half of Home: the user's catalog, their notifications, the news,
+ * then the newest shops on the platform.
+ *
+ * The showcase goes last because the three blocks above it are this user's own —
+ * their shop, what happened to it, what they are being told — and it is the one
+ * block here that belongs to nobody, which is also why its freshness is gated by
+ * a stamp rather than by `useAsyncSection`. It is the floor of the panel Home
+ * opens on: whatever else is empty, there is always somewhere to go from here.
+ */
+export function MisCosasPanel({ myCatalog, notifications, news, newestCatalogs }: Props) {
   return (
     <div
       id={panelId('mis-cosas')}
@@ -71,6 +83,29 @@ export function MisCosasPanel({ myCatalog, notifications, news }: Props) {
           <SectionError message="No pudimos cargar las noticias." onRetry={news.reload} />
         )}
         {news.status === 'ready' && news.data && <NewsList news={news.data} />}
+      </section>
+
+      <section className="flex flex-col gap-3" aria-labelledby="home-newest-catalogs">
+        <div className="flex flex-col gap-0.5">
+          <h2 id="home-newest-catalogs" className="text-lg font-semibold">
+            Catálogos nuevos
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Las tiendas más recientes en Alkachof
+          </p>
+        </div>
+        {newestCatalogs.status === 'loading' && (
+          <SectionSkeleton label="Cargando catálogos nuevos" />
+        )}
+        {newestCatalogs.status === 'error' && (
+          <SectionError
+            message="No pudimos cargar los catálogos nuevos."
+            onRetry={newestCatalogs.reload}
+          />
+        )}
+        {newestCatalogs.status === 'ready' && newestCatalogs.data && (
+          <NewestCatalogList catalogs={newestCatalogs.data} />
+        )}
       </section>
     </div>
   )
